@@ -1,0 +1,65 @@
+[
+  {
+    "name": "Uno",
+    "description": "A classic card game where players match colors and numbers to be the first to empty their hand.",
+    "age_rating": "7+",
+    "game_type": "card",
+    "player_count": {
+      "min_players": 2,
+      "max_players": 10
+    },
+    "duration": "30 minutes",
+    "equipment": [
+      {
+        "equipment_name": "Uno deck"
+      }
+    ],
+    "themes": [
+      {
+        "theme_name": "Family"
+      },
+      {
+        "theme_name": "Strategy"
+      },
+      {
+        "theme_name": "Fun"
+      }
+    ],
+    "rules": "Players take turns matching a card in their hand with the top card of the discard pile by color or number. Special cards reverse play, skip turns, or force draws.",
+    "image_url": "https://example.com/images/uno.jpg",
+    "is_public": true
+  },
+  {
+    "name": "Codenames",
+    "description": "A social word game where players give one-word clues to help their team guess the correct words on the board.",
+    "age_rating": "12+",
+    "game_type": "party",
+    "player_count": {
+      "min_players": 4,
+      "max_players": 8
+    },
+    "duration": "15-30 minutes",
+    "equipment": [
+      {
+        "equipment_name": "Codenames word cards"
+      },
+      {
+        "equipment_name": "Timer (optional)"
+      }
+    ],
+    "themes": [
+      {
+        "theme_name": "Teamwork"
+      },
+      {
+        "theme_name": "Strategy"
+      },
+      {
+        "theme_name": "Wordplay"
+      }
+    ],
+    "rules": "Players split into two teams and try to guess all their team's words on the board using one-word clues. The clue giver cannot say any part of the word or use gestures. The first team to guess all their words correctly wins.",
+    "image_url": "https://example.com/images/codenames.jpg",
+    "is_public": true
+  }
+]
