@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from backend.api.users import get_current_active_user
-from backend.core.exceptions import FORBIDDEN_EXCEPTION
+from backend.core.exceptions import FORBIDDEN_EXCEPTION, GAME_NOT_FOUND_EXCEPTION
 from backend.db.database import get_db
 from backend.db.tables import Game, GameEquipment, GameTheme, User
-from backend.models.enums import GameType, AgeRating, Vote
+from backend.models.enums.age_rating_enum import AgeRating
+from backend.models.enums.game_type_enum import GameType
+from backend.models.enums.vote_type_enum import Vote
 from backend.models.game import GameCreate, GameRead, GameUpdate
 from backend.models.game_equipment import GameEquipmentBase
 from backend.models.game_theme import GameThemeBase
@@ -37,6 +39,7 @@ def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
         rules=new_game.rules,
         image_url=new_game.image_url,
         is_public=new_game.is_public,
+        is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         created_at=datetime.now(timezone.utc),
         contributor_id=current_user.id
     )
@@ -62,7 +65,7 @@ def upvote_game(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_active_user)
 ):
-    return change_game_votes(Vote.upvote, game_id, current_user, db)
+    return change_game_votes(Vote.upvote, game_id, current_user, remove, db)
 
 
 @router.post("/{game_id}/downvote", status_code=200)
@@ -83,7 +86,7 @@ def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
 
     db_game: Game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
-        raise HTTPException(status_code=404, detail="Game not found")
+        raise GAME_NOT_FOUND_EXCEPTION
 
     if vote_change == Vote.upvote and not remove:
         db_game.upvotes += 1
@@ -112,7 +115,6 @@ def get_all_games(
         equipment: Optional[str] = None,
         db: Session = Depends(get_db),
 ):
-
     query = db.query(Game).options(
         joinedload(Game.equipment_items),  # eager-load equipment
         joinedload(Game.theme_items),  # eager-load themes
@@ -162,8 +164,7 @@ def update_game(
 
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
-        raise HTTPException(status_code=404, detail="Game not found")
-
+        raise GAME_NOT_FOUND_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key in ["equipment", "themes"]:
@@ -199,7 +200,8 @@ def map_game_to_read(db_game: Game) -> GameRead:
             username=db_game.contributor.username,
             country_of_origin=db_game.contributor.country_of_origin,
         ),
-        created_at=db_game.created_at
+        created_at=db_game.created_at,
+        is_whats_that_game_certified=db_game.is_whats_that_game_verified
     )
 
 
@@ -210,7 +212,7 @@ def delete_game(game_id: str, db: Session = Depends(get_db), current_user: User 
         return FORBIDDEN_EXCEPTION
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
-        raise HTTPException(status_code=404, detail="Game not found")
+        raise GAME_NOT_FOUND_EXCEPTION
 
     # Authorization check: only the contributor can delete
     if db_game.contributor_id != current_user.id:
