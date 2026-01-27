@@ -5,7 +5,11 @@ from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, E
 from backend.db.database import Base
 from sqlalchemy.orm import relationship
 
-from backend.models.enums import AgeRating, GameType, Role
+from backend.models.enums.age_rating_enum import AgeRating
+from backend.models.enums.equipment_enum import GameEquipmentEnum
+from backend.models.enums.game_theme_enum import GameThemeEnum
+from backend.models.enums.game_type_enum import GameType
+from backend.models.enums.role_enum import Role
 
 
 class User(Base):
@@ -30,15 +34,20 @@ class Game(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
     age_rating = Column(Enum(AgeRating), nullable=False)
+
     game_type = Column(Enum(GameType), nullable=False)
+
     min_players = Column(Integer, nullable=False)
     max_players = Column(Integer, nullable=False)
     duration = Column(String, nullable=False)
     rules = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
     is_public = Column(Boolean, nullable=False, default=True)
+    is_whats_that_game_verified = Column(Boolean, nullable=False, default=False)
+
     upvotes = Column(Integer, nullable=False, default=0)
     downvotes = Column(Integer, nullable=False, default=0)
+
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -51,10 +60,10 @@ class GameEquipment(Base):
     __tablename__ = "game_equipment"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey("games.id"), nullable=False)
-    equipment_name = Column(String, nullable=False)
+    equipment_name = Column(Enum(GameEquipmentEnum), nullable=False)
 
 class GameTheme(Base):
     __tablename__ = "game_themes"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey("games.id"), nullable=False)
-    theme_name = Column(String, nullable=False)
+    theme_name = Column(Enum(GameThemeEnum), nullable=False)
