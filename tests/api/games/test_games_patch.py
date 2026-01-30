@@ -1,4 +1,4 @@
-from models.game import GameUpdate
+from backend.models import GameUpdate
 from tests.utils import valid_game_payload
 from backend.db.tables import Game, GameEquipment, GameTheme
 
