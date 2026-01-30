@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from typing import Optional, List
 
@@ -5,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
-from backend.api.users import get_current_active_user
-from backend.core.exceptions import FORBIDDEN_EXCEPTION, GAME_NOT_FOUND_EXCEPTION
+from backend.api.users import get_current_active_user, get_current_user_optional
+from backend.core.exceptions import GAME_NOT_FOUND_EXCEPTION, FORBIDDEN_EXCEPTION
 from backend.db.database import get_db
 from backend.db.tables import Game, GameEquipment, GameTheme, User
 from backend.models.enums.age_rating_enum import AgeRating
@@ -15,19 +17,18 @@ from backend.models.enums.vote_type_enum import Vote
 from backend.models.game import GameCreate, GameRead, GameUpdate
 from backend.models.game_equipment import GameEquipmentBase
 from backend.models.game_theme import GameThemeBase
+from backend.models.game_vote import GameVoteRead
 from backend.models.player_count import PlayerCount
 from backend.models.user import UserPublicRead
 
-router = APIRouter()
+protected_router = APIRouter(dependencies=[Depends(get_current_active_user)])
+public_router = APIRouter()
 
 
 # CREATE
-@router.post("/", response_model=GameRead, status_code=201)
+@protected_router.post("/", response_model=GameRead, status_code=201)
 def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_active_user)):
-    if not current_user:
-        return FORBIDDEN_EXCEPTION
-
     db_new_game = Game(
         name=new_game.name,
         description=new_game.description,
@@ -58,32 +59,27 @@ def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
 
     return map_game_to_read(db_new_game)
 
-@router.post("/{game_id}/upvote", status_code=200)
+
+@protected_router.post("/{game_id}/upvote", status_code=200, response_model=GameVoteRead)
 def upvote_game(
         game_id: str,
-        remove: bool,
+        remove: bool = False,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
 ):
-    return change_game_votes(Vote.upvote, game_id, current_user, remove, db)
+    return change_game_votes(Vote.upvote, game_id, remove, db)
 
 
-@router.post("/{game_id}/downvote", status_code=200)
+@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameRead)
 def downvote_game(
         game_id: str,
         remove: bool,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
 ):
-    return change_game_votes(Vote.downvote, game_id, remove, current_user, db)
+    return change_game_votes(Vote.downvote, game_id, remove, db)
 
 
 def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
-                      current_user: User,
                       db: Session):
-    if not current_user:
-        raise FORBIDDEN_EXCEPTION
-
     db_game: Game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
@@ -95,15 +91,20 @@ def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
     elif vote_change == Vote.downvote and not remove:
         db_game.downvotes += 1
     elif vote_change == Vote.downvote and remove:
-        db_game.upvotes -= 1
+        db_game.downvotes -= 1
 
     db.commit()
     db.refresh(db_game)
-    return {"upvotes": db_game.upvotes, "downvotes": db_game.downvotes}
+
+    return GameVoteRead(
+        game_id=db_game.id,
+        upvotes=db_game.upvotes,
+        downvotes=db_game.downvotes
+    )
 
 
 # READ
-@router.get("/", response_model=List[GameRead])
+@public_router.get("/", response_model=List[GameRead], status_code=200)
 def get_all_games(
         name: Optional[str] = None,
         game_type: Optional[GameType] = None,
@@ -113,8 +114,12 @@ def get_all_games(
         duration: Optional[str] = None,
         theme: Optional[str] = None,
         equipment: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
         db: Session = Depends(get_db),
 ):
+    limit = min(limit, 100)
+    offset = max(offset, 0)
     query = db.query(Game).options(
         joinedload(Game.equipment_items),  # eager-load equipment
         joinedload(Game.theme_items),  # eager-load themes
@@ -145,31 +150,72 @@ def get_all_games(
     if equipment:
         query = query.join(Game.equipment_items).filter(GameEquipment.equipment_name.ilike(f"%{equipment}%"))
 
-    games = query.distinct().all()
+    games = (query.distinct()
+             .limit(limit)
+             .offset(offset)
+             .all())
 
-    # Map ORM objects to GameRead Pydantic model
     return [map_game_to_read(game) for game in games]
 
 
+@public_router.get("/{game_id}", response_model=GameRead)
+def get_game_by_id(
+        game_id: str,
+        db: Session = Depends(get_db),
+        current_user: User | None = Depends(get_current_user_optional),
+):
+    game: Game | None = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    if not game.is_public:
+        if not current_user or game.contributor_id != current_user.id:
+            raise FORBIDDEN_EXCEPTION
+
+    return map_game_to_read(game)
+
+
 # UPDATE
-@router.patch("/{game_id}", response_model=GameRead, status_code=status.HTTP_200_OK)
+@protected_router.patch("/{game_id}", response_model=GameRead, status_code=status.HTTP_200_OK)
 def update_game(
         game_id: str,
         updates: GameUpdate,
-        current_user: User = Depends(get_current_active_user),
+        _current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
 ):
-    if not current_user:
-        return FORBIDDEN_EXCEPTION
-
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
+    if db_game.contributor_id != _current_user.id:
+        raise FORBIDDEN_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key in ["equipment", "themes"]:
             continue
         setattr(db_game, key, value)
+
+    if "equipment" in update_data:
+        db.query(GameEquipment).filter(
+            GameEquipment.game_id == db_game.id
+        ).delete()
+
+        for eq in updates.equipment or []:
+            db.add(GameEquipment(
+                game_id=db_game.id,
+                equipment_name=eq.equipment_name
+            ))
+
+        # --- themes ---
+    if "themes" in update_data:
+        db.query(GameTheme).filter(
+            GameTheme.game_id == db_game.id
+        ).delete()
+
+        for th in updates.themes or []:
+            db.add(GameTheme(
+                game_id=db_game.id,
+                theme_name=th.theme_name
+            ))
 
     db.commit()
     db.refresh(db_game)
@@ -206,19 +252,15 @@ def map_game_to_read(db_game: Game) -> GameRead:
 
 
 # DELETE
-@router.delete("/{game_id}", status_code=204)
+@protected_router.delete("/{game_id}", status_code=204)
 def delete_game(game_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if not current_user:
-        return FORBIDDEN_EXCEPTION
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
 
-    # Authorization check: only the contributor can delete
     if db_game.contributor_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not allowed to delete this game")
 
     db.delete(db_game)
     db.commit()
     return None
-# Methods

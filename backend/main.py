@@ -7,7 +7,7 @@ app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
 app.include_router(users.router, prefix="/users", tags=["users"])
-app.include_router(games.router, prefix="/games", tags=["games"])
+app.include_router(games.protected_router, prefix="/games", tags=["games"])
 app.include_router(auth.router, prefix="", tags=["auth"])
 
 

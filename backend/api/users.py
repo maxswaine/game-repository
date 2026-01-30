@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -22,6 +24,17 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise NOT_FOUND_EXCEPTION
     return user
 
+def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    if not token:
+        return None
+    try:
+        username = verify_access_token(token)
+        return db.query(User).filter(User.username == username).first()
+    except FORBIDDEN_EXCEPTION:
+        return None
 
 def get_current_active_user(current_user: User = Depends(get_current_user)):
     if not current_user.is_active:

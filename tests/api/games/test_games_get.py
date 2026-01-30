@@ -1,14 +1,14 @@
-from tests.utils import valid_game_payload
+from tests.api.games.helper import create_game
+from tests.conftest import client_with_auth, client_no_auth
+from tests.utils import valid_game_payload, valid_user_payload
 
-def test_get_games_returns_list(client):
+
+def test_get_games_returns_list(client_with_auth, client_no_auth):
     # First, create a game
-    payload = valid_game_payload()
-    post_response = client.post("/games/", json=payload)
-    assert post_response.status_code == 201
-    created_game = post_response.json()
+    created_game = create_game(client_with_auth)
 
     # Now, fetch all games
-    get_response = client.get("/games/")
+    get_response = client_no_auth.get("/games/")
     assert get_response.status_code == 200
 
     data = get_response.json()
