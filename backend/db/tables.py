@@ -2,13 +2,13 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum
-from backend.db.database import Base
 from sqlalchemy.orm import relationship
 
-from backend.models.enums.age_rating_enum import AgeRating
+from backend.db.database import Base
+from backend.models.enums.age_rating_enum import AgeRatingEnum
 from backend.models.enums.equipment_enum import GameEquipmentEnum
 from backend.models.enums.game_theme_enum import GameThemeEnum
-from backend.models.enums.game_type_enum import GameType
+from backend.models.enums.game_type_enum import GameTypeEnum
 from backend.models.enums.role_enum import Role
 
 
@@ -33,9 +33,9 @@ class Game(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    age_rating = Column(Enum(AgeRating), nullable=False)
+    age_rating = Column(Enum(AgeRatingEnum), nullable=False)
 
-    game_type = Column(Enum(GameType), nullable=False)
+    game_type = Column(Enum(GameTypeEnum), nullable=False)
 
     min_players = Column(Integer, nullable=False)
     max_players = Column(Integer, nullable=False)

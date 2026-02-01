@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from backend.core.exceptions import NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, FORBIDDEN_EXCEPTION
+from backend.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from backend.core.security import verify_access_token, hash_password
 from backend.db.database import get_db
 from backend.db.tables import User
@@ -19,8 +21,21 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     token_data = verify_access_token(token)
     user = db.query(User).filter(User.username == token_data.username).first()
     if user is None:
-        raise NOT_FOUND_EXCEPTION
+        raise USER_NOT_FOUND_EXCEPTION
     return user
+
+
+def get_current_user_optional(
+        token: str | None = Depends(oauth2_scheme),
+        db: Session = Depends(get_db),
+):
+    if not token:
+        return None
+    try:
+        token_data = verify_access_token(token)
+        return db.query(User).filter(User.username == token_data.username).first()
+    except HTTPException:
+        return None
 
 
 def get_current_active_user(current_user: User = Depends(get_current_user)):
@@ -55,26 +70,27 @@ def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
 # READ
 @router.get("/me", response_model=UserPrivateRead, status_code=200)
 def get_current_user(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)):
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db)):
     if not current_user:
-        raise FORBIDDEN_EXCEPTION
+        raise UNAUTHORIZED_EXCEPTION
     return db.query(User).filter(User.id == current_user.id).first()
+
 
 # UPDATE
 # DELETE
 @router.delete("/{user_id}", status_code=204)
 def delete_account(
-    user_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+        user_id: str,
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db)
 ):
     if str(current_user.id) != str(user_id):
         raise HTTPException(status_code=403, detail="Not allowed to delete this account")
 
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
-        raise NOT_FOUND_EXCEPTION
+        raise USER_NOT_FOUND_EXCEPTION
 
     db.delete(user)
     db.commit()
