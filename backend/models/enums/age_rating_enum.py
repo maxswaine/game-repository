@@ -1,6 +1,7 @@
 from enum import Enum
 
-class AgeRating(str, Enum):
+
+class AgeRatingEnum(str, Enum):
     age_3 = "3+"
     age_7 = "7+"
     age_12 = "12+"

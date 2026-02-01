@@ -1,15 +1,11 @@
-from backend.core.security import verify_password, hash_password
+from backend.core.security import verify_password
 from backend.db.tables import User
-from backend.db.database import get_db
+from tests.api.games.helper import create_user
 from tests.utils import valid_user_payload
 
 def test_create_user_success(client_no_auth, db):
     payload = valid_user_payload()
-    response = client_no_auth.post("/users/register/", json=payload)
-
-    assert response.status_code == 201
-    data = response.json()
-    print(data)
+    data = create_user(client_no_auth, payload)
 
     assert data["username"] == payload["username"]
     assert data["country_of_origin"] == payload["country_of_origin"]

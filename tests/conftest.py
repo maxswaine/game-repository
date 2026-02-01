@@ -78,6 +78,23 @@ def client_no_auth(db):
 
 
 @pytest.fixture
+def client_as_second_user(db, second_user):
+    def override_get_db():
+        yield db
+
+    def override_get_current_active_user():
+        return second_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    with TestClient(app) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def test_user(db):
     user = User(
         id=str(uuid.uuid4()),
@@ -85,7 +102,26 @@ def test_user(db):
         lastname="User",
         username="testuser",
         email="test@example.com",
-        hashed_password="password",
+        hashed_password="$2b$12$b/B6ENyF.s93r2xvNx5ksuVdh.819Wvs5Q/GaHQlpO/F11.TC.SXe",
+        country_of_origin="GB",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def second_user(db):
+    user = User(
+        id=str(uuid.uuid4()),
+        firstname="Other",
+        lastname="User",
+        username="otheruser",
+        email="other@example.com",
+        hashed_password="not-used",
         country_of_origin="GB",
         is_active=True,
         created_at=datetime.now(timezone.utc),

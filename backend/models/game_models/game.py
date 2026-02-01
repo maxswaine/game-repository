@@ -3,19 +3,19 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.db.tables import GameType
-from backend.models.enums.age_rating_enum import AgeRating
-from backend.models.game_equipment import GameEquipmentBase
-from backend.models.game_theme import GameThemeBase
-from backend.models.player_count import PlayerCount
+from backend.db.tables import GameTypeEnum
+from backend.models.enums.age_rating_enum import AgeRatingEnum
+from backend.models.game_models.game_equipment import GameEquipmentBase
+from backend.models.game_models.game_theme import GameThemeBase
+from backend.models.game_models.player_count import PlayerCount
 from backend.models.user import UserPublicRead
 
 
 class GameBase(BaseModel):
     name: str
     description: str
-    age_rating: AgeRating
-    game_type: GameType
+    age_rating: AgeRatingEnum
+    game_type: GameTypeEnum
     player_count: PlayerCount
     duration: str
     equipment: List[GameEquipmentBase]
@@ -40,8 +40,8 @@ class GameRead(GameBase):
 
 class GameUpdate(BaseModel):
     name: Optional[str] = None
-    game_type: Optional[GameType] = None
-    age_rating: Optional[AgeRating] = None
+    game_type: Optional[GameTypeEnum] = None
+    age_rating: Optional[AgeRatingEnum] = None
     min_players: Optional[int] = None
     max_players: Optional[int] = None
     duration: Optional[str] = None

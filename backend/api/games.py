@@ -8,27 +8,36 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from backend.api.users import get_current_active_user, get_current_user_optional
-from backend.core.exceptions import GAME_NOT_FOUND_EXCEPTION, FORBIDDEN_EXCEPTION
+from backend.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from backend.db.database import get_db
 from backend.db.tables import Game, GameEquipment, GameTheme, User
-from backend.models.enums.age_rating_enum import AgeRating
-from backend.models.enums.game_type_enum import GameType
+from backend.models.enums.age_rating_enum import AgeRatingEnum
+from backend.models.enums.equipment_enum import GameEquipmentEnum
+from backend.models.enums.game_theme_enum import GameThemeEnum
+from backend.models.enums.game_type_enum import GameTypeEnum
 from backend.models.enums.vote_type_enum import Vote
-from backend.models.game import GameCreate, GameRead, GameUpdate
-from backend.models.game_equipment import GameEquipmentBase
-from backend.models.game_theme import GameThemeBase
-from backend.models.game_vote import GameVoteRead
-from backend.models.player_count import PlayerCount
+from backend.models.game_models.game import GameCreate, GameRead, GameUpdate
+from backend.models.game_models.game_equipment import GameEquipmentBase
+from backend.models.game_models.game_metadata import GameMetadata
+from backend.models.game_models.game_report import GameReportRequest, GameReportResponse
+from backend.models.game_models.game_theme import GameThemeBase
+from backend.models.game_models.game_visibility import GameVisibility
+from backend.models.game_models.game_vote import GameVoteRead
+from backend.models.game_models.player_count import PlayerCount
 from backend.models.user import UserPublicRead
 
-protected_router = APIRouter(dependencies=[Depends(get_current_active_user)])
+protected_router = APIRouter()
 public_router = APIRouter()
+
+
+def auth_required():
+    return Depends(get_current_active_user)
 
 
 # CREATE
 @protected_router.post("/", response_model=GameRead, status_code=201)
 def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
-                    current_user: User = Depends(get_current_active_user)):
+                    current_user: User = auth_required()):
     db_new_game = Game(
         name=new_game.name,
         description=new_game.description,
@@ -65,15 +74,18 @@ def upvote_game(
         game_id: str,
         remove: bool = False,
         db: Session = Depends(get_db),
+        _current_user: User = auth_required()
 ):
     return change_game_votes(Vote.upvote, game_id, remove, db)
 
 
-@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameRead)
+@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameVoteRead)
 def downvote_game(
         game_id: str,
         remove: bool,
         db: Session = Depends(get_db),
+        _current_user: User = auth_required()
+
 ):
     return change_game_votes(Vote.downvote, game_id, remove, db)
 
@@ -103,12 +115,23 @@ def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
     )
 
 
+@protected_router.post("/{game_id}/report", status_code=201, response_model=GameReportResponse)
+def report_game(
+        game_id: str,
+        game_report: GameReportRequest,
+        db: Session = Depends(get_db),
+        _current_user: User = auth_required()
+
+):
+    return GameReportResponse(message="Report received")
+
+
 # READ
 @public_router.get("/", response_model=List[GameRead], status_code=200)
 def get_all_games(
         name: Optional[str] = None,
-        game_type: Optional[GameType] = None,
-        age_rating: Optional[AgeRating] = None,
+        game_type: Optional[GameTypeEnum] = None,
+        age_rating: Optional[AgeRatingEnum] = None,
         min_players: Optional[int] = None,
         max_players: Optional[int] = None,
         duration: Optional[str] = None,
@@ -158,7 +181,36 @@ def get_all_games(
     return [map_game_to_read(game) for game in games]
 
 
-@public_router.get("/{game_id}", response_model=GameRead)
+@public_router.get("/metadata", response_model=GameMetadata, status_code=200)
+def get_metadata():
+    return GameMetadata(
+        game_types=[gt.value for gt in GameTypeEnum],
+        age_ratings=[ar.value for ar in AgeRatingEnum],
+        game_themes=[gth.value for gth in GameThemeEnum],
+        game_equipment=[eq.value for eq in GameEquipmentEnum]
+    )
+
+
+@protected_router.get("/mine", response_model=List[GameRead], status_code=200)
+def get_my_games(
+        db: Session = Depends(get_db),
+        current_user: User = auth_required(),
+        limit: int = 20,
+        offset: int = 0,
+):
+    limit = min(limit, 100)
+    offset = max(offset, 0)
+    return (db.query(Game).options(
+        joinedload(Game.equipment_items),
+        joinedload(Game.theme_items),
+        joinedload(Game.contributor),
+    ).filter(Game.contributor_id == current_user.id)
+            .limit(limit)
+            .offset(offset)
+            .all())
+
+
+@public_router.get("/{game_id}", response_model=GameRead, status_code=200)
 def get_game_by_id(
         game_id: str,
         db: Session = Depends(get_db),
@@ -176,21 +228,23 @@ def get_game_by_id(
 
 
 # UPDATE
-@protected_router.patch("/{game_id}", response_model=GameRead, status_code=status.HTTP_200_OK)
+@protected_router.patch("/{game_id}", response_model=GameRead, status_code=200)
 def update_game(
         game_id: str,
         updates: GameUpdate,
-        _current_user: User = Depends(get_current_active_user),
+        current_user: User = auth_required(),
         db: Session = Depends(get_db),
 ):
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
-    if db_game.contributor_id != _current_user.id:
-        raise FORBIDDEN_EXCEPTION
+    if db_game.contributor_id != current_user.id:
+        raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key in ["equipment", "themes"]:
+            continue
+        if value is None:
             continue
         setattr(db_game, key, value)
 
@@ -205,7 +259,6 @@ def update_game(
                 equipment_name=eq.equipment_name
             ))
 
-        # --- themes ---
     if "themes" in update_data:
         db.query(GameTheme).filter(
             GameTheme.game_id == db_game.id
@@ -216,6 +269,23 @@ def update_game(
                 game_id=db_game.id,
                 theme_name=th.theme_name
             ))
+
+    db.commit()
+    db.refresh(db_game)
+
+    return map_game_to_read(db_game)
+
+
+@protected_router.patch("/{game_id}/visibility", response_model=GameRead, status_code=200)
+def change_game_visibility(game_id: str, game_visibility: GameVisibility, db: Session = Depends(get_db),
+                           current_user: User = auth_required()):
+    db_game: Game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+    if db_game.contributor_id != current_user.id:
+        raise UNAUTHORIZED_EXCEPTION
+
+    setattr(db_game, "is_public", game_visibility.is_public)
 
     db.commit()
     db.refresh(db_game)
@@ -253,7 +323,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
 
 # DELETE
 @protected_router.delete("/{game_id}", status_code=204)
-def delete_game(game_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+def delete_game(game_id: str, db: Session = Depends(get_db), current_user: User = auth_required()):
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION

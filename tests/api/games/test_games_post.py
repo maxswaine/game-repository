@@ -1,14 +1,14 @@
 from backend.models.enums.equipment_enum import GameEquipmentEnum
 from backend.models.enums.game_theme_enum import GameThemeEnum
-from tests.api.games.helper import create_game, upvote_game
+from tests.api.games.helper import create_public_game, upvote_game
 from tests.conftest import client_with_auth
-from tests.utils import valid_game_payload
+from tests.utils import valid_public_game_payload
 
 
 def test_create_game_success(client_with_auth):
-    payload = valid_game_payload()
+    payload = valid_public_game_payload()
 
-    data = create_game(client_with_auth)
+    data = create_public_game(client_with_auth)
     assert data["id"] is not None
     assert data["name"] == payload["name"]
     assert data["game_type"] == payload["game_type"]
@@ -26,12 +26,12 @@ def test_create_game_success(client_with_auth):
 
 
 def test_create_game_unauthorized(client_no_auth):
-    response = client_no_auth.post("/games/", json=valid_game_payload())
+    response = client_no_auth.post("/games/", json=valid_public_game_payload())
     assert response.status_code == 401
 
 
 def test_upvote_game(client_with_auth):
-    game = create_game(client_with_auth)
+    game = create_public_game(client_with_auth)
 
     response = upvote_game(client_with_auth, game["id"])
     assert response.status_code == 200
@@ -42,7 +42,7 @@ def test_upvote_game(client_with_auth):
 
 
 def test_remove_upvote_game(client_with_auth):
-    game = create_game(client_with_auth)
+    game = create_public_game(client_with_auth)
 
     upvote_game(client_with_auth, game["id"])
     response = upvote_game(client_with_auth, game["id"], remove=True)
