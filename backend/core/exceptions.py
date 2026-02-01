@@ -1,14 +1,21 @@
 from fastapi import HTTPException
 from starlette import status
 
-FORBIDDEN_EXCEPTION = HTTPException(
+UNAUTHORIZED_EXCEPTION = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Could not validate credentials",
     headers={"WWW-Authenticate": "Bearer"}
 )
-NOT_FOUND_EXCEPTION = HTTPException(
+
+USER_NOT_FOUND_EXCEPTION = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND,
     detail="User does not exist",
+    headers={"WWW-Authenticate": "Bearer"}
+)
+
+FORBIDDEN_EXCEPTION = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="User does not have the required permissions",
     headers={"WWW-Authenticate": "Bearer"}
 )
 

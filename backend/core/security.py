@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
 import jwt
 from passlib.context import CryptContext
 
-from backend.core.exceptions import FORBIDDEN_EXCEPTION
+from backend.core.exceptions import UNAUTHORIZED_EXCEPTION
 from backend.models.token import TokenData
 
 SECRET_KEY = "DUMMY_KEY"  # move to env later
@@ -45,7 +46,7 @@ def verify_access_token(token: str) -> TokenData:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str | None = payload.get("sub")
         if not username:
-            raise FORBIDDEN_EXCEPTION
+            raise UNAUTHORIZED_EXCEPTION
         return TokenData(username=username)
     except jwt.PyJWTError:
-        raise FORBIDDEN_EXCEPTION
+        raise UNAUTHORIZED_EXCEPTION

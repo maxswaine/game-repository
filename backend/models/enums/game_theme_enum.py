@@ -64,3 +64,4 @@ class GameThemeEnum(str, Enum):
     late_night = "late_night"
     family_friendly = "family_friendly"
     adults_only = "adults_only"
+    friendship_ruiner = "friendship_ruiner"
