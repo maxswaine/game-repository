@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class GameType(str, Enum):
+class GameTypeEnum(str, Enum):
     # Core formats
     card = "card"
     dice = "dice"
