@@ -19,13 +19,17 @@ class User(Base):
     lastname = Column(String, nullable=False)
     username = Column(String, nullable=False)
     email = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    country_of_origin = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=True)
+    country_of_origin = Column(String, nullable=True)
     role = Column(Enum(Role), nullable=False, default=Role.user)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    oauth_provider = Column(String, nullable=True)
+    oauth_id = Column(String, nullable=True, unique=True)
+    avatar_url = Column(String, nullable=True)
 
     games = relationship("Game", back_populates="contributor")
+
 
 class Game(Base):
     __tablename__ = "games"
@@ -56,11 +60,13 @@ class Game(Base):
     theme_items = relationship("GameTheme", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
 
+
 class GameEquipment(Base):
     __tablename__ = "game_equipment"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey("games.id"), nullable=False)
     equipment_name = Column(Enum(GameEquipmentEnum), nullable=False)
+
 
 class GameTheme(Base):
     __tablename__ = "game_themes"

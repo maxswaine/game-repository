@@ -15,3 +15,9 @@ PyJWT==2.10.1
 bcrypt==4.3.0
 passlib[bcrypt]
 python-multipart==0.0.21
+
+authlib
+httpx
+python-jose
+flask
+starlette
