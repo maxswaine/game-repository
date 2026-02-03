@@ -126,7 +126,8 @@ async def google_callback(
         value=jwt_token,
         httponly=True,
         secure=os.getenv("ENV") == "production",
-        samesite="lax",
+        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
+        max_age=3600 * 24 * 7,
     )
 
     return response
