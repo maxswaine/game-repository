@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -14,19 +14,37 @@ from backend.models.user import UserCreate, UserPublicRead, UserPrivateRead
 router = APIRouter()
 
 # Security Config
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_access_token(
+        request: Request,
+        token: str | None = Depends(oauth2_scheme),
+) -> str | None:
+    if token:
+        return token
+
+    return request.cookies.get("access_token")
+
+
+def get_current_user(
+        token: str = Depends(get_access_token),
+        db: Session = Depends(get_db),
+):
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     token_data = verify_access_token(token)
     user = db.query(User).filter(User.username == token_data.username).first()
-    if user is None:
+
+    if not user:
         raise USER_NOT_FOUND_EXCEPTION
+
     return user
 
 
 def get_current_user_optional(
-        token: str | None = Depends(oauth2_scheme),
+        token: str | None = Depends(get_access_token),
         db: Session = Depends(get_db),
 ):
     if not token:
