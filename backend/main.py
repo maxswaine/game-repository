@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from backend.api import users, games, auth
 from backend.db.database import engine, Base
@@ -9,7 +12,18 @@ Base.metadata.create_all(bind=engine)
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(games.protected_router, prefix="/games", tags=["games"])
 app.include_router(games.public_router, prefix="/games", tags=["games"])
-app.include_router(auth.router, prefix="", tags=["auth"])
+app.include_router(auth.router, prefix="", tags=["auth", "oauth"])
+
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 
 @app.get("/")
