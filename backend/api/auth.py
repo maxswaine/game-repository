@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -28,7 +28,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     access_token = create_access_token(
         data={"sub": user.username},
-        expires_delta=TOKEN_EXPIRES_MINUTES
+        expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
