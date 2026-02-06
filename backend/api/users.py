@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -102,6 +104,14 @@ def get_current_user(
         raise UNAUTHORIZED_EXCEPTION
     return db.query(User).filter(User.id == current_user.id).first()
 
+
+@router.get("/all", response_model=List[UserPrivateRead], status_code=200)
+def get_all_users(
+        db: Session = Depends(get_db),
+        limit: int = 20,
+        offset: int = 0
+):
+    return db.query(User).all()
 
 # UPDATE
 # DELETE
