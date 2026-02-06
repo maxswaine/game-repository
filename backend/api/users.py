@@ -63,26 +63,34 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 
 
 # CREATE
+# Add better error logging to your endpoint:
 @router.post("/register", response_model=UserPublicRead, status_code=201)
 def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.username == new_user.username).first():
-        raise HTTPException(status_code=400, detail="Username taken")
-    if db.query(User).filter(User.email == new_user.email).first():
-        raise HTTPException(status_code=400, detail="User already registered with this email")
+    print(f"Received user data: {new_user}")
 
-    hashed_password = hash_password(new_user.password)
-    db_new_user = User(
-        firstname=new_user.firstname,
-        lastname=new_user.lastname,
-        email=new_user.email,
-        username=new_user.username,
-        hashed_password=hashed_password,
-        country_of_origin=new_user.country_of_origin
-    )
-    db.add(db_new_user)
-    db.commit()
-    db.refresh(db_new_user)
-    return db_new_user
+    try:
+        if db.query(User).filter(User.username == new_user.username).first():
+            raise HTTPException(status_code=400, detail="Username taken")
+        if db.query(User).filter(User.email == new_user.email).first():
+            raise HTTPException(status_code=400, detail="User already registered with this email")
+
+        hashed_password = hash_password(new_user.password)
+        db_new_user = User(
+            firstname=new_user.firstname,
+            lastname=new_user.lastname,
+            email=new_user.email,
+            username=new_user.username,
+            hashed_password=hashed_password,
+            country_of_origin=new_user.country_of_origin
+        )
+        db.add(db_new_user)
+        db.commit()
+        db.refresh(db_new_user)
+        return db_new_user
+    except Exception as e:
+        print(f"Registration error: {type(e).__name__}: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
 # READ
