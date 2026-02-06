@@ -65,7 +65,6 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 
 
 # CREATE
-# Add better error logging to your endpoint:
 @router.post("/register", response_model=UserPublicRead, status_code=201)
 def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
     print(f"Received user data: {new_user}")
