@@ -9,12 +9,8 @@ from backend.db.database import engine, Base
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
-app.include_router(users.router, prefix="/users", tags=["users"])
-app.include_router(games.protected_router, prefix="/games", tags=["games"])
-app.include_router(games.public_router, prefix="/games", tags=["games"])
-app.include_router(auth.router, prefix="", tags=["auth", "oauth"])
-
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+print(f"CORS Origins configured: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +20,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(games.protected_router, prefix="/games", tags=["games"])
+app.include_router(games.public_router, prefix="/games", tags=["games"])
+app.include_router(auth.router, prefix="", tags=["auth", "oauth"])
 
 
 @app.get("/")
