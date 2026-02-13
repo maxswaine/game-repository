@@ -67,7 +67,8 @@ def valid_user_payload(overrides: dict | None = None):
         "email": "test@user.com",
         "username": "testuser123",
         "password": "testuser1!",
-        "country_of_origin": "UK"
+        "country_of_origin": "UK",
+        "date_of_birth": "2000-01-13"
     }
 
     if overrides:

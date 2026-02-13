@@ -5,10 +5,10 @@ class GameTypeEnum(str, Enum):
     # Core formats
     card = "card"
     dice = "dice"
-    board = "board"
+    board = "board"  # Remove
 
     # Social / party formats
-    party = "party"
+    # party = "party"
     drinking = "drinking"
     trivia = "trivia"
     word = "word"

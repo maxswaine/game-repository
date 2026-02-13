@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
-from backend.core.security import verify_access_token, hash_password
+from backend.core.security import verify_access_token, hash_password, verify_password
 from backend.db.database import get_db
 from backend.db.tables import User
-from backend.models.user import UserCreate, UserPublicRead, UserPrivateRead
+from backend.models.user import UserCreate, UserPublicRead, UserPrivateRead, UserUpdate, UserPasswordUpdate, \
+    UserCompleteProfile
+
+
+class MessageResponse(BaseModel):
+    message: str
+
 
 router = APIRouter()
 
@@ -67,8 +74,6 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 # CREATE
 @router.post("/register", response_model=UserPublicRead, status_code=201)
 def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
-    print(f"Received user data: {new_user}")
-
     try:
         if db.query(User).filter(User.username == new_user.username).first():
             raise HTTPException(status_code=400, detail="Username taken")
@@ -82,6 +87,7 @@ def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
             email=new_user.email,
             username=new_user.username,
             hashed_password=hashed_password,
+            date_of_birth=new_user.date_of_birth,
             country_of_origin=new_user.country_of_origin
         )
         db.add(db_new_user)
@@ -94,6 +100,30 @@ def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
+@router.post("/me/complete-profile", response_model=UserPrivateRead, status_code=200)
+def complete_profile(
+        profile_data: UserCompleteProfile,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if not current_user:
+        raise UNAUTHORIZED_EXCEPTION
+
+    if current_user.date_of_birth and current_user.country_of_origin:
+        raise HTTPException(
+            status_code=400,
+            detail="Profile already complete"
+        )
+
+    current_user.date_of_birth = profile_data.date_of_birth
+    current_user.country_of_origin = profile_data.country_of_origin
+
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
+
 # READ
 @router.get("/me", response_model=UserPrivateRead, status_code=200)
 def get_current_user(
@@ -104,15 +134,61 @@ def get_current_user(
     return db.query(User).filter(User.id == current_user.id).first()
 
 
-@router.get("/all", response_model=List[UserPrivateRead], status_code=200)
-def get_all_users(
-        db: Session = Depends(get_db),
-        limit: int = 20,
-        offset: int = 0
-):
-    return db.query(User).all()
-
 # UPDATE
+@router.patch("/me", response_model=UserPrivateRead, status_code=200)
+def update_my_profile(
+        updates: UserUpdate,
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db)
+):
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "email" in update_data:
+        existing_user = db.query(User).filter(
+            User.email == update_data["email"],
+            User.id != current_user.id
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already in use"
+            )
+
+    for key, value in update_data.items():
+        if value is not None:
+            setattr(current_user, key, value)
+
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
+
+@router.patch("/me/password", status_code=200)
+def update_my_password(
+        password_update: UserPasswordUpdate,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if current_user.oauth_provider:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot change password for OAuth accounts"
+        )
+
+    if not verify_password(password_update.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+
+    current_user.hashed_password = hash_password(password_update.new_password)
+
+    db.commit()
+
+    return {"message": "Password updated successfully"}
+
+
 # DELETE
 @router.delete("/{user_id}", status_code=204)
 def delete_account(

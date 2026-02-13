@@ -66,6 +66,7 @@ class GameEquipmentEnum(str, Enum):
     countdown_app = "countdown_app"
     random_number_generator = "random_number_generator"
     random_word_generator = "random_word_generator"
+    spinner = "spinner"
 
     # --------------------
     # Cups, Containers & Surfaces

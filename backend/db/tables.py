@@ -11,6 +11,7 @@ from backend.models.enums.game_theme_enum import GameThemeEnum
 from backend.models.enums.game_type_enum import GameTypeEnum
 from backend.models.enums.role_enum import Role
 
+GAMES_ID_FK: str = "games.id"
 
 class User(Base):
     __tablename__ = "users"
@@ -20,6 +21,7 @@ class User(Base):
     username = Column(String, nullable=False)
     email = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)
+    date_of_birth = Column(String, nullable=True)
     country_of_origin = Column(String, nullable=True)
     role = Column(Enum(Role), nullable=False, default=Role.user)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -29,6 +31,18 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
 
     games = relationship("Game", back_populates="contributor")
+    favourites = relationship("UserFavourites", back_populates="user")
+
+
+class UserFavourites(Base):
+    __tablename__ = "user_favourites"
+    game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, primary_key=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # Add relationships
+    user = relationship("User", back_populates="favourites")
+    game = relationship("Game", back_populates="favourited_by")
 
 
 class Game(Base):
@@ -59,17 +73,18 @@ class Game(Base):
     equipment_items = relationship("GameEquipment", cascade="all, delete-orphan")
     theme_items = relationship("GameTheme", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
+    favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
 
 
 class GameEquipment(Base):
     __tablename__ = "game_equipment"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    game_id = Column(String, ForeignKey("games.id"), nullable=False)
+    game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
     equipment_name = Column(Enum(GameEquipmentEnum), nullable=False)
 
 
 class GameTheme(Base):
     __tablename__ = "game_themes"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    game_id = Column(String, ForeignKey("games.id"), nullable=False)
+    game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
     theme_name = Column(Enum(GameThemeEnum), nullable=False)
