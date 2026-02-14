@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from backend.api import users, games, auth, favourites
+from backend.api import users, games, auth, favourites, metadata
 from backend.db.database import engine, Base
 
 app = FastAPI()
@@ -26,6 +26,7 @@ app.include_router(games.protected_router, prefix="/games", tags=["games"])
 app.include_router(games.public_router, prefix="/games", tags=["games"])
 app.include_router(auth.router, prefix="", tags=["auth", "oauth"])
 app.include_router(favourites.router, prefix="/favourites", tags=["favourites"])
+app.include_router(metadata.router, prefix="/metadata", tags=["metadata"])
 
 
 @app.get("/")

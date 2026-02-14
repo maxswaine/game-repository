@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import pycountry
 from pydantic import ConfigDict, BaseModel, field_validator
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
@@ -33,13 +34,26 @@ class UserCreate(BaseModel):
     def validate_date_of_birth(cls, v):
         if v is None:
             return v
-        # Validate format
         try:
             datetime.strptime(v, '%Y-%m-%d')
         except ValueError:
             raise ValueError(date_of_birth_error)
         return v
-    # Format: "YYYY-MM-DD"
+
+    @field_validator('country_of_origin')
+    @classmethod
+    def validate_country(cls, v):
+        if v is None:
+            return v
+
+        v = v.upper()
+
+        try:
+            pycountry.countries.get(alpha_2=v)
+        except (KeyError, AttributeError):
+            raise ValueError(f'Invalid country code: {v}. Must be a valid ISO 3166-1 alpha-2 code')
+
+        return v
 
 
 class UserPublicRead(BaseModel):

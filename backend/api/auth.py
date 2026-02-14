@@ -114,8 +114,8 @@ async def google_callback(
             oauth_provider="google",
             oauth_id=oauth_id,
             avatar_url=userinfo.get("picture"),
-            country_of_origin=None,  # Will be set in profile completion
-            date_of_birth=None  # Will be set in profile completion
+            country_of_origin=None,
+            date_of_birth=None
         )
         db.add(user)
         db.commit()

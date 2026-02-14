@@ -22,7 +22,7 @@ class User(Base):
     email = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)
     date_of_birth = Column(String, nullable=True)
-    country_of_origin = Column(String, nullable=True)
+    country_of_origin = Column(String(2), nullable=True)
     role = Column(Enum(Role), nullable=False, default=Role.user)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

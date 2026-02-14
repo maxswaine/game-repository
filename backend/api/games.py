@@ -12,13 +12,10 @@ from backend.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEP
 from backend.db.database import get_db
 from backend.db.tables import Game, GameEquipment, GameTheme, User
 from backend.models.enums.age_rating_enum import AgeRatingEnum
-from backend.models.enums.equipment_enum import GameEquipmentEnum
-from backend.models.enums.game_theme_enum import GameThemeEnum
 from backend.models.enums.game_type_enum import GameTypeEnum
 from backend.models.enums.vote_type_enum import Vote
 from backend.models.game_models.game import GameCreate, GameRead, GameUpdate
 from backend.models.game_models.game_equipment import GameEquipmentBase
-from backend.models.game_models.game_metadata import GameMetadata
 from backend.models.game_models.game_report import GameReportRequest, GameReportResponse
 from backend.models.game_models.game_theme import GameThemeBase
 from backend.models.game_models.game_visibility import GameVisibility
@@ -179,16 +176,6 @@ def get_all_games(
              .all())
 
     return [map_game_to_read(game) for game in games]
-
-
-@public_router.get("/metadata", response_model=GameMetadata, status_code=200)
-def get_metadata():
-    return GameMetadata(
-        game_types=[gt.value for gt in GameTypeEnum],
-        age_ratings=[ar.value for ar in AgeRatingEnum],
-        game_themes=[gth.value for gth in GameThemeEnum],
-        game_equipment=[eq.value for eq in GameEquipmentEnum]
-    )
 
 
 @protected_router.get("/mine", response_model=List[GameRead], status_code=200)
