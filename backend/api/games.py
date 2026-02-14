@@ -189,7 +189,7 @@ def get_my_games(
 ):
     limit = min(limit, 100)
     offset = max(offset, 0)
-    return (db.query(Game).options(
+    games = (db.query(Game).options(
         joinedload(Game.equipment_items),
         joinedload(Game.theme_items),
         joinedload(Game.contributor),
@@ -197,6 +197,8 @@ def get_my_games(
             .limit(limit)
             .offset(offset)
             .all())
+
+    return [map_game_to_read(game) for game in games]
 
 
 @public_router.get("/{game_id}", response_model=GameRead, status_code=200)
