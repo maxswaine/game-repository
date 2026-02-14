@@ -51,7 +51,7 @@ def google_login():
     return RedirectResponse(url=google_auth_url)
 
 
-@router.get("/callback")
+@router.get("/oauth/google/callback")
 async def google_callback(
         code: str,
         db: Session = Depends(get_db),
@@ -100,7 +100,11 @@ async def google_callback(
         )
         .first()
     )
+
+    is_new_user = False
+
     if not user:
+        is_new_user = True
         user = User(
             email=email,
             username=email.split("@")[0],
@@ -110,7 +114,8 @@ async def google_callback(
             oauth_provider="google",
             oauth_id=oauth_id,
             avatar_url=userinfo.get("picture"),
-            country_of_origin="GB"
+            country_of_origin=None,
+            date_of_birth=None
         )
         db.add(user)
         db.commit()
@@ -119,7 +124,11 @@ async def google_callback(
     jwt_token = create_access_token(data={"sub": user.username})
 
     redirect_url = os.environ["FRONTEND_URL"]
-    response = RedirectResponse(url=f"{redirect_url}/docs", )
+
+    if is_new_user:
+        response = RedirectResponse(url=f"{redirect_url}/complete-profile")
+    else:
+        response = RedirectResponse(url=f"{redirect_url}/docs")
 
     response.set_cookie(
         key="access_token",

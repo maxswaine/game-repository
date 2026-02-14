@@ -4,134 +4,135 @@ class GameEquipmentEnum(str, Enum):
     # --------------------
     # None / Minimal
     # --------------------
-    none = "none"
-    nothing = "nothing"
+    none = "None"
+    nothing = "Nothing"
 
     # --------------------
     # Cards
     # --------------------
-    standard_deck = "standard_deck"
-    jokers = "jokers"
-    multiple_decks = "multiple_decks"
-    tarot_deck = "tarot_deck"
-    improvised_cards = "improvised_cards"
-    less_than_a_deck= "less_than_a_deck"
-    uno_deck = "uno_deck"
+    standard_deck = "Standard Deck"
+    jokers = "Jokers"
+    multiple_decks = "Multiple Decks"
+    tarot_deck = "Tarot Deck"
+    improvised_cards = "Improvised Cards"
+    less_than_a_deck = "Less Than a Deck"
+    uno_deck = "UNO Deck"
 
     # --------------------
     # Dice
     # --------------------
-    six_sided_dice = "six_sided_dice"
-    multiple_dice = "multiple_dice"
-    dice_cup = "dice_cup"
-    shaker = "shaker"
-    phone_dice_app = "phone_dice_app"
+    six_sided_dice = "Six-Sided Dice"
+    multiple_dice = "Multiple Dice"
+    dice_cup = "Dice Cup"
+    shaker = "Shaker"
+    phone_dice_app = "Phone Dice App"
 
     # --------------------
     # Coins & Small Counters
     # --------------------
-    coins = "coins"
-    bottle_caps = "bottle_caps"
-    tokens = "tokens"
-    buttons = "buttons"
-    beads = "beads"
-    stones = "stones"
-    pebbles = "pebbles"
-    poker_chips = "poker_chips"
-    matchsticks = "matchsticks"
-    toothpicks = "toothpicks"
-    straws = "straws"
+    coins = "Coins"
+    bottle_caps = "Bottle Caps"
+    tokens = "Tokens"
+    buttons = "Buttons"
+    beads = "Beads"
+    stones = "Stones"
+    pebbles = "Pebbles"
+    poker_chips = "Poker Chips"
+    matchsticks = "Matchsticks"
+    toothpicks = "Toothpicks"
+    straws = "Straws"
 
     # --------------------
     # Paper & Writing
     # --------------------
-    paper = "paper"
-    pen = "pen"
-    pencil = "pencil"
-    napkins = "napkins"
-    notebook = "notebook"
-    sticky_notes = "sticky_notes"
-    index_cards = "index_cards"
-    whiteboard = "whiteboard"
-    chalkboard = "chalkboard"
-    marker = "marker"
-    chalk = "chalk"
+    paper = "Paper"
+    pen = "Pen"
+    pencil = "Pencil"
+    napkins = "Napkins"
+    notebook = "Notebook"
+    sticky_notes = "Sticky Notes"
+    index_cards = "Index Cards"
+    whiteboard = "Whiteboard"
+    chalkboard = "Chalkboard"
+    marker = "Marker"
+    chalk = "Chalk"
 
     # --------------------
     # Timers & Randomisers
     # --------------------
-    phone_timer = "phone_timer"
-    stopwatch = "stopwatch"
-    hourglass = "hourglass"
-    countdown_app = "countdown_app"
-    random_number_generator = "random_number_generator"
-    random_word_generator = "random_word_generator"
+    phone_timer = "Phone Timer"
+    stopwatch = "Stopwatch"
+    hourglass = "Hourglass"
+    countdown_app = "Countdown App"
+    random_number_generator = "Random Number Generator"
+    random_word_generator = "Random Word Generator"
+    spinner = "Spinner"
 
     # --------------------
     # Cups, Containers & Surfaces
     # --------------------
-    cups = "cups"
-    mugs = "mugs"
-    glasses = "glasses"
-    shot_glasses = "shot_glasses"
-    bowl = "bowl"
-    plate = "plate"
-    tray = "tray"
-    coasters = "coasters"
+    cups = "Cups"
+    mugs = "Mugs"
+    glasses = "Glasses"
+    shot_glasses = "Shot Glasses"
+    bowl = "Bowl"
+    plate = "Plate"
+    tray = "Tray"
+    coasters = "Coasters"
 
     # --------------------
     # Tables & Space
     # --------------------
-    table = "table"
-    flat_surface = "flat_surface"
-    floor_space = "floor_space"
-    wall_space = "wall_space"
+    table = "Table"
+    flat_surface = "Flat Surface"
+    floor_space = "Floor Space"
+    wall_space = "Wall Space"
 
     # --------------------
     # Body / Physical Play
     # --------------------
-    players_hands = "players_hands"
-    players_bodies = "players_bodies"
-    fingers = "fingers"
-    gestures = "gestures"
-    clapping = "clapping"
-    balance = "balance"
-    reflexes = "reflexes"
+    players_hands = "Players' Hands"
+    players_bodies = "Players' Bodies"
+    fingers = "Fingers"
+    gestures = "Gestures"
+    clapping = "Clapping"
+    balance = "Balance"
+    reflexes = "Reflexes"
 
     # --------------------
     # Verbal / Cognitive
     # --------------------
-    voice = "voice"
-    memory = "memory"
-    imagination = "imagination"
-    trivia_knowledge = "trivia_knowledge"
+    voice = "Voice"
+    memory = "Memory"
+    imagination = "Imagination"
+    trivia_knowledge = "Trivia Knowledge"
 
     # --------------------
     # Phones / Tech (Very Common)
     # --------------------
-    smartphone = "smartphone"
-    shared_phone = "shared_phone"
-    camera = "camera"
-    flashlight = "flashlight"
-    music_player = "music_player"
-    speaker = "speaker"
-    app = "app"
+    smartphone = "Smartphone"
+    shared_phone = "Shared Phone"
+    camera = "Camera"
+    flashlight = "Flashlight"
+    music_player = "Music Player"
+    speaker = "Speaker"
+    app = "App"
 
     # --------------------
     # Drinking-Game Adjacent
     # --------------------
-    drinks = "drinks"
-    empty_glasses = "empty_glasses"
-    drink_tokens = "drink_tokens"
-    bar_menu = "bar_menu"
+    drinks = "Drinks"
+    empty_glasses = "Empty Glasses"
+    drink_tokens = "Drink Tokens"
+    bar_menu = "Bar Menu"
 
     # --------------------
     # Improvised / Misc
     # --------------------
-    towel = "towel"
-    cloth = "cloth"
-    playing_mat = "playing_mat"
-    rubber_bands = "rubber_bands"
-    string = "string"
-    tape = "tape"
-    phone_flashlight = "phone_flashlight"
+    towel = "Towel"
+    cloth = "Cloth"
+    playing_mat = "Playing Mat"
+    rubber_bands = "Rubber Bands"
+    string = "String"
+    tape = "Tape"
+    phone_flashlight = "Phone Flashlight"
