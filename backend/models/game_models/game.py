@@ -20,6 +20,8 @@ class GameBase(BaseModel):
     duration: str
     equipment: List[GameEquipmentBase]
     themes: List[GameThemeBase]
+    objective: str
+    setup: str
     rules: str
     image_url: Optional[str] = None
     is_public: bool
@@ -29,6 +31,7 @@ class GameBase(BaseModel):
 class GameCreate(GameBase):
     pass
 
+
 class GameRead(GameBase):
     id: str
     upvotes: int
@@ -37,6 +40,7 @@ class GameRead(GameBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class GameUpdate(BaseModel):
     name: Optional[str] = None
@@ -48,6 +52,10 @@ class GameUpdate(BaseModel):
     equipment: Optional[List[GameEquipmentBase]] = None
     themes: Optional[List[GameThemeBase]] = None
     is_public: Optional[bool] = None
+    objective: Optional[str] = None
+    setup: Optional[str] = None
+    rules: Optional[str] = None
+
 
 class GameUpdateAdmin(GameUpdate):
     is_whats_that_game_certified: Optional[bool] = None

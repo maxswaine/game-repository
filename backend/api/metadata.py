@@ -5,7 +5,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.models.enums.age_rating_enum import AgeRatingEnum
+from backend.models.enums.duration_enum import DurationEnum
 from backend.models.enums.equipment_enum import GameEquipmentEnum
+from backend.models.enums.game_difficulty_enum import GameDifficultyEnum
 from backend.models.enums.game_theme_enum import GameThemeEnum
 from backend.models.enums.game_type_enum import GameTypeEnum
 from backend.models.game_models.game_metadata import GameMetadata
@@ -38,5 +40,7 @@ def get_metadata():
         game_types=[gt.value for gt in GameTypeEnum],
         age_ratings=[ar.value for ar in AgeRatingEnum],
         game_themes=[gth.value for gth in GameThemeEnum],
-        game_equipment=[eq.value for eq in GameEquipmentEnum]
+        game_equipment=[eq.value for eq in GameEquipmentEnum],
+        durations=[d.value for d in DurationEnum],
+        difficulty=[gd.value for gd in GameDifficultyEnum]
     )

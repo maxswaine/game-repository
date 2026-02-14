@@ -3,48 +3,47 @@ from enum import Enum
 
 class GameTypeEnum(str, Enum):
     # Core formats
-    card = "card"
-    dice = "dice"
-    board = "board"  # Remove
+    card = "Card"
+    dice = "Dice"
+    board = "Board"
 
     # Social / party formats
-    # party = "party"
-    drinking = "drinking"
-    trivia = "trivia"
-    word = "word"
+    drinking = "Drinking"
+    trivia = "Trivia"
+    word = "Word"
 
     # Physical / movement
-    physical = "physical"
-    dexterity = "dexterity"
-    reflex = "reflex"
+    physical = "Physical"
+    dexterity = "Dexterity"
+    reflex = "Reflex"
 
     # Thinking / structure
-    strategy = "strategy"
-    logic = "logic"
-    puzzle = "puzzle"
+    strategy = "Strategy"
+    logic = "Logic"
+    puzzle = "Puzzle"
 
     # Role-based / imagination
-    roleplay = "roleplay"
-    acting = "acting"
-    storytelling = "storytelling"
+    roleplay = "Roleplay"
+    acting = "Acting"
+    storytelling = "Storytelling"
 
     # Guessing & deception
-    guessing = "guessing"
-    bluffing = "bluffing"
+    guessing = "Guessing"
+    bluffing = "Bluffing"
 
     # Drawing / creativity
-    drawing = "drawing"
-    creative = "creative"
+    drawing = "Drawing"
+    creative = "Creative"
 
     # Casual / lightweight
-    casual = "casual"
-    filler = "filler"
+    casual = "Casual"
+    filler = "Filler"
 
     # Competitive structure
-    competitive = "competitive"
-    cooperative = "cooperative"
-    team = "team"
+    competitive = "Competitive"
+    cooperative = "Cooperative"
+    team = "Team"
 
     # Real-world / improvised
-    improv = "improv"
-    no_equipment = "no_equipment"
+    improv = "Improv"
+    no_equipment = "No Equipment"
