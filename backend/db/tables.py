@@ -28,6 +28,7 @@ class User(Base):
     role = Column(Enum(Role), nullable=False, default=Role.user)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True, unique=True)
     avatar_url = Column(String, nullable=True)

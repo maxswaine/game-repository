@@ -8,6 +8,7 @@ from pydantic import ConfigDict, BaseModel, field_validator
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
 
+
 class UserBase(BaseModel):
     firstname: str
     lastname: str
@@ -19,6 +20,8 @@ class UserBase(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+    last_updated: datetime
+
 
 class UserCreate(BaseModel):
     firstname: str
@@ -61,12 +64,14 @@ class UserPublicRead(BaseModel):
     country_of_origin: str
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserPrivateRead(BaseModel):
     firstname: str
     lastname: str
     email: str
     username: str
     country_of_origin: str
+
 
 class UserLogin(BaseModel):
     username: str

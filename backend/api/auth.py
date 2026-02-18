@@ -1,14 +1,15 @@
 import os
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
 
 from backend.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
-from backend.core.security import create_access_token
+from backend.core.security import create_access_token, verify_access_token
 from backend.core.security import verify_password, TOKEN_EXPIRES_MINUTES
 from backend.db.database import get_db
 from backend.db.tables import User
@@ -31,6 +32,103 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/refresh")
+async def refresh_token(
+        access_token: Optional[str] = Cookie(None),
+        db: Session = Depends(get_db)
+):
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="No access token found"
+        )
+
+    try:
+        payload = verify_access_token(access_token)
+        username = payload.get("sub")
+
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    # Get the user from database
+    user = db.query(User).filter(User.username == username).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="User account is inactive"
+        )
+
+    new_token = create_access_token(
+        data={"sub": user.username},
+        expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
+    )
+
+    response = JSONResponse(content={
+        "access_token": new_token,
+        "token_type": "bearer",
+        "expires_in": TOKEN_EXPIRES_MINUTES * 60
+    })
+
+    response.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=os.getenv("ENV") == "production",
+        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
+        max_age=TOKEN_EXPIRES_MINUTES * 60,
+    )
+
+    return response
+
+
+@router.get("/verify")
+async def verify_token_endpoint(
+        access_token: Optional[str] = Cookie(None)
+):
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="No access token found"
+        )
+
+    try:
+        payload = verify_access_token(access_token)
+        username = payload.get("sub")
+        exp = payload.get("exp")
+
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
+        return {
+            "valid": True,
+            "username": username,
+            "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+        }
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
 
 
 @router.get("/oauth/google", tags=["oauth"])
@@ -137,6 +235,43 @@ async def google_callback(
         secure=os.getenv("ENV") == "production",
         samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
         max_age=3600 * 24 * 7,
+    )
+
+    return response
+
+
+@router.post("/logout")
+async def logout():
+    response = JSONResponse(content={
+        "message": "Successfully logged out"
+    })
+
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        domain=None,
+        secure=os.getenv("ENV") == "production",
+        httponly=True,
+        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax"
+    )
+
+    return response
+
+
+@router.get("/logout/redirect")
+async def logout_redirect():
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+    response = RedirectResponse(url=frontend_url)
+
+    # Clear the cookie
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        domain=None,
+        secure=os.getenv("ENV") == "production",
+        httponly=True,
+        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax"
     )
 
     return response

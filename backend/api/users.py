@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request
@@ -117,6 +118,7 @@ def complete_profile(
 
     current_user.date_of_birth = profile_data.date_of_birth
     current_user.country_of_origin = profile_data.country_of_origin
+    current_user.last_updated = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(current_user)
@@ -138,7 +140,7 @@ def get_current_user(
 @router.patch("/me", response_model=UserPrivateRead, status_code=200)
 def update_my_profile(
         updates: UserUpdate,
-        current_user: User = Depends(get_current_active_user),
+        current_user: Annotated[User, Depends(get_current_active_user)],
         db: Session = Depends(get_db)
 ):
     update_data = updates.model_dump(exclude_unset=True)
@@ -157,6 +159,8 @@ def update_my_profile(
     for key, value in update_data.items():
         if value is not None:
             setattr(current_user, key, value)
+
+    current_user.last_updated = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(current_user)
@@ -183,6 +187,7 @@ def update_my_password(
         )
 
     current_user.hashed_password = hash_password(password_update.new_password)
+    current_user.last_updated = datetime.now(timezone.utc)
 
     db.commit()
 
