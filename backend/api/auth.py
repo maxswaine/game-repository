@@ -5,6 +5,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
@@ -19,7 +20,12 @@ router = APIRouter(prefix="/auth")
 
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    user = db.query(User).filter(
+        or_(
+            func.lower(User.username) == form_data.username.lower(),
+            func.lower(User.email) == form_data.username.lower()
+        )
+    ).first()
 
     if not (user and verify_password(form_data.password, user.hashed_password)):
         raise UNAUTHORIZED_EXCEPTION

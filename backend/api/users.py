@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.params import Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
@@ -45,7 +46,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     token_data = verify_access_token(token)
-    user = db.query(User).filter(User.username == token_data.username).first()
+    user = db.query(User).filter(func.lower(User.username) == token_data.username.lower()).first()
 
     if not user:
         raise USER_NOT_FOUND_EXCEPTION
@@ -61,7 +62,7 @@ def get_current_user_optional(
         return None
     try:
         token_data = verify_access_token(token)
-        return db.query(User).filter(User.username == token_data.username).first()
+        return db.query(User).filter(func.lower(User.username) == token_data.username.lower()).first()
     except HTTPException:
         return None
 
@@ -76,9 +77,9 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 @router.post("/register", response_model=UserPublicRead, status_code=201)
 def create_new_user(new_user: UserCreate, db: Session = Depends(get_db)):
     try:
-        if db.query(User).filter(User.username == new_user.username).first():
+        if db.query(User).filter(func.lower(User.username) == new_user.username.lower()).first():
             raise HTTPException(status_code=400, detail="Username taken")
-        if db.query(User).filter(User.email == new_user.email).first():
+        if db.query(User).filter(func.lower(User.email) == new_user.email.lower()).first():
             raise HTTPException(status_code=400, detail="User already registered with this email")
 
         hashed_password = hash_password(new_user.password)
