@@ -47,7 +47,7 @@ async def login_for_access_token(
 @router.post("/refresh", responses={401: {"description": "No access token found or invalid/expired."}})
 async def refresh_token(
         db: Annotated[Session, Depends(get_db)],
-        access_token: Annotated[Optional[str], Cookie(None)] = None
+        access_token: Annotated[Optional[str], Cookie] = None
 ):
     if not access_token:
         raise HTTPException(
@@ -110,7 +110,7 @@ async def refresh_token(
 
 @router.get("/verify", responses={401: {"description": "No access token found or invalid/expired."}})
 async def verify_token_endpoint(
-        access_token: Annotated[Optional[str], Cookie(None)] = None
+        access_token: Annotated[Optional[str], Cookie] = None
 ):
     if not access_token:
         raise HTTPException(
