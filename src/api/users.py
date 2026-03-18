@@ -1,6 +1,7 @@
 # src/api/users.py
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -9,11 +10,12 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION
-from src.core.security import verify_access_token, hash_password
+from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
+from src.core.security import verify_access_token, hash_password, verify_password
 from src.db.database import get_db
 from src.db.tables import User
-from src.models.user_models.user import UserCreate, UserPublicRead, UserPrivateRead, UserCompleteProfile
+from src.models.user_models.user import UserCreate, UserPublicRead, UserPrivateRead, UserCompleteProfile, UserUpdate, \
+    UserPasswordUpdate
 
 
 class MessageResponse(BaseModel):
@@ -120,3 +122,96 @@ def complete_profile(
     current_user = get_current_active_user()
 
     return current_user
+
+
+# READ
+@router.get("/me", response_model=UserPrivateRead, status_code=200)
+def get_current_user(
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: Annotated[Session, Depends(get_db)],
+):
+    if not current_user:
+        raise UNAUTHORIZED_EXCEPTION
+    return db.query(User).filter(User.id == current_user.id).first()
+
+
+# UPDATE
+@router.patch("/me", response_model=UserPrivateRead, status_code=200,
+              responses={400: {"description": "Email already in use exception"}})
+def update_my_profile(
+        updates: UserUpdate,
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: Annotated[Session, Depends(get_db)],
+):
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "email" in update_data:
+        existing_user = db.query(User).filter(
+            User.email == update_data["email"],
+            User.id != current_user.id
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already in use"
+            )
+
+    for key, value in update_data.items():
+        if value is not None:
+            setattr(current_user, key, value)
+
+    current_user.last_updated = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
+
+
+@router.patch("/me/password", status_code=200, responses={
+    400: {"description": "Unable to change current password"},
+})
+def update_my_password(
+        password_update: UserPasswordUpdate,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    if current_user.oauth_provider:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot change password for OAuth accounts"
+        )
+
+    if not verify_password(password_update.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+
+    current_user.hashed_password = hash_password(password_update.new_password)
+    current_user.last_updated = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {"message": "Password updated successfully"}
+
+
+# DELETE
+@router.delete("/{user_id}", status_code=204, responses={
+    403: {"description": "Not allowed to delete someone else's account"}
+})
+def delete_account(
+        user_id: str,
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: Annotated[Session, Depends(get_db)]
+):
+    if str(current_user.id) != str(user_id):
+        raise HTTPException(status_code=403, detail="Not allowed to delete this account")
+
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise USER_NOT_FOUND_EXCEPTION
+
+    db.delete(user)
+    db.commit()
+    return {"message": "Account successfully deleted"}
