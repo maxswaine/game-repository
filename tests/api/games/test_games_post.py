@@ -1,5 +1,5 @@
-from backend.models.enums.equipment_enum import GameEquipmentEnum
-from backend.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.equipment_enum import GameEquipmentEnum
+from src.models.enums.game_theme_enum import GameThemeEnum
 from tests.api.games.helper import create_public_game, upvote_game
 from tests.conftest import client_with_auth
 from tests.utils import valid_public_game_payload

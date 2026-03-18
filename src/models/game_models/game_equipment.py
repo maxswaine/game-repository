@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from backend.models.enums.equipment_enum import GameEquipmentEnum
+from src.models.enums.equipment_enum import GameEquipmentEnum
 
 
 class GameEquipmentBase(BaseModel):

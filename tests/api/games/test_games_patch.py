@@ -1,4 +1,4 @@
-from backend.db.tables import Game, GameEquipment, GameTheme
+from src.db.tables import Game, GameEquipment, GameTheme
 from tests.utils import valid_public_game_payload
 
 

@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
-from backend.api.users import get_current_active_user, get_current_user_optional
-from backend.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
-from backend.db.database import get_db
-from backend.db.tables import Game, GameEquipment, GameTheme, User
-from backend.models.enums.age_rating_enum import AgeRatingEnum
-from backend.models.enums.game_type_enum import GameTypeEnum
-from backend.models.enums.vote_type_enum import Vote
-from backend.models.game_models.game import GameCreate, GameRead, GameUpdate
-from backend.models.game_models.game_equipment import GameEquipmentBase
-from backend.models.game_models.game_report import GameReportRequest, GameReportResponse
-from backend.models.game_models.game_theme import GameThemeBase
-from backend.models.game_models.game_visibility import GameVisibility
-from backend.models.game_models.game_vote import GameVoteRead
-from backend.models.game_models.player_count import PlayerCount
-from backend.models.user import UserPublicRead
+from src.api.users import get_current_active_user, get_current_user_optional
+from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
+from src.db.database import get_db
+from src.db.tables import Game, GameEquipment, GameTheme, User
+from src.models.enums.age_rating_enum import AgeRatingEnum
+from src.models.enums.game_type_enum import GameTypeEnum
+from src.models.enums.vote_type_enum import Vote
+from src.models.error_models.error import ErrorDetail
+from src.models.game_models.game import GameCreate, GameRead, GameUpdate
+from src.models.game_models.game_equipment import GameEquipmentBase
+from src.models.game_models.game_report import GameReportRequest, GameReportResponse
+from src.models.game_models.game_theme import GameThemeBase
+from src.models.game_models.game_visibility import GameVisibility
+from src.models.game_models.game_vote import GameVoteRead
+from src.models.game_models.player_count import PlayerCount
+from src.models.user_models.user import UserPublicRead
 
 protected_router = APIRouter()
 public_router = APIRouter()
@@ -32,9 +33,12 @@ def auth_required():
 
 
 # CREATE
-@protected_router.post("/", response_model=GameRead, status_code=201)
-def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
-                    current_user: User = auth_required()):
+@protected_router.post("/", response_model=GameRead, status_code=201, responses={422: {"model": ErrorDetail}})
+def create_new_game(
+        db: Annotated[Session, Depends(get_db)],
+        new_game: GameCreate,
+        current_user: User = auth_required()
+):
     db_new_game = Game(
         name=new_game.name,
         description=new_game.description,
@@ -68,21 +72,25 @@ def create_new_game(new_game: GameCreate, db: Session = Depends(get_db),
     return map_game_to_read(db_new_game)
 
 
-@protected_router.post("/{game_id}/upvote", status_code=200, response_model=GameVoteRead)
+@protected_router.post("/{game_id}/upvote", status_code=200, response_model=GameVoteRead,
+                       responses={404: {"description": "Game not found"},
+                                  401: {"description": "Authentication required"}})
 def upvote_game(
+        db: Annotated[Session, Depends(get_db)],
         game_id: str,
         remove: bool = False,
-        db: Session = Depends(get_db),
         _current_user: User = auth_required()
 ):
     return change_game_votes(Vote.upvote, game_id, remove, db)
 
 
-@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameVoteRead)
+@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameVoteRead,
+                       responses={404: {"description": "Game not found"},
+                                  401: {"description": "Authentication required"}})
 def downvote_game(
+        db: Annotated[Session, Depends(get_db)],
         game_id: str,
         remove: bool,
-        db: Session = Depends(get_db),
         _current_user: User = auth_required()
 
 ):
@@ -114,11 +122,13 @@ def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
     )
 
 
-@protected_router.post("/{game_id}/report", status_code=201, response_model=GameReportResponse)
+@protected_router.post("/{game_id}/report", status_code=201, response_model=GameReportResponse,
+                       responses={404: {"description": "Game not found"},
+                                  401: {"description": "Authentication required"}})
 def report_game(
+        db: Annotated[Session, Depends(get_db)],
         game_id: str,
         game_report: GameReportRequest,
-        db: Session = Depends(get_db),
         _current_user: User = auth_required()
 
 ):
@@ -126,8 +136,10 @@ def report_game(
 
 
 # READ
-@public_router.get("/", response_model=List[GameRead], status_code=200)
+@public_router.get("/", response_model=List[GameRead], status_code=200,
+                   responses={401: {"description": "Authentication required for non-public access"}})
 def get_all_games(
+        db: Annotated[Session, Depends(get_db)],
         name: Optional[str] = None,
         game_type: Optional[GameTypeEnum] = None,
         age_rating: Optional[AgeRatingEnum] = None,
@@ -138,7 +150,6 @@ def get_all_games(
         equipment: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
-        db: Session = Depends(get_db),
 ):
     limit = min(limit, 100)
     offset = max(offset, 0)
@@ -180,9 +191,10 @@ def get_all_games(
     return [map_game_to_read(game) for game in games]
 
 
-@protected_router.get("/mine", response_model=List[GameRead], status_code=200)
+@protected_router.get("/mine", response_model=List[GameRead], status_code=200,
+                      responses={401: {"description": "Authentication required"}})
 def get_my_games(
-        db: Session = Depends(get_db),
+        db: Annotated[Session, Depends(get_db)],
         current_user: User = auth_required(),
         limit: int = 20,
         offset: int = 0,
@@ -194,18 +206,19 @@ def get_my_games(
         joinedload(Game.theme_items),
         joinedload(Game.contributor),
     ).filter(Game.contributor_id == current_user.id)
-            .limit(limit)
-            .offset(offset)
-            .all())
+             .limit(limit)
+             .offset(offset)
+             .all())
 
     return [map_game_to_read(game) for game in games]
 
 
-@public_router.get("/{game_id}", response_model=GameRead, status_code=200)
+@public_router.get("/{game_id}", response_model=GameRead, status_code=200,
+                   responses={404: {"description": "Game not found"}, 401: {"description": "Authentication required"}})
 def get_game_by_id(
+        db: Annotated[Session, Depends(get_db)],
         game_id: str,
-        db: Session = Depends(get_db),
-        current_user: User | None = Depends(get_current_user_optional),
+        current_user: Annotated[User | None, Depends(get_current_user_optional)],
 ):
     game: Game | None = db.query(Game).filter(Game.id == game_id).first()
     if not game:
@@ -219,16 +232,19 @@ def get_game_by_id(
 
 
 # UPDATE
-@protected_router.patch("/{game_id}", response_model=GameRead, status_code=200)
+@protected_router.patch("/{game_id}", response_model=GameRead, status_code=200,
+                        responses={400: {"description": "Validation error"}, 404: {"description": "Game not found"},
+                                   401: {"description": "Authentication required"}})
 def update_game(
+        db: Annotated[Session, Depends(get_db)],
         game_id: str,
         updates: GameUpdate,
         current_user: User = auth_required(),
-        db: Session = Depends(get_db),
 ):
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
+
     if db_game.contributor_id != current_user.id:
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
@@ -267,9 +283,15 @@ def update_game(
     return map_game_to_read(db_game)
 
 
-@protected_router.patch("/{game_id}/visibility", response_model=GameRead, status_code=200)
-def change_game_visibility(game_id: str, game_visibility: GameVisibility, db: Session = Depends(get_db),
-                           current_user: User = auth_required()):
+@protected_router.patch("/{game_id}/visibility", response_model=GameRead, status_code=200,
+                        responses={400: {"description": "Validation error"}, 404: {"description": "Game not found"},
+                                   401: {"description": "Authentication required"}})
+def change_game_visibility(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        game_visibility: GameVisibility,
+        current_user: User = auth_required()
+):
     db_game: Game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
@@ -315,8 +337,12 @@ def map_game_to_read(db_game: Game) -> GameRead:
 
 
 # DELETE
-@protected_router.delete("/{game_id}", status_code=204)
-def delete_game(game_id: str, db: Session = Depends(get_db), current_user: User = auth_required()):
+@protected_router.delete("/{game_id}", status_code=204, responses={401: {"description": "Authentication required"}})
+def delete_game(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = auth_required()
+):
     db_game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION

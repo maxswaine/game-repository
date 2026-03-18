@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from backend.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.game_theme_enum import GameThemeEnum
 
 
 class GameThemeBase(BaseModel):

@@ -1,5 +1,5 @@
-from backend.core.security import verify_password
-from backend.db.tables import User
+from src.core.security import verify_password
+from src.db.tables import User
 from tests.api.games.helper import create_user
 from tests.utils import valid_user_payload
 

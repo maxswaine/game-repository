@@ -1,6 +1,7 @@
+# src/api/auth.py
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Cookie
@@ -9,17 +10,20 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
-from backend.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
-from backend.core.security import create_access_token, verify_access_token
-from backend.core.security import verify_password, TOKEN_EXPIRES_MINUTES
-from backend.db.database import get_db
-from backend.db.tables import User
+from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
+from src.core.security import create_access_token, verify_access_token
+from src.core.security import verify_password, TOKEN_EXPIRES_MINUTES
+from src.db.database import get_db
+from src.db.tables import User
 
 router = APIRouter(prefix="/auth")
 
 
 @router.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login_for_access_token(
+        db: Annotated[Session, Depends(get_db)],
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+):
     user = db.query(User).filter(
         or_(
             func.lower(User.username) == form_data.username.lower(),
@@ -40,10 +44,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/refresh")
+@router.post("/refresh", responses={401: {"description": "No access token found or invalid/expired."}})
 async def refresh_token(
-        access_token: Optional[str] = Cookie(None),
-        db: Session = Depends(get_db)
+        db: Annotated[Session, Depends(get_db)],
+        access_token: Annotated[Optional[str], Cookie] = None
 ):
     if not access_token:
         raise HTTPException(
@@ -104,9 +108,9 @@ async def refresh_token(
     return response
 
 
-@router.get("/verify")
+@router.get("/verify", responses={401: {"description": "No access token found or invalid/expired."}})
 async def verify_token_endpoint(
-        access_token: Optional[str] = Cookie(None)
+        access_token: Annotated[Optional[str], Cookie] = None
 ):
     if not access_token:
         raise HTTPException(
@@ -155,10 +159,11 @@ def google_login():
     return RedirectResponse(url=google_auth_url)
 
 
-@router.get("/oauth/google/callback")
+@router.get("/oauth/google/callback",
+            responses={400: {"description": "Google token exchange failed, email not verified, or missing user data."}})
 async def google_callback(
         code: str,
-        db: Session = Depends(get_db),
+        db: Annotated[str, Depends(get_db)],
 ):
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -246,7 +251,7 @@ async def google_callback(
     return response
 
 
-@router.post("/logout")
+@router.post("/logout", responses={200: {"description": "Logged out successfully"}})
 async def logout():
     response = JSONResponse(content={
         "message": "Successfully logged out"
