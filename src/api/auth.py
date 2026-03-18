@@ -163,7 +163,7 @@ def google_login():
             responses={400: {"description": "Google token exchange failed, email not verified, or missing user data."}})
 async def google_callback(
         code: str,
-        db: Annotated[str, Depends(get_db)],
+        db: Annotated[Session, Depends(get_db)],
 ):
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -237,7 +237,7 @@ async def google_callback(
     if is_new_user:
         response = RedirectResponse(url=f"{redirect_url}/complete-profile")
     else:
-        response = RedirectResponse(url=f"{redirect_url}/docs")
+        response = RedirectResponse(url=f"{redirect_url}")
 
     response.set_cookie(
         key="access_token",
