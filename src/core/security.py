@@ -7,8 +7,8 @@ from typing import Optional
 import jwt
 from passlib.context import CryptContext
 
-from backend.core.exceptions import UNAUTHORIZED_EXCEPTION
-from backend.models.oauth_models.token import TokenData
+from src.core.exceptions import UNAUTHORIZED_EXCEPTION
+from src.models.oauth_models.token import TokenData
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))

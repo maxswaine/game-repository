@@ -1,9 +1,9 @@
 from starlette.testclient import TestClient
 
-from backend.api.users import get_current_active_user
-from backend.db.database import get_db
-from backend.main import app
-from backend.models import GameRead
+from src.api.users import get_current_active_user
+from src.db.database import get_db
+from src.main import app
+from src.models import GameRead
 from tests.api.games.helper import create_public_game
 
 

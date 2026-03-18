@@ -1,14 +1,15 @@
-from typing import List
+# src/api/favourites.py
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from backend.api.games import map_game_to_read
-from backend.api.users import get_current_active_user
-from backend.db.database import get_db
-from backend.db.tables import User, Game, UserFavourites
-from backend.models import GameRead
-from backend.models.user import UserFavouriteBase
+from src.api.games import map_game_to_read
+from src.api.users import get_current_active_user
+from src.db.database import get_db
+from src.db.tables import User, Game, UserFavourites
+from src.models import GameRead
+from src.models.user_models.user import UserFavouriteBase
 
 router = APIRouter()
 
@@ -19,8 +20,8 @@ def auth_required():
 
 @router.get("/", response_model=List[GameRead], status_code=200)
 def get_all_favourites(
+        db: Annotated[Session, Depends(get_db)],
         current_user: User = auth_required(),
-        db: Session = Depends(get_db),
         limit: int = 20,
         offset: int = 0,
 ):
@@ -54,8 +55,14 @@ def get_all_favourites(
     return [map_game_to_read(game) for game in games]
 
 
-@router.post("/{game_id}", response_model=UserFavouriteBase, status_code=201)
-def add_favourite(game_id: str, current_user: User = auth_required(), db: Session = Depends(get_db)):
+@router.post("/{game_id}", response_model=UserFavouriteBase, status_code=201,
+             responses={404: {"description": "Game not found"},
+                        400: {"description": "Game is already favourited by this user"}})
+def add_favourite(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = auth_required()
+):
     game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -79,8 +86,12 @@ def add_favourite(game_id: str, current_user: User = auth_required(), db: Sessio
     return db_favourite_relationship
 
 
-@router.delete("/{game_id}", status_code=204)
-def remove_favourite(game_id: str, current_user: User = auth_required(), db: Session = Depends(get_db)):
+@router.delete("/{game_id}", status_code=204, responses={404: {"description": "Favourite not found"}})
+def remove_favourite(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = auth_required()
+):
     existing = db.query(UserFavourites).filter(
         UserFavourites.user_id == current_user.id,
         UserFavourites.game_id == game_id

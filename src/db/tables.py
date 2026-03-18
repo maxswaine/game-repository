@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 
-from backend.db.database import Base
-from backend.models.enums.age_rating_enum import AgeRatingEnum
-from backend.models.enums.duration_enum import DurationEnum
-from backend.models.enums.equipment_enum import GameEquipmentEnum
-from backend.models.enums.game_theme_enum import GameThemeEnum
-from backend.models.enums.game_type_enum import GameTypeEnum
-from backend.models.enums.role_enum import Role
+from src.db.database import Base
+from src.models.enums.age_rating_enum import AgeRatingEnum
+from src.models.enums.duration_enum import DurationEnum
+from src.models.enums.equipment_enum import GameEquipmentEnum
+from src.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.game_type_enum import GameTypeEnum
+from src.models.enums.role_enum import Role
 
 GAMES_ID_FK: str = "games.id"
 

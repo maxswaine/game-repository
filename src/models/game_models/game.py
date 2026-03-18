@@ -3,12 +3,12 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.db.tables import GameTypeEnum
-from backend.models.enums.age_rating_enum import AgeRatingEnum
-from backend.models.game_models.game_equipment import GameEquipmentBase
-from backend.models.game_models.game_theme import GameThemeBase
-from backend.models.game_models.player_count import PlayerCount
-from backend.models.user import UserPublicRead
+from src.db.tables import GameTypeEnum
+from src.models.enums.age_rating_enum import AgeRatingEnum
+from src.models.game_models.game_equipment import GameEquipmentBase
+from src.models.game_models.game_theme import GameThemeBase
+from src.models.game_models.player_count import PlayerCount
+from src.models.user_models.user import UserPublicRead
 
 
 class GameBase(BaseModel):

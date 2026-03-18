@@ -1,8 +1,8 @@
 from starlette.testclient import TestClient
 
-from backend.api.users import get_current_user_optional
-from backend.db.database import get_db
-from backend.main import app
+from src.api.users import get_current_user_optional
+from src.db.database import get_db
+from src.main import app
 from tests.api.games.helper import create_public_game, create_private_game, get_user_token
 from tests.conftest import client_with_auth, client_no_auth
 

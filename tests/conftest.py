@@ -6,10 +6,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.api.users import get_current_active_user
-from backend.db.database import Base, get_db
-from backend.db.tables import User
-from backend.main import app
+from src.api.users import get_current_active_user
+from src.db.database import Base, get_db
+from src.db.tables import User
+from src.main import app
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
