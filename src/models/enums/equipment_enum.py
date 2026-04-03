@@ -10,12 +10,12 @@ class GameEquipmentEnum(str, Enum):
     # --------------------
     # Cards
     # --------------------
-    standard_deck = "Standard Deck"
+    standard_deck = "Standard Deck of Cards"
     jokers = "Jokers"
-    multiple_decks = "Multiple Decks"
+    multiple_decks = "Multiple Decks of Cards"
     tarot_deck = "Tarot Deck"
     improvised_cards = "Improvised Cards"
-    less_than_a_deck = "Less Than a Deck"
+    less_than_a_deck = "Less Than a Deck of Cards"
     uno_deck = "UNO Deck"
 
     # --------------------
