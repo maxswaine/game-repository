@@ -17,7 +17,7 @@ def test_create_game_success(client_with_auth):
     assert data["player_count"]["max_players"] == 6
 
     assert len(data["equipment"]) == 1
-    assert data["equipment"][0]["equipment_name"] == GameEquipmentEnum.standard_deck
+    assert data["equipment"][0] == GameEquipmentEnum.standard_deck
 
     assert len(data["themes"]) == 2
     assert {t["theme_name"] for t in data["themes"]} == {GameThemeEnum.strategy, GameThemeEnum.logic}

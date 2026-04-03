@@ -11,7 +11,7 @@ def test_patch_game_success(client_with_auth, db):
 
     update_payload = {
         "name": "Updated Uno",
-        "equipment": [{"equipment_name": "UNO Deck"}],
+        "equipment": ["UNO Deck"],
         "themes": [{"theme_name": "Strategy"}, {"theme_name": "Endurance"}]
     }
     patch_resp = client_with_auth.patch(f"/games/{game_id}", json=update_payload)
@@ -26,7 +26,7 @@ def test_patch_game_success(client_with_auth, db):
     assert updated_game["name"] == "Updated Uno"
 
     assert len(updated_game["equipment"]) == 1
-    assert updated_game["equipment"][0]["equipment_name"] == "UNO Deck"
+    assert updated_game["equipment"][0] == "UNO Deck"
 
     theme_names = {t["theme_name"] for t in updated_game["themes"]}
     assert theme_names == {"Strategy", "Endurance"}

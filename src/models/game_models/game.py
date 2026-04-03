@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict
 
 from src.db.tables import GameTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
-from src.models.game_models.game_equipment import GameEquipmentBase
 from src.models.game_models.game_theme import GameThemeBase
 from src.models.game_models.player_count import PlayerCount
 from src.models.user_models.user import UserPublicRead
@@ -18,7 +17,7 @@ class GameBase(BaseModel):
     game_type: GameTypeEnum
     player_count: PlayerCount
     duration: str
-    equipment: List[GameEquipmentBase]
+    equipment: List[str]
     themes: List[GameThemeBase]
     objective: str
     setup: str
@@ -49,7 +48,7 @@ class GameUpdate(BaseModel):
     min_players: Optional[int] = None
     max_players: Optional[int] = None
     duration: Optional[str] = None
-    equipment: Optional[List[GameEquipmentBase]] = None
+    equipment: Optional[List[str]] = None
     themes: Optional[List[GameThemeBase]] = None
     is_public: Optional[bool] = None
     objective: Optional[str] = None

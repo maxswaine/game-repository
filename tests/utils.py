@@ -18,9 +18,7 @@ def valid_public_game_payload(overrides: dict | None = None):
             "max_players": 6
         },
         "duration": DurationEnum.thirty_to_45_min.value,
-        "equipment": [
-            {"equipment_name": GameEquipmentEnum.standard_deck.value}
-        ],
+        "equipment": [str(GameEquipmentEnum.standard_deck.value)],
         "themes": [
             {"theme_name": GameThemeEnum.strategy.value},
             {"theme_name": GameThemeEnum.logic.value}
@@ -50,9 +48,7 @@ def valid_private_game_payload(overrides: dict | None = None):
             "max_players": 6
         },
         "duration": DurationEnum.thirty_to_45_min.value,
-        "equipment": [
-            {"equipment_name": GameEquipmentEnum.standard_deck.value}
-        ],
+        "equipment": [str(GameEquipmentEnum.standard_deck.value)],
         "themes": [
             {"theme_name": GameThemeEnum.strategy.value},
             {"theme_name": GameThemeEnum.logic.value}
