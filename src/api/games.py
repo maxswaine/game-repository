@@ -16,7 +16,6 @@ from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.vote_type_enum import Vote
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
-from src.models.game_models.game_equipment import GameEquipmentBase
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_theme import GameThemeBase
 from src.models.game_models.game_visibility import GameVisibility
@@ -61,7 +60,7 @@ def create_new_game(
     db.refresh(db_new_game)
 
     for eq in new_game.equipment:
-        db.add(GameEquipment(game_id=db_new_game.id, equipment_name=eq.equipment_name))
+        db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
     for th in new_game.themes:
         db.add(GameTheme(game_id=db_new_game.id, theme_name=th.theme_name))
@@ -263,7 +262,7 @@ def update_game(
         for eq in updates.equipment or []:
             db.add(GameEquipment(
                 game_id=db_game.id,
-                equipment_name=eq.equipment_name
+                equipment_name=eq
             ))
 
     if "themes" in update_data:
@@ -318,7 +317,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
             max_players=db_game.max_players
         ),
         duration=db_game.duration,
-        equipment=[GameEquipmentBase(equipment_name=eq.equipment_name) for eq in db_game.equipment_items],
+        equipment=[item.equipment_name for item in db_game.equipment_items],
         themes=[GameThemeBase(theme_name=th.theme_name) for th in db_game.theme_items],
         objective=db_game.objective,
         setup=db_game.setup,
