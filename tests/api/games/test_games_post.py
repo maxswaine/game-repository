@@ -38,7 +38,6 @@ def test_upvote_game(client_with_auth):
 
     data = response.json()
     assert data["upvotes"] == 1
-    assert data["downvotes"] == 0
 
 
 def test_remove_upvote_game(client_with_auth):
@@ -51,6 +50,3 @@ def test_remove_upvote_game(client_with_auth):
 
     data = response.json()
     assert data["upvotes"] == 0
-    assert data["downvotes"] == 0
-    assert data["upvotes"] == 0
-    assert data["downvotes"] == 0

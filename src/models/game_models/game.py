@@ -34,7 +34,6 @@ class GameCreate(GameBase):
 class GameRead(GameBase):
     id: str
     upvotes: int
-    downvotes: int
     contributor: UserPublicRead
     created_at: datetime
 

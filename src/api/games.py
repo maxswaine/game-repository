@@ -10,10 +10,9 @@ from sqlalchemy.orm import joinedload
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
-from src.db.tables import Game, GameEquipment, GameTheme, User
+from src.db.tables import Game, GameEquipment, GameTheme, User, UserFavourites
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
-from src.models.enums.vote_type_enum import Vote
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
@@ -77,39 +76,23 @@ def create_new_game(
 def upvote_game(
         db: Annotated[Session, Depends(get_db)],
         game_id: str,
-        remove: bool = False,
-        _current_user: User = auth_required()
+        current_user: User = auth_required()
 ):
-    return change_game_votes(Vote.upvote, game_id, remove, db)
-
-
-@protected_router.post("/{game_id}/downvote", status_code=200, response_model=GameVoteRead,
-                       responses={404: {"description": "Game not found"},
-                                  401: {"description": "Authentication required"}})
-def downvote_game(
-        db: Annotated[Session, Depends(get_db)],
-        game_id: str,
-        remove: bool,
-        _current_user: User = auth_required()
-
-):
-    return change_game_votes(Vote.downvote, game_id, remove, db)
-
-
-def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
-                      db: Session):
     db_game: Game = db.query(Game).filter(Game.id == game_id).first()
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
 
-    if vote_change == Vote.upvote and not remove:
-        db_game.upvotes += 1
-    elif vote_change == Vote.upvote and remove:
+    existing_favourite = db.query(UserFavourites).filter(
+        UserFavourites.game_id == game_id,
+        UserFavourites.user_id == current_user.id
+    ).first()
+
+    if existing_favourite:
+        db.delete(existing_favourite)
         db_game.upvotes -= 1
-    elif vote_change == Vote.downvote and not remove:
-        db_game.downvotes += 1
-    elif vote_change == Vote.downvote and remove:
-        db_game.downvotes -= 1
+    else:
+        db.add(UserFavourites(game_id=game_id, user_id=current_user.id))
+        db_game.upvotes += 1
 
     db.commit()
     db.refresh(db_game)
@@ -117,7 +100,6 @@ def change_game_votes(vote_change: Vote, game_id: str, remove: bool,
     return GameVoteRead(
         game_id=db_game.id,
         upvotes=db_game.upvotes,
-        downvotes=db_game.downvotes
     )
 
 
@@ -325,7 +307,6 @@ def map_game_to_read(db_game: Game) -> GameRead:
         image_url=db_game.image_url,
         is_public=db_game.is_public,
         upvotes=db_game.upvotes,
-        downvotes=db_game.downvotes,
         contributor=UserPublicRead(
             username=db_game.contributor.username,
             country_of_origin=db_game.contributor.country_of_origin,
