@@ -118,15 +118,14 @@ def create_new_user(
 def complete_profile(
         db: Annotated[Session, Depends(get_db)],
         profile_data: UserCompleteProfile,
+        current_user: Annotated[User, Depends(get_current_active_user)],
 ):
-    current_user = get_current_active_user()
-
     return current_user
 
 
 # READ
 @router.get("/me", response_model=UserPrivateRead, status_code=200)
-def get_current_user(
+def get_me(
         current_user: Annotated[User, Depends(get_current_active_user)],
         db: Annotated[Session, Depends(get_db)],
 ):

@@ -48,6 +48,6 @@ def verify_access_token(token: str) -> TokenData:
         username: str | None = payload.get("sub")
         if not username:
             raise UNAUTHORIZED_EXCEPTION
-        return TokenData(username=username)
+        return TokenData(username=username, exp=payload.get("exp"))
     except jwt.PyJWTError:
         raise UNAUTHORIZED_EXCEPTION

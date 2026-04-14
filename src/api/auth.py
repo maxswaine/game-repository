@@ -41,7 +41,17 @@ async def login_for_access_token(
         data={"sub": user.username},
         expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+
+    response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=os.getenv("ENV") == "production",
+        samesite="none" if os.getenv("ENV") == "production" else "lax",
+        max_age=TOKEN_EXPIRES_MINUTES * 60,
+    )
+    return response
 
 
 @router.post("/refresh", responses={401: {"description": "No access token found or invalid/expired."}})
@@ -56,14 +66,7 @@ async def refresh_token(
         )
 
     try:
-        payload = verify_access_token(access_token)
-        username = payload.get("sub")
-
-        if username is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
+        token_data = verify_access_token(access_token)
     except Exception:
         raise HTTPException(
             status_code=401,
@@ -71,7 +74,7 @@ async def refresh_token(
         )
 
     # Get the user from database
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.username == token_data.username).first()
 
     if not user:
         raise HTTPException(
@@ -119,20 +122,13 @@ async def verify_token_endpoint(
         )
 
     try:
-        payload = verify_access_token(access_token)
-        username = payload.get("sub")
-        exp = payload.get("exp")
-
-        if username is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
+        token_data = verify_access_token(access_token)
 
         return {
             "valid": True,
-            "username": username,
-            "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat()
+            "username": token_data.username,
+            "expires_at": datetime.fromtimestamp(token_data.exp,
+                                                 tz=timezone.utc).isoformat() if token_data.exp else None
         }
     except Exception:
         raise HTTPException(
