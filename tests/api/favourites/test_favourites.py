@@ -69,7 +69,7 @@ def test_get_favourites_with_games(client_with_auth):
         assert game["id"] is not None
         assert game["name"] is not None
         assert game["equipment"] is not None
-        assert game["themes"] is not None
+        assert game["game_setting"] is not None
         assert game["contributor"] is not None
 
 

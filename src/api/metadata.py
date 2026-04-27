@@ -8,7 +8,7 @@ from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
-from src.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.game_metadata import GameMetadata
 
@@ -39,7 +39,7 @@ def get_metadata():
     return GameMetadata(
         game_types=[gt.value for gt in GameTypeEnum],
         age_ratings=[ar.value for ar in AgeRatingEnum],
-        game_themes=[gth.value for gth in GameThemeEnum],
+        game_settings=[gth.value for gth in GameSettingEnum],
         game_equipment=[eq.value for eq in GameEquipmentEnum],
         durations=[d.value for d in DurationEnum],
         difficulty=[gd.value for gd in GameDifficultyEnum]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
-from src.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 
 
@@ -19,17 +19,15 @@ def valid_public_game_payload(overrides: dict | None = None):
         },
         "duration": DurationEnum.thirty_to_45_min.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
-        "themes": [
-            {"theme_name": GameThemeEnum.strategy.value},
-            {"theme_name": GameThemeEnum.logic.value}
-        ],
         "objective": "Win the game",
         "setup": "Get some friends to play",
         "rules": "Some rules",
         "image_url": None,
         "is_public": True,
-        "is_whats_that_game_certified": False
-    }
+        "is_whats_that_game_certified": False,
+        "game_setting": [
+            GameSettingEnum.game_night.value, GameSettingEnum.competitive.value
+        ]}
 
     if overrides:
         payload.update(overrides)
@@ -49,16 +47,13 @@ def valid_private_game_payload(overrides: dict | None = None):
         },
         "duration": DurationEnum.thirty_to_45_min.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
-        "themes": [
-            {"theme_name": GameThemeEnum.strategy.value},
-            {"theme_name": GameThemeEnum.logic.value}
-        ],
         "objective": "Win the game",
         "setup": "Get some friends to play",
         "rules": "Some rules",
         "image_url": None,
         "is_public": False,
-        "is_whats_that_game_certified": False
+        "is_whats_that_game_certified": False,
+        "game_setting": ["Pub / Bar"]
     }
 
     if overrides:

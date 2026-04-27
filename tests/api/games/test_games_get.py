@@ -28,8 +28,7 @@ def test_get_games_returns_list(client_with_auth, client_no_auth):
     assert len(game["equipment"]) == len(created_game["equipment"])
     assert set(game["equipment"]) == set(created_game["equipment"])
 
-    assert len(game["themes"]) == len(created_game["themes"])
-    assert {t["theme_name"] for t in game["themes"]} == {t["theme_name"] for t in created_game["themes"]}
+    assert set(game["game_setting"]) == set(created_game["game_setting"])
 
     assert game["contributor"]["username"] == created_game["contributor"]["username"]
     assert game["contributor"]["country_of_origin"] == created_game["contributor"]["country_of_origin"]

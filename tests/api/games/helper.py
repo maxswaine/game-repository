@@ -34,8 +34,5 @@ def get_user_token(client, user_login) -> str:
     return token_data["access_token"]
 
 
-def upvote_game(client, game_id, remove: bool = False):
-    url = f"/games/{game_id}/upvote"
-    if remove:
-        url += "?remove=true"
-    return client.post(url)
+def upvote_game(client, game_id):
+    return client.post(f"/games/{game_id}/upvote")
