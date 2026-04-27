@@ -7,7 +7,11 @@ from src.models.optimisation_models.optimisation_models import \
     OptimisationResult  # Keep the model, just don't return it directly yet
 from src.utils.prompts import PROMPT_TEMPLATES
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def _get_client() -> OpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
+    return OpenAI(api_key=api_key)
 
 
 class TextOptimiser:
@@ -38,7 +42,7 @@ class TextOptimiser:
         ]
 
         try:
-            response = client.responses.create(
+            response = _get_client().responses.create(
                 model="gpt-4.1-nano",
                 input=messages,
                 temperature=0.2,

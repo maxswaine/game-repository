@@ -14,6 +14,6 @@ class GameMetadata(BaseModel):
     game_types: List[GameTypeEnum]
     age_ratings: List[AgeRatingEnum]
     game_equipment: List[GameEquipmentEnum]
-    game_themes: List[GameSettingEnum]
+    game_settings: List[GameSettingEnum]
     durations: List[DurationEnum]
     difficulty: List[GameDifficultyEnum]

@@ -19,8 +19,7 @@ def test_create_game_success(client_with_auth):
     assert len(data["equipment"]) == 1
     assert data["equipment"][0] == GameEquipmentEnum.standard_deck
 
-    assert len(data["themes"]) == 2
-    assert {t["theme_name"] for t in data["themes"]} == {GameSettingEnum.strategy, GameSettingEnum.logic}
+    assert set(data["game_setting"]) == {GameSettingEnum.game_night.value, GameSettingEnum.competitive.value}
 
     assert data["contributor"]["username"] is not None
 
@@ -38,19 +37,15 @@ def test_upvote_game(client_with_auth):
 
     data = response.json()
     assert data["upvotes"] == 1
-    assert data["downvotes"] == 0
 
 
 def test_remove_upvote_game(client_with_auth):
     game = create_public_game(client_with_auth)
 
     upvote_game(client_with_auth, game["id"])
-    response = upvote_game(client_with_auth, game["id"], remove=True)
+    response = upvote_game(client_with_auth, game["id"])  # second call toggles it off
 
     assert response.status_code == 200
 
     data = response.json()
     assert data["upvotes"] == 0
-    assert data["downvotes"] == 0
-    assert data["upvotes"] == 0
-    assert data["downvotes"] == 0

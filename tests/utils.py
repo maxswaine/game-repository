@@ -19,17 +19,15 @@ def valid_public_game_payload(overrides: dict | None = None):
         },
         "duration": DurationEnum.thirty_to_45_min.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
-        "themes": [
-            {"theme_name": GameSettingEnum.strategy.value},
-            {"theme_name": GameSettingEnum.logic.value}
-        ],
         "objective": "Win the game",
         "setup": "Get some friends to play",
         "rules": "Some rules",
         "image_url": None,
         "is_public": True,
-        "is_whats_that_game_certified": False
-    }
+        "is_whats_that_game_certified": False,
+        "game_setting": [
+            GameSettingEnum.game_night.value, GameSettingEnum.competitive.value
+        ]}
 
     if overrides:
         payload.update(overrides)
@@ -49,16 +47,13 @@ def valid_private_game_payload(overrides: dict | None = None):
         },
         "duration": DurationEnum.thirty_to_45_min.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
-        "themes": [
-            {"theme_name": GameSettingEnum.strategy.value},
-            {"theme_name": GameSettingEnum.logic.value}
-        ],
         "objective": "Win the game",
         "setup": "Get some friends to play",
         "rules": "Some rules",
         "image_url": None,
         "is_public": False,
-        "is_whats_that_game_certified": False
+        "is_whats_that_game_certified": False,
+        "game_setting": ["Pub / Bar"]
     }
 
     if overrides:
