@@ -16,7 +16,6 @@ from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
-from src.models.game_models.game_theme import GameThemeBase
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
 from src.models.game_models.player_count import PlayerCount
@@ -61,8 +60,8 @@ def create_new_game(
     for eq in new_game.equipment:
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
-    for th in new_game.themes:
-        db.add(GameTheme(game_id=db_new_game.id, theme_name=th.theme_name))
+    for s in (new_game.game_setting or []):
+        db.add(GameTheme(game_id=db_new_game.id, theme_name=s))
 
     db.commit()
     db.refresh(db_new_game)
@@ -230,7 +229,7 @@ def update_game(
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        if key in ["equipment", "themes"]:
+        if key in ["equipment", "game_setting"]:
             continue
         if value is None:
             continue
@@ -247,15 +246,15 @@ def update_game(
                 equipment_name=eq
             ))
 
-    if "themes" in update_data:
+    if "game_setting" in update_data:
         db.query(GameTheme).filter(
             GameTheme.game_id == db_game.id
         ).delete()
 
-        for th in updates.themes or []:
+        for s in updates.game_setting or []:
             db.add(GameTheme(
                 game_id=db_game.id,
-                theme_name=th.theme_name
+                theme_name=s
             ))
 
     db.commit()
@@ -300,7 +299,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
         ),
         duration=db_game.duration,
         equipment=[item.equipment_name for item in db_game.equipment_items],
-        themes=[GameThemeBase(theme_name=th.theme_name) for th in db_game.theme_items],
+        game_setting=[s.theme_name for s in db_game.theme_items],
         objective=db_game.objective,
         setup=db_game.setup,
         rules=db_game.rules,

@@ -1,5 +1,5 @@
 from src.models.enums.equipment_enum import GameEquipmentEnum
-from src.models.enums.game_theme_enum import GameThemeEnum
+from src.models.enums.game_setting_enum import GameSettingEnum
 from tests.api.games.helper import create_public_game, upvote_game
 from tests.conftest import client_with_auth
 from tests.utils import valid_public_game_payload
@@ -19,8 +19,7 @@ def test_create_game_success(client_with_auth):
     assert len(data["equipment"]) == 1
     assert data["equipment"][0] == GameEquipmentEnum.standard_deck
 
-    assert len(data["themes"]) == 2
-    assert {t["theme_name"] for t in data["themes"]} == {GameThemeEnum.strategy, GameThemeEnum.logic}
+    assert set(data["game_setting"]) == {GameSettingEnum.game_night.value, GameSettingEnum.competitive.value}
 
     assert data["contributor"]["username"] is not None
 
@@ -44,7 +43,7 @@ def test_remove_upvote_game(client_with_auth):
     game = create_public_game(client_with_auth)
 
     upvote_game(client_with_auth, game["id"])
-    response = upvote_game(client_with_auth, game["id"], remove=True)
+    response = upvote_game(client_with_auth, game["id"])  # second call toggles it off
 
     assert response.status_code == 200
 

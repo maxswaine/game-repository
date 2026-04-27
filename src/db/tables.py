@@ -7,7 +7,6 @@ from sqlalchemy.orm import relationship
 from src.db.database import Base
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
-from src.models.enums.game_theme_enum import GameThemeEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 
@@ -86,7 +85,7 @@ class GameEquipment(Base):
 
 
 class GameTheme(Base):
-    __tablename__ = "game_themes"
+    __tablename__ = "game_settings"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
-    theme_name = Column(Enum(GameThemeEnum), nullable=False)
+    theme_name = Column(String, nullable=False)

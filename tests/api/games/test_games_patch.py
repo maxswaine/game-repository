@@ -12,7 +12,7 @@ def test_patch_game_success(client_with_auth, db):
     update_payload = {
         "name": "Updated Uno",
         "equipment": ["UNO Deck"],
-        "themes": [{"theme_name": "Strategy"}, {"theme_name": "Endurance"}]
+        "game_setting": ["Chill", "Party"]
     }
     patch_resp = client_with_auth.patch(f"/games/{game_id}", json=update_payload)
 
@@ -28,8 +28,7 @@ def test_patch_game_success(client_with_auth, db):
     assert len(updated_game["equipment"]) == 1
     assert updated_game["equipment"][0] == "UNO Deck"
 
-    theme_names = {t["theme_name"] for t in updated_game["themes"]}
-    assert theme_names == {"Strategy", "Endurance"}
+    assert set(updated_game["game_setting"]) == {"Chill", "Party"}
 
     assert updated_game["contributor"]["username"] == created_game["contributor"]["username"]
 
@@ -40,9 +39,8 @@ def test_patch_game_success(client_with_auth, db):
     assert len(db_equipment) == 1
     assert db_equipment[0].equipment_name == "UNO Deck"
 
-    db_themes = db.query(GameTheme).filter(GameTheme.game_id == game_id).all()
-    theme_names_db = {t.theme_name for t in db_themes}
-    assert theme_names_db == {"Strategy", "Endurance"}
+    db_settings = db.query(GameTheme).filter(GameTheme.game_id == game_id).all()
+    assert {s.theme_name for s in db_settings} == {"Chill", "Party"}
 
 
 def test_patch_game_no_changes(client_with_auth, db):
