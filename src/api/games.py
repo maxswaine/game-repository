@@ -10,12 +10,13 @@ from sqlalchemy.orm import joinedload
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
-from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
+from src.db.tables import Game, GameEquipment, GameTheme, GameUpvote, User
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
+from src.models.game_models.game_setting import GameThemeBase
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
 from src.models.game_models.player_count import PlayerCount
@@ -60,8 +61,8 @@ def create_new_game(
     for eq in new_game.equipment:
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
-    for s in (new_game.game_setting or []):
-        db.add(GameSetting(game_id=db_new_game.id, theme_name=s))
+    for th in new_game.themes:
+        db.add(GameTheme(game_id=db_new_game.id, theme_name=th.theme_name))
 
     db.commit()
     db.refresh(db_new_game)
@@ -81,16 +82,16 @@ def upvote_game(
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
 
-    existing_favourite = db.query(UserFavourites).filter(
-        UserFavourites.game_id == game_id,
-        UserFavourites.user_id == current_user.id
+    existing_upvote = db.query(GameUpvote).filter(
+        GameUpvote.game_id == game_id,
+        GameUpvote.user_id == current_user.id
     ).first()
 
-    if existing_favourite:
-        db.delete(existing_favourite)
+    if existing_upvote:
+        db.delete(existing_upvote)
         db_game.upvotes -= 1
     else:
-        db.add(UserFavourites(game_id=game_id, user_id=current_user.id))
+        db.add(GameUpvote(game_id=game_id, user_id=current_user.id))
         db_game.upvotes += 1
 
     db.commit()
@@ -98,7 +99,7 @@ def upvote_game(
 
     return GameVoteRead(
         game_id=db_game.id,
-        upvotes=db_game.upvotes,
+        upvotes=db_game.upvotes
     )
 
 
@@ -126,7 +127,7 @@ def get_all_games(
         min_players: Optional[int] = None,
         max_players: Optional[int] = None,
         duration: Optional[str] = None,
-        setting: Optional[str] = None,
+        theme: Optional[str] = None,
         equipment: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
@@ -135,7 +136,7 @@ def get_all_games(
     offset = max(offset, 0)
     query = db.query(Game).options(
         joinedload(Game.equipment_items),  # eager-load equipment
-        joinedload(Game.setting_items),  # eager-load settings
+        joinedload(Game.theme_items),  # eager-load themes
         joinedload(Game.contributor)  # eager-load contributor
     ).filter(Game.is_public == True)
 
@@ -157,8 +158,8 @@ def get_all_games(
     if duration:
         query = query.filter(Game.duration.ilike(f"%{duration}%"))
 
-    if setting:
-        query = query.join(Game.setting_items).filter(GameSetting.theme_name.ilike(f"%{setting}%"))
+    if theme:
+        query = query.join(Game.theme_items).filter(GameTheme.theme_name.ilike(f"%{theme}%"))
 
     if equipment:
         query = query.join(Game.equipment_items).filter(GameEquipment.equipment_name.ilike(f"%{equipment}%"))
@@ -183,7 +184,7 @@ def get_my_games(
     offset = max(offset, 0)
     games = (db.query(Game).options(
         joinedload(Game.equipment_items),
-        joinedload(Game.setting_items),
+        joinedload(Game.theme_items),
         joinedload(Game.contributor),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
@@ -229,7 +230,7 @@ def update_game(
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        if key in ["equipment", "game_setting"]:
+        if key in ["equipment", "themes"]:
             continue
         if value is None:
             continue
@@ -246,15 +247,15 @@ def update_game(
                 equipment_name=eq
             ))
 
-    if "game_setting" in update_data:
-        db.query(GameSetting).filter(
-            GameSetting.game_id == db_game.id
+    if "themes" in update_data:
+        db.query(GameTheme).filter(
+            GameTheme.game_id == db_game.id
         ).delete()
 
-        for s in updates.game_setting or []:
-            db.add(GameSetting(
+        for th in updates.themes or []:
+            db.add(GameTheme(
                 game_id=db_game.id,
-                theme_name=s
+                theme_name=th.theme_name
             ))
 
     db.commit()
@@ -299,7 +300,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
         ),
         duration=db_game.duration,
         equipment=[item.equipment_name for item in db_game.equipment_items],
-        game_setting=[s.theme_name for s in db_game.setting_items],
+        themes=[GameThemeBase(theme_name=th.theme_name) for th in db_game.theme_items],
         objective=db_game.objective,
         setup=db_game.setup,
         rules=db_game.rules,
