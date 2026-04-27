@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 from src.db.database import Base
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
+from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 
@@ -66,15 +67,26 @@ class Game(Base):
     is_whats_that_game_verified = Column(Boolean, nullable=False, default=False)
 
     upvotes = Column(Integer, nullable=False, default=0)
+    downvotes = Column(Integer, nullable=False, default=0)
 
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # relationships
     equipment_items = relationship("GameEquipment", cascade="all, delete-orphan")
-    setting_items = relationship("GameSetting", cascade="all, delete-orphan")
+    theme_items = relationship("GameTheme", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
+    upvote_items = relationship("GameUpvote", back_populates="game", cascade="all, delete-orphan")
+
+
+class GameUpvote(Base):
+    __tablename__ = "game_upvotes"
+    game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, primary_key=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    game = relationship("Game", back_populates="upvote_items")
 
 
 class GameEquipment(Base):
@@ -84,8 +96,8 @@ class GameEquipment(Base):
     equipment_name = Column(String, nullable=False)
 
 
-class GameSetting(Base):
-    __tablename__ = "game_settings"
+class GameTheme(Base):
+    __tablename__ = "game_themes"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
-    theme_name = Column(String, nullable=False)
+    theme_name = Column(Enum(GameSettingEnum), nullable=False)

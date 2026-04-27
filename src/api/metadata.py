@@ -39,7 +39,7 @@ def get_metadata():
     return GameMetadata(
         game_types=[gt.value for gt in GameTypeEnum],
         age_ratings=[ar.value for ar in AgeRatingEnum],
-        game_settings=[gth.value for gth in GameSettingEnum],
+        game_themes=[gth.value for gth in GameSettingEnum],
         game_equipment=[eq.value for eq in GameEquipmentEnum],
         durations=[d.value for d in DurationEnum],
         difficulty=[gd.value for gd in GameDifficultyEnum]
