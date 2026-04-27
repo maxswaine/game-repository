@@ -72,7 +72,7 @@ class Game(Base):
 
     # relationships
     equipment_items = relationship("GameEquipment", cascade="all, delete-orphan")
-    theme_items = relationship("GameTheme", cascade="all, delete-orphan")
+    setting_items = relationship("GameSetting", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
 
@@ -84,7 +84,7 @@ class GameEquipment(Base):
     equipment_name = Column(String, nullable=False)
 
 
-class GameTheme(Base):
+class GameSetting(Base):
     __tablename__ = "game_settings"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)

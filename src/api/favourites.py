@@ -46,7 +46,7 @@ def get_all_favourites(
         .filter(Game.id.in_(game_ids))
         .options(
             joinedload(Game.equipment_items),
-            joinedload(Game.theme_items),
+            joinedload(Game.setting_items),
             joinedload(Game.contributor)
         )
         .all()
