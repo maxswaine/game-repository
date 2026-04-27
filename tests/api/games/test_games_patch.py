@@ -40,7 +40,7 @@ def test_patch_game_success(client_with_auth, db):
     assert db_equipment[0].equipment_name == "UNO Deck"
 
     db_settings = db.query(GameSetting).filter(GameSetting.game_id == game_id).all()
-    assert {s.theme_name for s in db_settings} == {"Chill", "Party"}
+    assert {s.setting_name for s in db_settings} == {"Chill", "Party"}
 
 
 def test_patch_game_no_changes(client_with_auth, db):

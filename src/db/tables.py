@@ -88,4 +88,4 @@ class GameSetting(Base):
     __tablename__ = "game_settings"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
-    theme_name = Column(String, nullable=False)
+    setting_name = Column(String, nullable=False)
