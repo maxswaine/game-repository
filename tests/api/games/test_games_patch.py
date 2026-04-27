@@ -1,4 +1,4 @@
-from src.db.tables import Game, GameEquipment, GameTheme
+from src.db.tables import Game, GameEquipment, GameSetting
 from tests.utils import valid_public_game_payload
 
 
@@ -39,7 +39,7 @@ def test_patch_game_success(client_with_auth, db):
     assert len(db_equipment) == 1
     assert db_equipment[0].equipment_name == "UNO Deck"
 
-    db_settings = db.query(GameTheme).filter(GameTheme.game_id == game_id).all()
+    db_settings = db.query(GameSetting).filter(GameSetting.game_id == game_id).all()
     assert {s.theme_name for s in db_settings} == {"Chill", "Party"}
 
 

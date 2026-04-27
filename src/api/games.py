@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
-from src.db.tables import Game, GameEquipment, GameTheme, User, UserFavourites
+from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
@@ -61,7 +61,7 @@ def create_new_game(
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
     for s in (new_game.game_setting or []):
-        db.add(GameTheme(game_id=db_new_game.id, theme_name=s))
+        db.add(GameSetting(game_id=db_new_game.id, theme_name=s))
 
     db.commit()
     db.refresh(db_new_game)
@@ -126,7 +126,7 @@ def get_all_games(
         min_players: Optional[int] = None,
         max_players: Optional[int] = None,
         duration: Optional[str] = None,
-        theme: Optional[str] = None,
+        setting: Optional[str] = None,
         equipment: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
@@ -135,7 +135,7 @@ def get_all_games(
     offset = max(offset, 0)
     query = db.query(Game).options(
         joinedload(Game.equipment_items),  # eager-load equipment
-        joinedload(Game.theme_items),  # eager-load themes
+        joinedload(Game.setting_items),  # eager-load settings
         joinedload(Game.contributor)  # eager-load contributor
     ).filter(Game.is_public == True)
 
@@ -157,8 +157,8 @@ def get_all_games(
     if duration:
         query = query.filter(Game.duration.ilike(f"%{duration}%"))
 
-    if theme:
-        query = query.join(Game.theme_items).filter(GameTheme.theme_name.ilike(f"%{theme}%"))
+    if setting:
+        query = query.join(Game.setting_items).filter(GameSetting.theme_name.ilike(f"%{setting}%"))
 
     if equipment:
         query = query.join(Game.equipment_items).filter(GameEquipment.equipment_name.ilike(f"%{equipment}%"))
@@ -183,7 +183,7 @@ def get_my_games(
     offset = max(offset, 0)
     games = (db.query(Game).options(
         joinedload(Game.equipment_items),
-        joinedload(Game.theme_items),
+        joinedload(Game.setting_items),
         joinedload(Game.contributor),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
@@ -247,12 +247,12 @@ def update_game(
             ))
 
     if "game_setting" in update_data:
-        db.query(GameTheme).filter(
-            GameTheme.game_id == db_game.id
+        db.query(GameSetting).filter(
+            GameSetting.game_id == db_game.id
         ).delete()
 
         for s in updates.game_setting or []:
-            db.add(GameTheme(
+            db.add(GameSetting(
                 game_id=db_game.id,
                 theme_name=s
             ))
@@ -299,7 +299,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
         ),
         duration=db_game.duration,
         equipment=[item.equipment_name for item in db_game.equipment_items],
-        game_setting=[s.theme_name for s in db_game.theme_items],
+        game_setting=[s.theme_name for s in db_game.setting_items],
         objective=db_game.objective,
         setup=db_game.setup,
         rules=db_game.rules,
