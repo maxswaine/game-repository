@@ -63,6 +63,7 @@ class Game(Base):
     is_whats_that_game_verified = Column(Boolean, nullable=False, default=False)
 
     upvotes = Column(Integer, nullable=False, default=0)
+    difficulty = Column(String, nullable=True)
 
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
