@@ -61,7 +61,7 @@ def create_new_game(
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
     for s in (new_game.game_setting or []):
-        db.add(GameSetting(game_id=db_new_game.id, theme_name=s))
+        db.add(GameSetting(game_id=db_new_game.id, setting_name=s))
 
     db.commit()
     db.refresh(db_new_game)
@@ -158,7 +158,7 @@ def get_all_games(
         query = query.filter(Game.duration.ilike(f"%{duration}%"))
 
     if setting:
-        query = query.join(Game.setting_items).filter(GameSetting.theme_name.ilike(f"%{setting}%"))
+        query = query.join(Game.setting_items).filter(GameSetting.setting_name.ilike(f"%{setting}%"))
 
     if equipment:
         query = query.join(Game.equipment_items).filter(GameEquipment.equipment_name.ilike(f"%{equipment}%"))
@@ -254,7 +254,7 @@ def update_game(
         for s in updates.game_setting or []:
             db.add(GameSetting(
                 game_id=db_game.id,
-                theme_name=s
+                setting_name=s
             ))
 
     db.commit()
@@ -299,7 +299,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
         ),
         duration=db_game.duration,
         equipment=[item.equipment_name for item in db_game.equipment_items],
-        game_setting=[s.theme_name for s in db_game.setting_items],
+        game_setting=[s.setting_name for s in db_game.setting_items],
         objective=db_game.objective,
         setup=db_game.setup,
         rules=db_game.rules,

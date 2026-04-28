@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from src.db.tables import GameTypeEnum
+from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.game_models.player_count import PlayerCount
 from src.models.user_models.user import UserPublicRead

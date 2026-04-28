@@ -5,9 +5,6 @@ from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, E
 from sqlalchemy.orm import relationship
 
 from src.db.database import Base
-from src.models.enums.age_rating_enum import AgeRatingEnum
-from src.models.enums.duration_enum import DurationEnum
-from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 
 GAMES_ID_FK: str = "games.id"
@@ -52,12 +49,12 @@ class Game(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    age_rating = Column(Enum(AgeRatingEnum), nullable=False)
+    age_rating = Column(String, nullable=False)
 
-    game_type = Column(Enum(GameTypeEnum), nullable=False)
+    game_type = Column(String, nullable=False)
     min_players = Column(Integer, nullable=False)
     max_players = Column(Integer, nullable=False)
-    duration = Column(Enum(DurationEnum), nullable=False)
+    duration = Column(String, nullable=False)
     objective = Column(String, nullable=False)
     setup = Column(String, nullable=False)
     rules = Column(String, nullable=False)
@@ -88,4 +85,4 @@ class GameSetting(Base):
     __tablename__ = "game_settings"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
-    theme_name = Column(String, nullable=False)
+    setting_name = Column(String, nullable=False)
