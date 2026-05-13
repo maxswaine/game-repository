@@ -63,6 +63,7 @@ class Game(Base):
     is_whats_that_game_verified = Column(Boolean, nullable=False, default=False)
 
     upvotes = Column(Integer, nullable=False, default=0)
+    difficulty = Column(String, nullable=True)
     embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
 
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)

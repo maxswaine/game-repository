@@ -12,6 +12,7 @@ from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from src.db.database import get_db
 from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
 from src.models.enums.age_rating_enum import AgeRatingEnum
+from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
@@ -44,6 +45,7 @@ def create_new_game(
         min_players=new_game.player_count.min_players,
         max_players=new_game.player_count.max_players,
         duration=new_game.duration,
+        difficulty=new_game.difficulty,
         objective=new_game.objective,
         setup=new_game.setup,
         rules=new_game.rules,
@@ -126,6 +128,7 @@ def get_all_games(
         min_players: Optional[int] = None,
         max_players: Optional[int] = None,
         duration: Optional[str] = None,
+        difficulty: Optional[GameDifficultyEnum] = None,
         setting: Optional[str] = None,
         equipment: Optional[str] = None,
         limit: int = 20,
@@ -156,6 +159,9 @@ def get_all_games(
 
     if duration:
         query = query.filter(Game.duration.ilike(f"%{duration}%"))
+
+    if difficulty:
+        query = query.filter(Game.difficulty == difficulty)
 
     if setting:
         query = query.join(Game.setting_items).filter(GameSetting.setting_name.ilike(f"%{setting}%"))
@@ -298,6 +304,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
             max_players=db_game.max_players
         ),
         duration=db_game.duration,
+        difficulty=db_game.difficulty,
         equipment=[item.equipment_name for item in db_game.equipment_items],
         game_setting=[s.setting_name for s in db_game.setting_items],
         objective=db_game.objective,

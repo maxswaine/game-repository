@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
+from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 
@@ -18,6 +19,7 @@ def valid_public_game_payload(overrides: dict | None = None):
             "max_players": 6
         },
         "duration": DurationEnum.thirty_to_45_min.value,
+        "difficulty": GameDifficultyEnum.medium.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
         "objective": "Win the game",
         "setup": "Get some friends to play",
@@ -46,6 +48,7 @@ def valid_private_game_payload(overrides: dict | None = None):
             "max_players": 6
         },
         "duration": DurationEnum.thirty_to_45_min.value,
+        "difficulty": GameDifficultyEnum.easy.value,
         "equipment": [str(GameEquipmentEnum.standard_deck.value)],
         "objective": "Win the game",
         "setup": "Get some friends to play",
