@@ -11,6 +11,33 @@ from src.services.embedder import embed_text, cosine_similarity, json_to_embeddi
 
 router = APIRouter()
 
+# Phrases that signal the user wants games with no equipment
+_NO_EQUIPMENT_PHRASES = [
+    "no equipment", "without equipment", "no gear", "nothing needed",
+    "hands only", "empty handed", "no props", "no materials", "no items",
+    "no stuff", "need nothing",
+]
+
+# Phrases that signal the user wants pub/bar games
+_PUB_PHRASES = [
+    "pub", "bar", "pub game", "bar game",
+]
+
+
+def _wants_no_equipment(query: str) -> bool:
+    q = query.lower()
+    return any(phrase in q for phrase in _NO_EQUIPMENT_PHRASES)
+
+
+def _apply_hard_filters(games: list, query: str) -> list:
+    """Remove games that cannot satisfy explicit constraints in the query."""
+    if _wants_no_equipment(query):
+        games = [
+            g for g in games
+            if all(e.equipment_name == "No Equipment" for e in g.equipment_items)
+        ]
+    return games
+
 
 @router.post("/", response_model=List[GameSearchResult], status_code=200)
 def semantic_search(
@@ -23,6 +50,8 @@ def semantic_search(
     the closest matches using semantic similarity.
 
     Only games that have been indexed (have a stored embedding) are searched.
+    Explicit constraints in the query (e.g. "no equipment") are applied as
+    hard filters before scoring.
     """
     # Embed the user's query
     try:
@@ -43,6 +72,12 @@ def semantic_search(
         .filter(Game.is_public == True, Game.embedding.isnot(None))
         .all()
     )
+
+    if not games:
+        return []
+
+    # Apply hard filters for explicit constraints (e.g. "no equipment")
+    games = _apply_hard_filters(games, request.query)
 
     if not games:
         return []
