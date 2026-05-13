@@ -57,7 +57,8 @@ def create_new_game(
     db.commit()
     db.refresh(db_new_game)
 
-    for eq in new_game.equipment:
+    equipment_list = new_game.equipment or ["No Equipment"]
+    for eq in equipment_list:
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
     for s in (new_game.game_setting or []):
@@ -240,7 +241,7 @@ def update_game(
             GameEquipment.game_id == db_game.id
         ).delete()
 
-        for eq in updates.equipment or []:
+        for eq in (updates.equipment or ["No Equipment"]):
             db.add(GameEquipment(
                 game_id=db_game.id,
                 equipment_name=eq
@@ -298,7 +299,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
             max_players=db_game.max_players
         ),
         duration=db_game.duration,
-        equipment=[item.equipment_name for item in db_game.equipment_items],
+        equipment=[item.equipment_name for item in db_game.equipment_items] or ["No Equipment"],
         game_setting=[s.setting_name for s in db_game.setting_items],
         objective=db_game.objective,
         setup=db_game.setup,
