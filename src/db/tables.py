@@ -64,6 +64,7 @@ class Game(Base):
 
     upvotes = Column(Integer, nullable=False, default=0)
     difficulty = Column(String, nullable=True)
+    embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
 
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
