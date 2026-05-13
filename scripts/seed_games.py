@@ -42,35 +42,35 @@ if not EXCEL_PATH.exists():
 
 # ── Type mapping ──────────────────────────────────────────────────────────────
 GAME_TYPE_MAP = {
-    "casual":               "Card",
-    "casual / prediction":  "Card",
-    "casual / cards":       "Card",
-    "casual / thinking":    "Word",
-    "casual / coin":        "Other",
-    "bluff / strategy":     "Bluffing",
-    "bluff / cards":        "Bluffing",
-    "party / drawing":      "Drawing",
-    "reflex / cards":       "Card",
-    "skill / coin":         "Physical",
-    "speaking / word":      "Word",
-    "speaking / guessing":  "Guessing",
-    "social / speaking":    "Improv",
+    "casual": "Card",
+    "casual / prediction": "Card",
+    "casual / cards": "Card",
+    "casual / thinking": "Word",
+    "casual / coin": "Other",
+    "bluff / strategy": "Bluffing",
+    "bluff / cards": "Bluffing",
+    "party / drawing": "Drawing",
+    "reflex / cards": "Card",
+    "skill / coin": "Physical",
+    "speaking / word": "Word",
+    "speaking / guessing": "Guessing",
+    "social / speaking": "Improv",
 }
 
 DURATION_MAP = {
-    "under 5 minutes":   "Under 5 minutes",
-    "5-10 minutes":      "5-10 minutes",
-    "10-15 minutes":     "10-15 minutes",
-    "15-30 minutes":     "15-30 minutes",
-    "30-45 minutes":     "30-45 minutes",
-    "45-60 minutes":     "45-60 minutes",
-    "1-2 hours":         "1-2 hours",
+    "under 5 minutes": "Under 5 minutes",
+    "5-10 minutes": "5-10 minutes",
+    "10-15 minutes": "10-15 minutes",
+    "15-30 minutes": "15-30 minutes",
+    "30-45 minutes": "30-45 minutes",
+    "45-60 minutes": "45-60 minutes",
+    "1-2 hours": "1-2 hours",
 }
 
 DIFFICULTY_MAP = {
-    "easy":   "Easy",
+    "easy": "Easy",
     "medium": "Medium",
-    "hard":   "Hard",
+    "hard": "Hard",
     "expert": "Expert",
 }
 
@@ -156,7 +156,8 @@ def seed(session, contributor_id: str):
             "created_at": datetime.now(timezone.utc),
         })
 
-        for item in parse_list(row.get("Equipment")):
+        equipment_items = parse_list(row.get("Equipment")) or ["No Equipment"]
+        for item in equipment_items:
             session.execute(text("""
                 INSERT INTO game_equipment (id, game_id, equipment_name)
                 VALUES (:id, :game_id, :name)

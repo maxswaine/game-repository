@@ -3,11 +3,11 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from src.api.games import map_game_to_read
 from src.db.database import get_db
 from src.db.tables import Game
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
 from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
-from src.api.games import map_game_to_read
 
 router = APIRouter()
 
