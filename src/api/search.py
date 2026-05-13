@@ -18,12 +18,6 @@ _NO_EQUIPMENT_PHRASES = [
     "no stuff", "need nothing",
 ]
 
-# Phrases that signal the user wants pub/bar games
-_PUB_PHRASES = [
-    "pub", "bar", "pub game", "bar game",
-]
-
-
 def _wants_no_equipment(query: str) -> bool:
     q = query.lower()
     return any(phrase in q for phrase in _NO_EQUIPMENT_PHRASES)
