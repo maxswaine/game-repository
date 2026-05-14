@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Cookie, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -57,16 +57,22 @@ async def login_for_access_token(
 @router.post("/refresh", responses={401: {"description": "No access token found or invalid/expired."}})
 async def refresh_token(
         db: Annotated[Session, Depends(get_db)],
-        access_token: Annotated[Optional[str], Cookie] = None
+        access_token: Annotated[Optional[str], Cookie] = None,
+        authorization: Annotated[Optional[str], Header()] = None,
 ):
-    if not access_token:
+    # Accept token from cookie (web) or Authorization header (mobile)
+    token = access_token
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+
+    if not token:
         raise HTTPException(
             status_code=401,
             detail="No access token found"
         )
 
     try:
-        token_data = verify_access_token(access_token)
+        token_data = verify_access_token(token)
     except Exception:
         raise HTTPException(
             status_code=401,
