@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from src.api import users, games, auth, favourites, metadata, optimisation
+from src.api import users, games, auth, favourites, metadata, optimisation, search
 from src.db.database import engine, Base
 
 _version_file = Path(__file__).parent.parent / "VERSION"
@@ -32,6 +32,7 @@ app.include_router(auth.router, prefix="", tags=["auth", "oauth"])
 app.include_router(favourites.router, prefix="/favourites", tags=["favourites"])
 app.include_router(metadata.router, prefix="/metadata", tags=["metadata"])
 app.include_router(optimisation.router, prefix="/optimise", tags=["optimisation"])
+app.include_router(search.router, prefix="/games/search", tags=["search"])
 
 
 @app.get("/")
