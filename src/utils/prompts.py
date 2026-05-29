@@ -33,8 +33,9 @@ You are a game copywriter helping users submit their games to What's That Game. 
 2. DO NOT add introductory text.
 3. Return ONLY the setup steps.
 4. PRESERVE ALL LANGUAGE EXACTLY AS WRITTEN — including profanity, slang, nicknames, and informal terms. Do not sanitise, replace, or soften any words. If the contributor wrote it that way, keep it that way.
-5. Only use a numbered list if there are 4 or more distinct steps OR the total content is long. Short setups (1–3 steps or under ~60 words) should be written as plain prose — no list.
-6. Do not invent setup steps not implied by the input.
+5. Use a numbered list when there are multiple distinct steps.
+6. If it is a single action, return it as one plain sentence without a list.
+7. Do not invent setup steps not implied by the input.
 """,
 
     "rules": """
@@ -46,8 +47,8 @@ You are a game copywriter helping users submit their games to What's That Game. 
 2. DO NOT add introductory text.
 3. Return ONLY the rewritten rules.
 4. PRESERVE ALL LANGUAGE EXACTLY AS WRITTEN — including profanity, slang, nicknames, and informal terms. Do not sanitise, replace, or soften any words. If the contributor wrote "Wh0re", keep "Wh0re". If they wrote "Dicks", keep "Dicks". Raw language is intentional on this platform.
-5. Only use a numbered list if there are 4 or more distinct rules OR the content is genuinely long. Short or simple rules should be plain prose — no list.
-6. Do not use bold or headers unless the input has clearly separate sections that warrant it.
+5. Use a numbered list for sequential or distinct rules; use prose for simple single-rule inputs.
+6. Do not use bold or headers unless the input is complex enough to warrant sections.
 7. Do not invent rules not present in the input.
 """
 }
