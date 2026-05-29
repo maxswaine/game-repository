@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
+from src.services.embedder import build_game_text, embed_text, embedding_to_json
 from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -70,6 +71,12 @@ def create_new_game(
 
     db.commit()
     db.refresh(db_new_game)
+
+    try:
+        db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game)))
+        db.commit()
+    except Exception:
+        pass  # embedding is best-effort — game is still created, backfill via embed_games.py
 
     return map_game_to_read(db_new_game)
 
@@ -268,6 +275,12 @@ def update_game(
 
     db.commit()
     db.refresh(db_game)
+
+    try:
+        db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game)))
+        db.commit()
+    except Exception:
+        pass  # embedding is best-effort
 
     return map_game_to_read(db_game)
 
