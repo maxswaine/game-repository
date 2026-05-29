@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from src.api.users import get_current_active_user
 from src.db.tables import User
 from src.models.enums.ai_agents_enum import AIAgentEnum
-from src.models.optimisation_models.optimisation_models import OptimisationResponse
+from src.models.optimisation_models.optimisation_models import OptimisationRequest, OptimisationResponse
 from src.services.optimiser import get_optimiser
 
 router = APIRouter()
@@ -15,7 +15,9 @@ def auth_required():
 
 
 @router.post("/", response_model=OptimisationResponse)
-async def optimise_text(field_name: str, original_text: str, _current_user: User = auth_required()):
+async def optimise_text(request: OptimisationRequest, _current_user: User = auth_required()):
+    field_name = request.field_type
+    original_text = request.original_text
     valid_types = [e.value for e in AIAgentEnum]
 
     # 1. Validate Input Type
