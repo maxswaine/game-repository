@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from src.db.database import Base
@@ -30,6 +30,7 @@ class User(Base):
 
     games = relationship("Game", back_populates="contributor")
     favourites = relationship("UserFavourites", back_populates="user")
+    achievements = relationship("UserAchievement", back_populates="user")
 
 
 class UserFavourites(Base):
@@ -74,6 +75,18 @@ class Game(Base):
     setting_items = relationship("GameSetting", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+    __table_args__ = (UniqueConstraint("user_id", "achievement_type", name="uq_user_achievement"),)
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    achievement_type = Column(String, nullable=False)
+    achieved_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", back_populates="achievements")
 
 
 class GameEquipment(Base):

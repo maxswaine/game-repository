@@ -1,0 +1,201 @@
+import uuid
+
+import pytest
+
+from src.db.tables import Game, UserAchievement
+from src.models.enums.achievement_enum import AchievementTypeEnum
+from tests.api.games.helper import create_public_game
+from tests.utils import valid_public_game_payload
+
+
+def _get_achievements(client):
+    return client.get("/achievements/").json()
+
+
+def _by_type(achievements, achievement_type: AchievementTypeEnum):
+    return next(a for a in achievements if a["achievement_type"] == achievement_type.value)
+
+
+class TestGetAchievements:
+    def test_requires_auth(self, client_no_auth):
+        assert client_no_auth.get("/achievements/").status_code == 401
+
+    def test_returns_all_seven_locked_for_new_user(self, client_with_auth):
+        achievements = _get_achievements(client_with_auth)
+        assert len(achievements) == 7
+        assert all(not a["achieved"] for a in achievements)
+        assert all(a["achieved_at"] is None for a in achievements)
+
+    def test_returns_all_expected_types(self, client_with_auth):
+        types = {a["achievement_type"] for a in _get_achievements(client_with_auth)}
+        assert types == {t.value for t in AchievementTypeEnum}
+
+
+class TestFirstLike:
+    def test_unlocked_by_upvoting_a_game(self, client_with_auth):
+        game = create_public_game(client_with_auth)
+        client_with_auth.post(f"/games/{game['id']}/upvote")
+
+        first_like = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_LIKE)
+        assert first_like["achieved"] is True
+        assert first_like["achieved_at"] is not None
+
+    def test_unlocked_by_favouriting_a_game(self, client_with_auth):
+        game = create_public_game(client_with_auth)
+        client_with_auth.post(f"/favourites/{game['id']}")
+
+        first_like = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_LIKE)
+        assert first_like["achieved"] is True
+
+    def test_not_granted_again_when_upvote_removed(self, client_with_auth):
+        game = create_public_game(client_with_auth)
+        client_with_auth.post(f"/games/{game['id']}/upvote")  # add
+        client_with_auth.post(f"/games/{game['id']}/upvote")  # remove (toggle)
+
+        first_like = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_LIKE)
+        assert first_like["achieved"] is True  # still achieved even after toggle off
+
+
+class TestFirstSubmit:
+    def test_unlocked_after_creating_first_game(self, client_with_auth):
+        create_public_game(client_with_auth)
+
+        first_submit = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_SUBMIT)
+        assert first_submit["achieved"] is True
+
+    def test_not_unlocked_before_any_game(self, client_with_auth):
+        first_submit = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_SUBMIT)
+        assert first_submit["achieved"] is False
+
+
+class TestFiveUploads:
+    def test_not_unlocked_after_four_games(self, client_with_auth):
+        for i in range(4):
+            client_with_auth.post("/games/", json=valid_public_game_payload({"name": f"Game {i}"}))
+
+        five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
+        assert five_uploads["achieved"] is False
+
+    def test_unlocked_after_fifth_game(self, client_with_auth):
+        for i in range(5):
+            client_with_auth.post("/games/", json=valid_public_game_payload({"name": f"Game {i}"}))
+
+        five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
+        assert five_uploads["achieved"] is True
+
+
+class TestTenLikes:
+    def test_unlocked_for_contributor_when_game_hits_10_upvotes(
+        self, db, test_user, client_as_second_user
+    ):
+        game = Game(
+            id=str(uuid.uuid4()),
+            name="Popular Game",
+            description="A great game",
+            age_rating="7+",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="Win",
+            setup="Set up",
+            rules="Follow rules",
+            is_public=True,
+            upvotes=9,
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        response = client_as_second_user.post(f"/games/{game.id}/upvote")
+        assert response.status_code == 200
+
+        achievement = db.query(UserAchievement).filter_by(
+            user_id=test_user.id,
+            achievement_type=AchievementTypeEnum.TEN_LIKES_ON_UPLOAD.value,
+        ).first()
+        assert achievement is not None
+
+    def test_not_unlocked_at_nine_upvotes(self, db, test_user, client_as_second_user):
+        game = Game(
+            id=str(uuid.uuid4()),
+            name="Almost Popular",
+            description="A great game",
+            age_rating="7+",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="Win",
+            setup="Set up",
+            rules="Follow rules",
+            is_public=True,
+            upvotes=8,
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        client_as_second_user.post(f"/games/{game.id}/upvote")
+
+        achievement = db.query(UserAchievement).filter_by(
+            user_id=test_user.id,
+            achievement_type=AchievementTypeEnum.TEN_LIKES_ON_UPLOAD.value,
+        ).first()
+        assert achievement is None
+
+
+class TestSignalAchievements:
+    @pytest.mark.parametrize("achievement_type", [
+        AchievementTypeEnum.SHARE_GAME,
+        AchievementTypeEnum.GIVE_FEEDBACK,
+        AchievementTypeEnum.COMPLETE_TUTORIAL,
+    ])
+    def test_signal_grants_achievement(self, client_with_auth, achievement_type):
+        response = client_with_auth.post(
+            "/achievements/signal",
+            json={"achievement_type": achievement_type.value},
+        )
+        assert response.status_code == 201
+
+        achievement = _by_type(_get_achievements(client_with_auth), achievement_type)
+        assert achievement["achieved"] is True
+        assert achievement["achieved_at"] is not None
+
+    def test_signal_is_idempotent(self, client_with_auth):
+        client_with_auth.post("/achievements/signal", json={"achievement_type": "share_game"})
+        response = client_with_auth.post("/achievements/signal", json={"achievement_type": "share_game"})
+        assert response.status_code == 201
+
+    def test_signal_rejects_data_derived_achievement(self, client_with_auth):
+        response = client_with_auth.post(
+            "/achievements/signal",
+            json={"achievement_type": AchievementTypeEnum.FIRST_LIKE.value},
+        )
+        assert response.status_code == 400
+
+    def test_signal_requires_auth(self, client_no_auth):
+        response = client_no_auth.post(
+            "/achievements/signal",
+            json={"achievement_type": "share_game"},
+        )
+        assert response.status_code == 401
+
+
+class TestFavouriteUpvoteSync:
+    def test_favouriting_increments_upvotes(self, client_with_auth):
+        game = create_public_game(client_with_auth)
+        assert game["upvotes"] == 0
+
+        client_with_auth.post(f"/favourites/{game['id']}")
+
+        updated = client_with_auth.get(f"/games/{game['id']}").json()
+        assert updated["upvotes"] == 1
+
+    def test_unfavouriting_decrements_upvotes(self, client_with_auth):
+        game = create_public_game(client_with_auth)
+        client_with_auth.post(f"/favourites/{game['id']}")
+        client_with_auth.delete(f"/favourites/{game['id']}")
+
+        updated = client_with_auth.get(f"/games/{game['id']}").json()
+        assert updated["upvotes"] == 0
