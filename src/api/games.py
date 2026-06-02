@@ -10,8 +10,10 @@ from sqlalchemy.orm import joinedload
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
+from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json
 from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
+from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
@@ -72,6 +74,13 @@ def create_new_game(
     db.commit()
     db.refresh(db_new_game)
 
+    game_count = db.query(Game).filter(Game.contributor_id == current_user.id).count()
+    if game_count == 1:
+        grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIRST_SUBMIT)
+    if game_count == 5:
+        grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIVE_UPLOADS)
+    db.commit()
+
     try:
         db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game)))
         db.commit()
@@ -102,8 +111,18 @@ def upvote_game(
         db.delete(existing_favourite)
         db_game.upvotes -= 1
     else:
+        is_first_like = db.query(UserFavourites).filter(
+            UserFavourites.user_id == current_user.id
+        ).count() == 0
+
         db.add(UserFavourites(game_id=game_id, user_id=current_user.id))
         db_game.upvotes += 1
+
+        if is_first_like:
+            grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIRST_LIKE)
+
+        if db_game.upvotes == 10:
+            grant_if_not_exists(db, db_game.contributor_id, AchievementTypeEnum.TEN_LIKES_ON_UPLOAD)
 
     db.commit()
     db.refresh(db_game)
