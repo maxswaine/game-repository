@@ -227,6 +227,22 @@ class TestScenarios:
         ).all()
         assert len(second_user_achievements) == 0
 
+    def test_five_uploads_achievement_survives_game_deletion(self, client_with_auth):
+        """Deleting a game after hitting 5 uploads must not revoke the achievement."""
+        game_ids = []
+        for i in range(5):
+            game = create_public_game(client_with_auth)
+            game_ids.append(game["id"])
+
+        five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
+        assert five_uploads["achieved"] is True
+
+        client_with_auth.delete(f"/games/{game_ids[0]}")
+
+        five_uploads_after = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
+        assert five_uploads_after["achieved"] is True
+        assert five_uploads_after["achieved_at"] == five_uploads["achieved_at"]
+
     def test_ten_likes_not_double_granted_when_upvote_toggled_past_10(
         self, db, test_user, client_as_second_user
     ):
