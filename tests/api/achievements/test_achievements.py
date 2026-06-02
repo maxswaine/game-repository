@@ -182,6 +182,85 @@ class TestSignalAchievements:
         assert response.status_code == 401
 
 
+class TestScenarios:
+    def test_five_game_journey_unlocks_first_submit_and_five_uploads(self, client_with_auth):
+        """Creating 5 games should unlock FIRST_SUBMIT on game 1 and FIVE_UPLOADS on game 5."""
+        for i in range(5):
+            client_with_auth.post("/games/", json=valid_public_game_payload({"name": f"Game {i}"}))
+
+        achievements = _get_achievements(client_with_auth)
+        assert _by_type(achievements, AchievementTypeEnum.FIRST_SUBMIT)["achieved"] is True
+        assert _by_type(achievements, AchievementTypeEnum.FIVE_UPLOADS)["achieved"] is True
+
+    def test_pre_seeded_games_count_toward_five_uploads(self, db, test_user, client_with_auth):
+        """4 games seeded directly in DB, 5th submitted via API — five_uploads should unlock."""
+        for i in range(4):
+            db.add(Game(
+                id=str(uuid.uuid4()),
+                name=f"Seeded Game {i}",
+                description="desc",
+                age_rating="7+",
+                game_type="Card",
+                min_players=2,
+                max_players=6,
+                duration="30-45 minutes",
+                objective="win",
+                setup="setup",
+                rules="rules",
+                is_public=True,
+                contributor_id=test_user.id,
+            ))
+        db.commit()
+
+        create_public_game(client_with_auth)
+
+        five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
+        assert five_uploads["achieved"] is True
+
+    def test_achievements_isolated_between_users(self, db, second_user, client_with_auth):
+        """User A's game submissions don't unlock achievements for user B."""
+        for _ in range(5):
+            create_public_game(client_with_auth)
+
+        second_user_achievements = db.query(UserAchievement).filter_by(
+            user_id=second_user.id
+        ).all()
+        assert len(second_user_achievements) == 0
+
+    def test_ten_likes_not_double_granted_when_upvote_toggled_past_10(
+        self, db, test_user, client_as_second_user
+    ):
+        """Game hits 10 → down to 9 → back to 10. Achievement granted only once."""
+        game = Game(
+            id=str(uuid.uuid4()),
+            name="Toggleable Game",
+            description="desc",
+            age_rating="7+",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="rules",
+            is_public=True,
+            upvotes=9,
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        client_as_second_user.post(f"/games/{game.id}/upvote")  # → 10, achievement granted
+        client_as_second_user.post(f"/games/{game.id}/upvote")  # → 9
+        client_as_second_user.post(f"/games/{game.id}/upvote")  # → 10 again
+
+        count = db.query(UserAchievement).filter_by(
+            user_id=test_user.id,
+            achievement_type=AchievementTypeEnum.TEN_LIKES_ON_UPLOAD.value,
+        ).count()
+        assert count == 1
+
+
 class TestFavouriteUpvoteSync:
     def test_favouriting_increments_upvotes(self, client_with_auth):
         game = create_public_game(client_with_auth)
