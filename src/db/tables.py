@@ -30,6 +30,7 @@ class User(Base):
 
     games = relationship("Game", back_populates="contributor")
     favourites = relationship("UserFavourites", back_populates="user")
+    achievements = relationship("UserAchievement", back_populates="user")
 
 
 class UserFavourites(Base):
@@ -74,6 +75,16 @@ class Game(Base):
     setting_items = relationship("GameSetting", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, primary_key=True)
+    achievement_type = Column(String, nullable=False, primary_key=True)
+    achieved_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", back_populates="achievements")
 
 
 class GameEquipment(Base):

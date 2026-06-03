@@ -9,7 +9,9 @@ from src.api.users import get_current_active_user
 from src.db.database import get_db
 from src.db.tables import User, Game, UserFavourites
 from src.models import GameRead
+from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.user_models.user import UserFavouriteBase
+from src.services.achievements import grant_if_not_exists
 
 router = APIRouter()
 
@@ -75,12 +77,20 @@ def add_favourite(
     if existing:
         raise HTTPException(status_code=400, detail="Game is already favourited by this user")
 
+    is_first_like = db.query(UserFavourites).filter(
+        UserFavourites.user_id == current_user.id
+    ).count() == 0
+
     db_favourite_relationship = UserFavourites(
         game_id=game_id,
         user_id=current_user.id
     )
-
     db.add(db_favourite_relationship)
+    game.upvotes += 1
+
+    if is_first_like:
+        grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIRST_LIKE)
+
     db.commit()
     db.refresh(db_favourite_relationship)
     return db_favourite_relationship
@@ -100,5 +110,8 @@ def remove_favourite(
     if not existing:
         raise HTTPException(status_code=404, detail="Favourite not found")
 
+    game = db.query(Game).filter(Game.id == existing.game_id).first()
     db.delete(existing)
+    if game:
+        game.upvotes = max(0, game.upvotes - 1)
     db.commit()
