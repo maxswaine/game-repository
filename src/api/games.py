@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
+from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json
 from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
@@ -160,6 +162,8 @@ def get_all_games(
         difficulty: Optional[GameDifficultyEnum] = None,
         setting: Optional[str] = None,
         equipment: Optional[str] = None,
+        sort_by: Optional[SortByEnum] = None,
+        trending_days: int = 7,
         limit: int = 20,
         offset: int = 0,
 ):
@@ -198,10 +202,38 @@ def get_all_games(
     if equipment:
         query = query.join(Game.equipment_items).filter(GameEquipment.equipment_name.ilike(f"%{equipment}%"))
 
-    games = (query.distinct()
-             .limit(limit)
-             .offset(offset)
-             .all())
+    trending_days = max(1, min(trending_days, 365))
+
+    if sort_by == SortByEnum.trending:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=trending_days)
+        recent_likes_subquery = (
+            db.query(
+                UserFavourites.game_id,
+                func.count(UserFavourites.user_id).label("recent_like_count")
+            )
+            .filter(UserFavourites.created_at >= cutoff)
+            .group_by(UserFavourites.game_id)
+            .subquery()
+        )
+        query = (
+            query
+            .outerjoin(recent_likes_subquery, Game.id == recent_likes_subquery.c.game_id)
+            .order_by(
+                func.coalesce(recent_likes_subquery.c.recent_like_count, 0).desc(),
+                Game.upvotes.desc(),
+                Game.created_at.desc()
+            )
+        )
+    elif sort_by == SortByEnum.recommended:
+        query = query.order_by(
+            Game.is_whats_that_game_verified.desc(),
+            Game.upvotes.desc(),
+            Game.created_at.desc()
+        )
+    else:
+        query = query.order_by(Game.created_at.desc())
+
+    games = query.distinct().limit(limit).offset(offset).all()
 
     return [map_game_to_read(game) for game in games]
 
