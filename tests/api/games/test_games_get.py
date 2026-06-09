@@ -1,7 +1,11 @@
+import uuid
+from datetime import datetime, timezone
+
 from starlette.testclient import TestClient
 
 from src.api.users import get_current_user_optional
 from src.db.database import get_db
+from src.db.tables import Game, GameEquipment, User
 from src.main import app
 from tests.api.games.helper import create_public_game, create_private_game, get_user_token
 from tests.conftest import client_with_auth, client_no_auth
@@ -45,6 +49,50 @@ def test_get_private_game_valid(client_with_auth, db, test_user):
     get_response = client_with_auth.get(f"/games/{game_id}", headers=headers)
     assert get_response.status_code == 200
     assert get_response.json() is not None
+
+
+def test_get_games_does_not_crash_for_oauth_contributor(db, client_no_auth):
+    oauth_user = User(
+        id=str(uuid.uuid4()),
+        firstname="OAuth",
+        lastname="User",
+        username="oauthcontributor",
+        email="oauth@gmail.com",
+        hashed_password="",
+        country_of_origin=None,
+        is_active=True,
+        oauth_provider="google",
+        oauth_id="google-sub-999",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(oauth_user)
+    db.flush()
+
+    game = Game(
+        id=str(uuid.uuid4()),
+        name="OAuth Game",
+        description="A game contributed by an OAuth user with no country set",
+        age_rating="All Ages",
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 mins",
+        objective="Win",
+        setup="Setup the game",
+        rules="Play by the rules",
+        is_public=True,
+        is_whats_that_game_verified=False,
+        upvotes=0,
+        contributor_id=oauth_user.id,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(game)
+    db.flush()
+    db.add(GameEquipment(game_id=game.id, equipment_name="No Equipment"))
+    db.commit()
+
+    response = client_no_auth.get("/games/")
+    assert response.status_code == 200
 
 
 def test_get_private_game_forbidden(client_with_auth, db, second_user):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -12,16 +12,16 @@ from src.models.user_models.user import UserPublicRead
 
 class GameBase(BaseModel):
     name: str
-    description: str
+    description: str = Field(max_length=2000)
     age_rating: AgeRatingEnum
     game_type: GameTypeEnum
     player_count: PlayerCount
     duration: str
     difficulty: Optional[GameDifficultyEnum] = None
     equipment: List[str]
-    objective: str
-    setup: str
-    rules: str
+    objective: str = Field(max_length=2000)
+    setup: str = Field(max_length=2000)
+    rules: str = Field(max_length=2000)
     image_url: Optional[str] = None
     is_public: bool
     is_whats_that_game_certified: bool = False
@@ -43,6 +43,7 @@ class GameRead(GameBase):
 
 class GameUpdate(BaseModel):
     name: Optional[str] = None
+    description: Optional[str] = None
     game_type: Optional[GameTypeEnum] = None
     age_rating: Optional[AgeRatingEnum] = None
     min_players: Optional[int] = None

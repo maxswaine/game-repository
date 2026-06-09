@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date as date_type
 from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,7 +14,7 @@ from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json
-from src.db.tables import Game, GameEquipment, GameSetting, User, UserFavourites
+from src.db.tables import Game, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -26,11 +26,39 @@ from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
 from src.models.game_models.player_count import PlayerCount
 from src.models.user_models.user import UserPublicRead
+from src.services.moderation import check_content
+from src.utils.age_filter import detect_adult_content, detect_profanity, allowed_age_ratings
 
 protected_router = APIRouter()
 public_router = APIRouter()
 
 NO_EQUIPMENT = "No Equipment"
+_MODERATED_TEXT_FIELDS = {"name", "description", "objective", "setup", "rules"}
+
+
+def _parse_dob(user) -> date_type | None:
+    if not user or not user.date_of_birth:
+        return None
+    try:
+        return date_type.fromisoformat(user.date_of_birth)
+    except (ValueError, TypeError):
+        return None
+
+
+def _user_is_adult(user) -> bool:
+    dob = _parse_dob(user)
+    if dob is None:
+        return False
+    return (date_type.today() - dob).days // 365 >= 18
+
+
+def _apply_age_content_filter(query, current_user):
+    if _user_is_adult(current_user):
+        return query
+    allowed = allowed_age_ratings(_parse_dob(current_user))
+    return (query
+            .filter(Game.age_rating.in_(allowed))
+            .filter(Game.has_adult_content == False))
 
 
 def auth_required():
@@ -44,6 +72,31 @@ def create_new_game(
         new_game: GameCreate,
         current_user: User = auth_required()
 ):
+    combined_text = " ".join(filter(None, [
+        new_game.name, new_game.description,
+        new_game.objective, new_game.setup, new_game.rules,
+    ]))
+
+    if not _user_is_adult(current_user):
+        if detect_adult_content(
+            new_game.game_type.value,
+            [s.value if hasattr(s, "value") else str(s) for s in (new_game.game_setting or [])],
+            combined_text,
+        ) or detect_profanity(combined_text):
+            raise HTTPException(
+                status_code=422,
+                detail="You must be 18 or over to submit games containing mature or explicit content.",
+            )
+
+    if not check_content(combined_text):
+        raise HTTPException(status_code=422, detail="Content violates community guidelines.")
+
+    adult_flag = detect_adult_content(
+        new_game.game_type.value,
+        [s.value if hasattr(s, "value") else str(s) for s in (new_game.game_setting or [])],
+        combined_text,
+    ) or detect_profanity(combined_text)
+
     db_new_game = Game(
         name=new_game.name,
         description=new_game.description,
@@ -59,6 +112,7 @@ def create_new_game(
         image_url=new_game.image_url,
         is_public=new_game.is_public,
         is_whats_that_game_verified=new_game.is_whats_that_game_certified,
+        has_adult_content=adult_flag,
         created_at=datetime.now(timezone.utc),
         contributor_id=current_user.id
     )
@@ -136,16 +190,36 @@ def upvote_game(
 
 
 @protected_router.post("/{game_id}/report", status_code=201, response_model=GameReportResponse,
-                       responses={404: {"description": "Game not found"},
+                       responses={400: {"description": "Already reported or own game"},
+                                  404: {"description": "Game not found"},
                                   401: {"description": "Authentication required"}})
 def report_game(
         db: Annotated[Session, Depends(get_db)],
         game_id: str,
         game_report: GameReportRequest,
-        _current_user: User = auth_required()
-
+        current_user: User = auth_required(),
 ):
-    return GameReportResponse(message="Report received")
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+
+    if db_game.contributor_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot report your own game.")
+
+    existing = db.query(GameReport).filter(
+        GameReport.game_id == game_id,
+        GameReport.reporter_id == current_user.id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already reported this game.")
+
+    db.add(GameReport(
+        game_id=game_id,
+        reporter_id=current_user.id,
+        reason=game_report.reason.value,
+    ))
+    db.commit()
+    return GameReportResponse(message="Report received.")
 
 
 # READ
@@ -153,6 +227,7 @@ def report_game(
                    responses={401: {"description": "Authentication required for non-public access"}})
 def get_all_games(
         db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User | None, Depends(get_current_user_optional)],
         name: Optional[str] = None,
         game_type: Optional[GameTypeEnum] = None,
         age_rating: Optional[AgeRatingEnum] = None,
@@ -170,10 +245,12 @@ def get_all_games(
     limit = min(limit, 100)
     offset = max(offset, 0)
     query = db.query(Game).options(
-        joinedload(Game.equipment_items),  # eager-load equipment
-        joinedload(Game.setting_items),  # eager-load settings
-        joinedload(Game.contributor)  # eager-load contributor
+        joinedload(Game.equipment_items),
+        joinedload(Game.setting_items),
+        joinedload(Game.contributor)
     ).filter(Game.is_public == True)
+
+    query = _apply_age_content_filter(query, current_user)
 
     if name:
         query = query.filter(Game.name.ilike(f"%{name}%"))
@@ -275,6 +352,11 @@ def get_game_by_id(
         if not current_user or game.contributor_id != current_user.id:
             raise FORBIDDEN_EXCEPTION
 
+    if not _user_is_adult(current_user):
+        allowed = allowed_age_ratings(_parse_dob(current_user))
+        if game.age_rating not in allowed or game.has_adult_content:
+            raise FORBIDDEN_EXCEPTION
+
     return map_game_to_read(game)
 
 
@@ -326,6 +408,28 @@ def update_game(
 
     db.commit()
     db.refresh(db_game)
+
+    settings_after = [s.setting_name for s in db_game.setting_items]
+    combined_text = " ".join(filter(None, [
+        db_game.name, db_game.description,
+        db_game.objective, db_game.setup, db_game.rules,
+    ]))
+
+    if _MODERATED_TEXT_FIELDS & update_data.keys():
+        if not _user_is_adult(current_user):
+            if detect_adult_content(db_game.game_type, settings_after, combined_text) or \
+               detect_profanity(combined_text):
+                raise HTTPException(
+                    status_code=422,
+                    detail="You must be 18 or over to submit games containing mature or explicit content.",
+                )
+        if not check_content(combined_text):
+            raise HTTPException(status_code=422, detail="Content violates community guidelines.")
+
+    db_game.has_adult_content = detect_adult_content(
+        db_game.game_type, settings_after, combined_text
+    ) or detect_profanity(combined_text)
+    db.commit()
 
     try:
         db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game)))

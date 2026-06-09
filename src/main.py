@@ -2,15 +2,24 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements
+from src.core.limiter import limiter
 from src.db.database import engine, Base
 
 _version_file = Path(__file__).parent.parent / "VERSION"
 APP_VERSION = _version_file.read_text().strip() if _version_file.exists() else "unknown"
 
 app = FastAPI(version=APP_VERSION)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme"))
 Base.metadata.create_all(bind=engine)
 
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")

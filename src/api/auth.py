@@ -1,26 +1,41 @@
 # src/api/auth.py
 import os
+import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Cookie, Header
+from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
 from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
+from src.core.limiter import limiter
 from src.core.security import create_access_token, verify_access_token
 from src.core.security import verify_password, TOKEN_EXPIRES_MINUTES
 from src.db.database import get_db
 from src.db.tables import User
 
+IS_PRODUCTION = os.getenv("ENV") == "production"
+
 router = APIRouter(prefix="/auth")
 
 
+def generate_unique_username(db, base: str) -> str:
+    if not db.query(User).filter(User.username == base).first():
+        return base
+    counter = 2
+    while db.query(User).filter(User.username == f"{base}_{counter}").first():
+        counter += 1
+    return f"{base}_{counter}"
+
+
 @router.post("/token")
+@limiter.limit("5/minute")
 async def login_for_access_token(
+        request: Request,
         db: Annotated[Session, Depends(get_db)],
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
@@ -47,8 +62,8 @@ async def login_for_access_token(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=os.getenv("ENV") == "production",
-        samesite="none" if os.getenv("ENV") == "production" else "lax",
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
         max_age=TOKEN_EXPIRES_MINUTES * 60,
     )
     return response
@@ -109,8 +124,8 @@ async def refresh_token(
         key="access_token",
         value=new_token,
         httponly=True,
-        secure=os.getenv("ENV") == "production",
-        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
         max_age=TOKEN_EXPIRES_MINUTES * 60,
     )
 
@@ -144,9 +159,12 @@ async def verify_token_endpoint(
 
 
 @router.get("/oauth/google", tags=["oauth"])
-def google_login():
+def google_login(request: Request):
     client_id = os.environ["GOOGLE_CLIENT_ID"]
     redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
+
+    state = secrets.token_urlsafe(16)
+    request.session["oauth_state"] = state
 
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
@@ -156,6 +174,7 @@ def google_login():
         "&scope=openid%20email%20profile"
         "&access_type=offline"
         "&prompt=consent"
+        f"&state={state}"
     )
 
     return RedirectResponse(url=google_auth_url)
@@ -165,8 +184,14 @@ def google_login():
             responses={400: {"description": "Google token exchange failed, email not verified, or missing user data."}})
 async def google_callback(
         code: str,
+        request: Request,
         db: Annotated[Session, Depends(get_db)],
+        state: Optional[str] = None,
 ):
+    expected_state = request.session.pop("oauth_state", None)
+    if not state or state != expected_state:
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -218,7 +243,7 @@ async def google_callback(
         is_new_user = True
         user = User(
             email=email,
-            username=email.split("@")[0],
+            username=generate_unique_username(db, email.split("@")[0]),
             firstname=userinfo.get("given_name"),
             lastname=userinfo.get("family_name"),
             created_at=datetime.now(timezone.utc),
@@ -245,8 +270,8 @@ async def google_callback(
         key="access_token",
         value=jwt_token,
         httponly=True,
-        secure=os.getenv("ENV") == "production",
-        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
         max_age=3600 * 24 * 7,
     )
 
@@ -263,9 +288,9 @@ async def logout():
         key="access_token",
         path="/",
         domain=None,
-        secure=os.getenv("ENV") == "production",
+        secure=IS_PRODUCTION,
         httponly=True,
-        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax"
+        samesite="none" if IS_PRODUCTION else "lax"
     )
 
     return response
@@ -282,9 +307,9 @@ async def logout_redirect():
         key="access_token",
         path="/",
         domain=None,
-        secure=os.getenv("ENV") == "production",
+        secure=IS_PRODUCTION,
         httponly=True,
-        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax"
+        samesite="none" if IS_PRODUCTION else "lax"
     )
 
     return response

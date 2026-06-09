@@ -15,7 +15,7 @@ class User(Base):
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     firstname = Column(String, nullable=False)
     lastname = Column(String, nullable=False)
-    username = Column(String, nullable=False)
+    username = Column(String, nullable=False, unique=True)
     email = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)
     date_of_birth = Column(String, nullable=True)
@@ -66,6 +66,7 @@ class Game(Base):
     upvotes = Column(Integer, nullable=False, default=0)
     difficulty = Column(String, nullable=True)
     embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
+    has_adult_content = Column(Boolean, nullable=False, default=False)
 
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -85,6 +86,20 @@ class UserAchievement(Base):
     achieved_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     user = relationship("User", back_populates="achievements")
+
+
+class GameReport(Base):
+    __tablename__ = "game_reports"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False)
+    reporter_id = Column(String, ForeignKey("users.id"), nullable=False)
+    reason = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        __import__("sqlalchemy").UniqueConstraint("game_id", "reporter_id", name="uq_game_report_per_user"),
+    )
 
 
 class GameEquipment(Base):

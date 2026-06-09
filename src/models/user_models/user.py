@@ -61,7 +61,7 @@ class UserCreate(BaseModel):
 
 class UserPublicRead(BaseModel):
     username: str
-    country_of_origin: str
+    country_of_origin: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -91,6 +91,13 @@ class UserUpdate(BaseModel):
     country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
     avatar_url: Optional[str] = None
+
+    @field_validator('avatar_url')
+    @classmethod
+    def validate_avatar_url(cls, v):
+        if v is not None and not v.startswith('https://'):
+            raise ValueError('avatar_url must start with https://')
+        return v
 
     @field_validator('date_of_birth')
     @classmethod
