@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git workflow
+
+Before any commit or push:
+
+1. Pull from `master` to check for upstream changes: `git fetch origin master && git merge origin/master`
+2. Resolve any conflicts before proceeding.
+
+New features must always be started on a fresh branch cut from `master`:
+
+```bash
+git checkout master && git pull origin master && git checkout -b feature/<descriptive-name>
+```
+
+Never commit new feature work directly to `master` or to another feature branch.
+
 ## Commands
 
 ```bash
