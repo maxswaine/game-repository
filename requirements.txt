@@ -18,3 +18,4 @@ pycountry
 openai
 numpy
 slowapi==0.1.9
+itsdangerous==2.2.0
