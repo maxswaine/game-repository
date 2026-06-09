@@ -5,6 +5,7 @@ from src.api.users import get_current_active_user
 from src.db.tables import User
 from src.models.enums.ai_agents_enum import AIAgentEnum
 from src.models.optimisation_models.optimisation_models import OptimisationRequest, OptimisationResponse
+from src.services.moderation import check_content
 from src.services.optimiser import get_optimiser
 
 router = APIRouter()
@@ -26,6 +27,9 @@ async def optimise_text(request: OptimisationRequest, _current_user: User = auth
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid field '{field_name}'. Valid options: {', '.join(valid_types)}"
         )
+
+    if not check_content(original_text):
+        raise HTTPException(status_code=422, detail="Content violates community guidelines.")
 
     # 2. Get Optimizer and Run Logic
     optimizer = get_optimiser(field_name)

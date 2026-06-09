@@ -1,10 +1,14 @@
 # src/api/users.py
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request, Depends
+from src.core.limiter import limiter
+
+logger = logging.getLogger(__name__)
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -79,7 +83,9 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
                         422: {"description": "Validation error: Invalid input data"},
                         500: {"description": "Internal Database error occurred"}}
              )
+@limiter.limit("3/minute")
 def create_new_user(
+        request: Request,
         db: Annotated[Session, Depends(get_db)],
         new_user: UserCreate,
 ):
@@ -104,12 +110,11 @@ def create_new_user(
         db.refresh(db_new_user)
         return db_new_user
     except Exception as e:
-        print(f"Registration error: {type(e).__name__}: {str(e)}")
         db.rollback()
         if isinstance(e, HTTPException):
             raise e
-        else:
-            raise HTTPException(status_code=500, detail=f"Database error occurred: {str(e)}")
+        logger.error("Registration error: %s: %s", type(e).__name__, str(e))
+        raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 
 @router.post("/me/complete-profile", response_model=UserPrivateRead, status_code=200,
@@ -120,6 +125,11 @@ def complete_profile(
         profile_data: UserCompleteProfile,
         current_user: Annotated[User, Depends(get_current_active_user)],
 ):
+    current_user.date_of_birth = profile_data.date_of_birth
+    current_user.country_of_origin = profile_data.country_of_origin
+    current_user.last_updated = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 
@@ -196,7 +206,7 @@ def update_my_password(
 
 
 # DELETE
-@router.delete("/{user_id}", status_code=204, responses={
+@router.delete("/{user_id}", status_code=200, responses={
     403: {"description": "Not allowed to delete someone else's account"}
 })
 def delete_account(

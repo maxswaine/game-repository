@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,9 +7,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.users import get_current_active_user
+from src.core.limiter import limiter
 from src.db.database import Base, get_db
 from src.db.tables import User
 from src.main import app
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    limiter._storage.reset()
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
@@ -104,6 +110,7 @@ def test_user(db):
         email="test@example.com",
         hashed_password="$2b$12$b/B6ENyF.s93r2xvNx5ksuVdh.819Wvs5Q/GaHQlpO/F11.TC.SXe",
         country_of_origin="GB",
+        date_of_birth=(date.today() - timedelta(days=365 * 25)).isoformat(),
         is_active=True,
         created_at=datetime.now(timezone.utc),
     )

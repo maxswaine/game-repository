@@ -5,6 +5,30 @@ from tests.conftest import client_with_auth
 from tests.utils import valid_public_game_payload
 
 
+def test_create_game_rejects_description_over_2000_chars(client_with_auth):
+    payload = valid_public_game_payload(overrides={"description": "x" * 2001})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 422
+
+
+def test_create_game_rejects_rules_over_2000_chars(client_with_auth):
+    payload = valid_public_game_payload(overrides={"rules": "x" * 2001})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 422
+
+
+def test_create_game_rejects_objective_over_2000_chars(client_with_auth):
+    payload = valid_public_game_payload(overrides={"objective": "x" * 2001})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 422
+
+
+def test_create_game_rejects_setup_over_2000_chars(client_with_auth):
+    payload = valid_public_game_payload(overrides={"setup": "x" * 2001})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 422
+
+
 def test_create_game_success(client_with_auth):
     payload = valid_public_game_payload()
 
