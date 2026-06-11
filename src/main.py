@@ -44,6 +44,7 @@ app.include_router(optimisation.router, prefix="/optimise", tags=["optimisation"
 app.include_router(search.router, prefix="/games/search", tags=["search"])
 app.include_router(achievements.router, prefix="/achievements", tags=["achievements"])
 app.include_router(aliases.public_router, prefix="/games", tags=["aliases"])
+app.include_router(aliases.admin_router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/")

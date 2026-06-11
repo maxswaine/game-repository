@@ -14,7 +14,7 @@ def _client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def build_game_text(game) -> str:
+def build_game_text(game, aliases: list[str] | None = None) -> str:
     """
     Combine game fields into a single descriptive string for embedding.
     The richer this text, the better the semantic matches.
@@ -35,6 +35,8 @@ def build_game_text(game) -> str:
         equipment = ", ".join(e.equipment_name for e in game.equipment_items)
         parts.append(f"Equipment: {equipment}")
     parts.append(game.objective)
+    if aliases:
+        parts.append(f"Also known as: {', '.join(aliases)}")
     return ". ".join(parts)
 
 
