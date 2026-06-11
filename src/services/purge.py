@@ -24,7 +24,7 @@ def run_purge(db: Session) -> int:
         deletion_time = user.deletion_requested_at
         if deletion_time.tzinfo is None:
             deletion_time = deletion_time.replace(tzinfo=timezone.utc)
-        if deletion_time > cutoff:
+        if deletion_time >= cutoff:
             continue
         _purge_user(db, user)
         purged += 1
