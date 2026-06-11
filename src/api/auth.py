@@ -11,6 +11,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
+from pydantic import BaseModel
+
 from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
 from src.core.limiter import limiter
 from src.core.security import create_access_token, verify_access_token
@@ -276,6 +278,70 @@ async def google_callback(
     )
 
     return response
+
+
+class GoogleTokenRequest(BaseModel):
+    id_token: str
+
+
+@router.post("/oauth/google/token", tags=["oauth"])
+async def google_token_exchange(
+        payload: GoogleTokenRequest,
+        db: Annotated[Session, Depends(get_db)],
+):
+    tokeninfo_resp = httpx.get(
+        "https://oauth2.googleapis.com/tokeninfo",
+        params={"id_token": payload.id_token},
+    )
+
+    if tokeninfo_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Invalid Google ID token")
+
+    claims = tokeninfo_resp.json()
+
+    expected_aud = os.environ.get("GOOGLE_CLIENT_ID")
+    if claims.get("aud") != expected_aud:
+        raise HTTPException(status_code=400, detail="Token audience mismatch")
+
+    if str(claims.get("email_verified")).lower() != "true":
+        raise HTTPException(status_code=400, detail="Google email not verified")
+
+    email = claims.get("email")
+    oauth_id = claims.get("sub")
+    if not email or not oauth_id:
+        raise HTTPException(status_code=400, detail="Missing required Google account data")
+
+    user = db.query(User).filter(
+        User.oauth_provider == "google",
+        User.oauth_id == oauth_id,
+    ).first()
+
+    is_new_user = user is None
+
+    if is_new_user:
+        user = User(
+            email=email,
+            username=generate_unique_username(db, email.split("@")[0]),
+            firstname=claims.get("given_name"),
+            lastname=claims.get("family_name"),
+            created_at=datetime.now(timezone.utc),
+            oauth_provider="google",
+            oauth_id=oauth_id,
+            avatar_url=claims.get("picture"),
+            country_of_origin=None,
+            date_of_birth=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    jwt_token = create_access_token(data={"sub": user.username})
+
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "is_new_user": is_new_user,
+    }
 
 
 @router.post("/logout", responses={200: {"description": "Logged out successfully"}})

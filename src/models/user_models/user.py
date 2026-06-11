@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 import pycountry
 from pydantic import ConfigDict, BaseModel, field_validator
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
+minimum_age_error = 'You must be at least 13 years old to register'
+
+
+def _check_minimum_age(dob: date) -> None:
+    today = date.today()
+    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    if age < 13:
+        raise ValueError(minimum_age_error)
 
 
 class UserBase(BaseModel):
@@ -38,9 +46,10 @@ class UserCreate(BaseModel):
         if v is None:
             return v
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            dob = datetime.strptime(v, '%Y-%m-%d').date()
         except ValueError:
             raise ValueError(date_of_birth_error)
+        _check_minimum_age(dob)
         return v
 
     @field_validator('country_of_origin')
@@ -132,7 +141,8 @@ class UserCompleteProfile(BaseModel):
     @classmethod
     def validate_date_of_birth(cls, v):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            dob = datetime.strptime(v, '%Y-%m-%d').date()
         except ValueError:
             raise ValueError(date_of_birth_error)
+        _check_minimum_age(dob)
         return v
