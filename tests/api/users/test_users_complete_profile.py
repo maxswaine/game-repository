@@ -1,3 +1,11 @@
+def test_complete_profile_under_13_returns_422(client_with_auth):
+    payload = {"date_of_birth": "2015-01-01", "country_of_origin": "US"}
+    response = client_with_auth.post("/users/me/complete-profile", json=payload)
+
+    assert response.status_code == 422
+    assert "13" in response.text
+
+
 def test_complete_profile_saves_dob_and_country(client_with_auth, test_user, db):
     payload = {"date_of_birth": "1990-06-15", "country_of_origin": "US"}
     response = client_with_auth.post("/users/me/complete-profile", json=payload)
