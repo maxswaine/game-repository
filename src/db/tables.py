@@ -24,6 +24,7 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    deletion_requested_at = Column(DateTime, nullable=True)
     oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True, unique=True)
     avatar_url = Column(String, nullable=True)
