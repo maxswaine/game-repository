@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,12 +11,32 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments
 from src.core.limiter import limiter
-from src.db.database import engine, Base
+from src.core.scheduler import scheduler
+from src.db.database import engine, Base, SessionLocal
+from src.services.purge import run_purge
 
 _version_file = Path(__file__).parent.parent / "VERSION"
 APP_VERSION = _version_file.read_text().strip() if _version_file.exists() else "unknown"
 
-app = FastAPI(version=APP_VERSION)
+def _run_purge_job() -> None:
+    db = SessionLocal()
+    try:
+        run_purge(db)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if "sqlite" not in str(engine.url):
+        scheduler.add_job(_run_purge_job, "cron", hour=0, minute=0, id="daily_purge")
+        scheduler.start()
+    yield
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(lifespan=lifespan, version=APP_VERSION)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
