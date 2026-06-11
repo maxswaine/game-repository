@@ -206,21 +206,14 @@ def update_my_password(
 
 
 # DELETE
-@router.delete("/{user_id}", status_code=200, responses={
-    403: {"description": "Not allowed to delete someone else's account"}
-})
+@router.delete("/me", status_code=200)
 def delete_account(
-        user_id: str,
         current_user: Annotated[User, Depends(get_current_active_user)],
         db: Annotated[Session, Depends(get_db)]
 ):
-    if str(current_user.id) != str(user_id):
-        raise HTTPException(status_code=403, detail="Not allowed to delete this account")
-
-    user = db.query(User).filter(User.id == current_user.id).first()
-    if not user:
-        raise USER_NOT_FOUND_EXCEPTION
-
-    db.delete(user)
+    current_user.is_active = False
+    current_user.deletion_requested_at = datetime.now(timezone.utc)
     db.commit()
-    return {"message": "Account successfully deleted"}
+    return {
+        "message": "Account deactivated. You have 30 days to reactivate before your data is permanently deleted."
+    }
