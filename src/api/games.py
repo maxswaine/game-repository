@@ -13,7 +13,8 @@ from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
-from src.services.embedder import build_game_text, embed_text, embedding_to_json
+from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, find_similar_games
+from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD
 from src.db.tables import Game, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
@@ -70,6 +71,7 @@ def auth_required():
 def create_new_game(
         db: Annotated[Session, Depends(get_db)],
         new_game: GameCreate,
+        force: bool = False,
         current_user: User = auth_required()
 ):
     combined_text = " ".join(filter(None, [
@@ -96,6 +98,37 @@ def create_new_game(
         [s.value if hasattr(s, "value") else str(s) for s in (new_game.game_setting or [])],
         combined_text,
     ) or detect_profanity(combined_text)
+
+    if not force:
+        try:
+            candidate_embedding = embed_text(build_game_text_from_create(new_game))
+            existing = (
+                db.query(Game)
+                .filter(Game.embedding.isnot(None))
+                .options(
+                    joinedload(Game.equipment_items),
+                    joinedload(Game.setting_items),
+                    joinedload(Game.contributor),
+                    joinedload(Game.alias_objects),
+                )
+                .all()
+            )
+            similar = find_similar_games(existing, candidate_embedding, DUPLICATE_SIMILARITY_THRESHOLD)
+            if similar:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "potential_duplicate",
+                        "similar_games": [
+                            {**map_game_to_read(g).model_dump(mode="json"), "score": score}
+                            for g, score in similar
+                        ],
+                    },
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # best-effort — skip check if OpenAI unavailable
 
     db_new_game = Game(
         name=new_game.name,
