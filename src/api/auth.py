@@ -34,6 +34,20 @@ def generate_unique_username(db, base: str) -> str:
     return f"{base}_{counter}"
 
 
+def _maybe_reactivate_oauth_user(user: User, db: Session) -> bool:
+    if user.is_active or user.deletion_requested_at is None:
+        return False
+    deletion_time = user.deletion_requested_at
+    if deletion_time.tzinfo is None:
+        deletion_time = deletion_time.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) - deletion_time <= timedelta(days=30):
+        user.is_active = True
+        user.deletion_requested_at = None
+        db.commit()
+        return True
+    return False
+
+
 @router.post("/token")
 @limiter.limit("5/minute")
 async def login_for_access_token(
@@ -238,6 +252,10 @@ async def google_callback(
         )
         .first()
     )
+
+    if user and not user.is_active:
+        _maybe_reactivate_oauth_user(user, db)
+        db.refresh(user)
 
     is_new_user = False
 

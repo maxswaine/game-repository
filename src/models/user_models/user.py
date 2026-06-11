@@ -146,3 +146,8 @@ class UserCompleteProfile(BaseModel):
             raise ValueError(date_of_birth_error)
         _check_minimum_age(dob)
         return v
+
+
+class UserReactivate(BaseModel):
+    email: str
+    password: str

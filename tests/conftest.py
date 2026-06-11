@@ -175,3 +175,26 @@ def client_as_admin(db, admin_user):
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def seed_deleted_user_placeholder(create_test_database):
+    from src.utils.config import DELETED_USER_ID
+    session = TestingSessionLocal()
+    try:
+        if not session.query(User).filter(User.id == DELETED_USER_ID).first():
+            placeholder = User(
+                id=DELETED_USER_ID,
+                firstname="Deleted",
+                lastname="User",
+                username="deleted-user",
+                email="deleted@internal",
+                hashed_password=None,
+                is_active=False,
+                created_at=datetime.now(timezone.utc),
+                last_updated=datetime.now(timezone.utc),
+            )
+            session.add(placeholder)
+            session.commit()
+    finally:
+        session.close()
