@@ -136,3 +136,28 @@ def test_approved_alias_appears_in_game_response(client_with_auth, client_as_adm
 
     response = client_with_auth.get(f"/games/{game['id']}")
     assert "BS" in response.json()["aliases"]
+
+
+def test_name_filter_matches_approved_alias(client_with_auth, client_as_admin):
+    game = create_public_game(client_with_auth)
+    suggest = client_with_auth.post(
+        f"/games/{game['id']}/aliases", json={"alias": "UniqueAliasXYZ"}
+    )
+    alias_id = suggest.json()["id"]
+    client_as_admin.patch(f"/admin/aliases/{alias_id}", json={"status": "approved"})
+
+    response = client_with_auth.get("/games/?name=UniqueAliasXYZ")
+    assert response.status_code == 200
+    ids = [g["id"] for g in response.json()]
+    assert game["id"] in ids
+
+
+def test_name_filter_does_not_match_pending_alias(client_with_auth):
+    game = create_public_game(client_with_auth)
+    client_with_auth.post(
+        f"/games/{game['id']}/aliases", json={"alias": "PendingAliasABC"}
+    )
+
+    response = client_with_auth.get("/games/?name=PendingAliasABC")
+    ids = [g["id"] for g in response.json()]
+    assert game["id"] not in ids

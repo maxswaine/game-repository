@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta, date as date_type
 from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import func, or_, exists as sql_exists
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
@@ -15,7 +15,7 @@ from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, find_similar_games
 from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD
-from src.db.tables import Game, GameEquipment, GameReport, GameSetting, User, UserFavourites
+from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -287,7 +287,12 @@ def get_all_games(
     query = _apply_age_content_filter(query, current_user)
 
     if name:
-        query = query.filter(Game.name.ilike(f"%{name}%"))
+        alias_subq = sql_exists().where(
+            GameAlias.game_id == Game.id,
+            GameAlias.alias.ilike(f"%{name}%"),
+            GameAlias.status == "approved",
+        )
+        query = query.filter(or_(Game.name.ilike(f"%{name}%"), alias_subq))
 
     if game_type:
         query = query.filter(Game.game_type == game_type)
