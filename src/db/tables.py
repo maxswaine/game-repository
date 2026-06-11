@@ -76,6 +76,7 @@ class Game(Base):
     setting_items = relationship("GameSetting", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
+    alias_objects = relationship("GameAlias")
 
 
 class UserAchievement(Base):
@@ -114,3 +115,36 @@ class GameSetting(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
     setting_name = Column(String, nullable=False)
+
+
+class GameAlias(Base):
+    __tablename__ = "game_aliases"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False)
+    alias = Column(String, nullable=False)
+    suggested_by = Column(String, ForeignKey("users.id"), nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    reviewed_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    reviewed_at = Column(DateTime, nullable=True)
+
+
+class GameComment(Base):
+    __tablename__ = "game_comments"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    body = Column(String, nullable=False)
+    comment_type = Column(String, nullable=False, default="general")
+    likes = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", foreign_keys="[GameComment.user_id]")
+    like_records = relationship("CommentLike", cascade="all, delete-orphan")
+
+
+class CommentLike(Base):
+    __tablename__ = "comment_likes"
+    comment_id = Column(String, ForeignKey("game_comments.id", ondelete="CASCADE"), primary_key=True, nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

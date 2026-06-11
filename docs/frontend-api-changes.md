@@ -1,236 +1,238 @@
-# Frontend API Changes — pre-release-hardening branch
+# Frontend API Changes — game-content-quality branch
 
-This document covers every API behaviour change that the frontend must handle before this branch
-ships. Each section lists the endpoint, what changed, and what the frontend needs to do.
+This document covers every API behaviour change that the frontend must handle for the
+game-content-quality feature. Each section lists the endpoint, what changed, and what the
+frontend needs to do.
 
 Use `graphify query "<endpoint or feature>"` in the frontend repo to locate which services,
 hooks, or components make each call.
 
 ---
 
-## 1. Rate limiting — new 429 responses
+## 1. `GameRead` — new `aliases` field
 
-**Endpoints affected:**
-- `POST /auth/token`
-- `POST /users/register/`
-
-**Change:** Requests are now rate-limited per IP. Exceeding the limit returns:
-
-```
-HTTP 429 Too Many Requests
-{"error": "Rate limit exceeded: ..."}
-```
-
-Limits: 5 req/min on login, 3 req/min on register.
-
-**Frontend action required:**
-- Handle 429 on login and register forms.
-- Show a user-friendly message: e.g. "Too many attempts — please wait a moment and try again."
-- Do not retry automatically on 429.
-
----
-
-## 2. `DELETE /users/{user_id}` — status code changed
-
-**Change:** Was `204 No Content` (no body). Now `200 OK` with a JSON body.
-
-```json
-{"message": "User account deleted successfully"}
-```
-
-**Frontend action required:**
-- If any code checked `response.status === 204` to confirm deletion, update it to accept `200`.
-
----
-
-## 3. `avatar_url` validation — new 422 on unsafe URLs
-
-**Endpoint:** `PATCH /users/{user_id}`
-
-**Change:** `avatar_url` now rejects any value that does not start with `https://`. Non-HTTPS
-values return:
-
-```
-HTTP 422
-{"detail": "avatar_url must start with https://"}
-```
-
-**Frontend action required:**
-- Validate that avatar URLs use `https://` before submitting.
-- Display validation error if the user pastes an `http://` or `javascript:` URL.
-
----
-
-## 4. Text field length limits — new 422 on long input
-
-**Endpoints:** `POST /games/`, `PATCH /games/{game_id}`
-
-**Fields capped at 2000 characters each:** `description`, `objective`, `setup`, `rules`
-
-Submitting a value over the limit returns `HTTP 422`.
-
-**Frontend action required:**
-- Add `maxLength={2000}` to all four textarea inputs in the game creation and edit forms.
-- Optionally show a live character counter.
-
----
-
-## 5. `PATCH /users/complete-profile` — now actually saves
-
-**Change:** This endpoint was silently a no-op — it accepted the request but wrote nothing to the
-database. It now correctly saves `date_of_birth` and `country_of_origin`.
-
-**Frontend action required:** None — the frontend was already sending the correct payload.
-This is a backend bug fix. Profile completion will now work end-to-end.
-
-> **Important:** `date_of_birth` is used to determine age-based content filtering (see §6).
-> Users who have not completed their profile are treated as under-18 for content purposes.
-
----
-
-## 6. Age-based content filtering — games list and detail
-
-**Endpoints affected:**
+**Endpoints affected (all endpoints that return `GameRead`):**
 - `GET /games/`
 - `GET /games/{game_id}`
-
-### `GET /games/` — fewer results for anonymous / under-18 users
-
-Games are hidden from anonymous users, users under 18, and users without a DOB on file when they:
-- Have an `18+` age rating, or
-- Are flagged `has_adult_content = true` — set when a game contains drinking mechanics, sexual
-  references, or explicit profanity, **regardless of what age rating the contributor chose**
-
-The second rule is important: an adult contributor can submit a game containing profanity tagged
-as "All Ages". That game will still be hidden from minors via the `has_adult_content` flag.
-
-This is applied server-side. The response shape is unchanged — there are just fewer items.
-
-**Frontend action required:** None for the list itself. However, if the frontend has any
-"show all games" toggle or client-side filter that assumes the full catalogue is available,
-that assumption no longer holds for non-adult sessions.
-
-### `GET /games/{game_id}` — new 403 for age-restricted games
-
-If a user directly navigates to a game that is age-restricted and they are anonymous or
-under-18, the API now returns:
-
-```
-HTTP 403 Forbidden
-{"detail": "You do not have permission to access this resource"}
-```
-
-**Frontend action required:**
-- Handle `403` on the game detail page.
-- Show an appropriate message: e.g. "This game is not available for your account."
-- Do not show a 404-style "game not found" message — the game exists, the user just can't see it.
-
----
-
-## 7. Content moderation — new 422 on game submission and editing
-
-**Endpoints affected:**
+- `GET /games/mine`
 - `POST /games/`
-- `PATCH /games/{game_id}` *(text fields only — see below)*
-- `POST /optimise/`
+- `PATCH /games/{game_id}`
+- `POST /games/{game_id}/upvote`
 
-### New 422 response: hate speech (all users)
+**Change:** Every `GameRead` response now includes:
 
-If the submitted text is flagged for hate speech or discriminatory language:
-
-```
-HTTP 422
-{"detail": "Content violates community guidelines."}
+```json
+"aliases": ["BS", "Bullshit"]
 ```
 
-### New 422 response: mature content submitted by under-18 user
-
-If the authenticated user is under 18 and the submission contains adult language, sexual
-references, or profanity:
-
-```
-HTTP 422
-{"detail": "You must be 18 or over to submit games containing mature or explicit content."}
-```
+Empty array `[]` when the game has no approved aliases. Non-breaking additive change.
 
 **Frontend action required:**
-- Handle `422` on game create and edit forms, distinct from validation errors.
-- Display the `detail` string directly — it is user-safe and intentionally descriptive.
-- On the optimise endpoint, handle `422` and show the `detail` string.
-
-### `PATCH /games/{game_id}` — moderation only on text changes
-
-Moderation only runs when `name`, `description`, `objective`, `setup`, or `rules` are included
-in the PATCH body. Patching only `is_public`, `age_rating`, `difficulty`, `equipment`,
-`game_setting`, etc. skips moderation entirely.
-
-### `PATCH /games/{game_id}` — `description` field is now patchable
-
-**Bug fix:** `description` was missing from the accepted PATCH fields and was silently ignored.
-It is now correctly patchable. If the frontend was working around this (e.g. requiring a full
-game re-submit to update the description), that workaround can be removed.
+- On the game detail page, if `aliases.length > 0`, render an "Also known as: X, Y" line beneath the game name.
+- Optionally render alias tags on game list cards.
 
 ---
 
-## 8. Google OAuth — CSRF fix (no frontend action required)
+## 2. `POST /games/` — new 409 duplicate warning
 
-A `state` parameter is now generated server-side and validated on callback. This is fully
-transparent to the frontend — the OAuth redirect and callback URLs are unchanged.
+**Change:** Before saving, the server embeds the submission and compares it against existing
+games. If any game scores ≥ 0.88 cosine similarity, the request is rejected with:
 
-**Side effect — OAuth should now work in production.** A cookie `secure`/`samesite`
-inconsistency (`ENV` vs `ENVIRONMENT` env var mismatch) was causing `SameSite=None` without
-`Secure=true` in production, which browsers reject. This is now fixed. If Google OAuth was
-silently failing in production, it should work after this deploy.
+```json
+HTTP 409 Conflict
+{
+  "detail": {
+    "code": "potential_duplicate",
+    "similar_games": [
+      { "id": "...", "name": "BS", "score": 0.94, "description": "...", ... }
+    ]
+  }
+}
+```
+
+The user can override by resubmitting with `?force=true`.
+
+**Frontend action required:**
+- Intercept 409 on game creation. Do **not** clear the form or redirect.
+- Show a modal/inline warning: "This game might already exist" with the similar games listed (name + score, each linking to its detail page).
+- Provide a "Submit anyway" button that resends the identical request to `POST /games/?force=true`.
+- Show a loading state while the second request is in flight.
 
 ---
 
-## 9. Game reporting — new `POST /games/{game_id}/report`
+## 3. New endpoints — Game Aliases
+
+### `POST /games/{game_id}/aliases`
 
 **Auth:** Required.
 
 **Request body:**
 ```json
-{"reason": "Inappropriate Content"}
+{"alias": "BS"}
 ```
-
-Valid `reason` values (must be sent exactly as shown):
-- `"Inappropriate Content"`
-- `"Adult Content"`
-- `"Spam"`
-- `"Inaccurate"`
-- `"Other"`
 
 **Responses:**
 
 | Status | Meaning |
-|--------|---------|
-| `201` | Report saved. Body: `{"message": "Report received."}` |
-| `400` | Cannot report your own game |
-| `400` | Already reported this game (one report per user per game) |
+|---|---|
+| `201` | Suggestion saved with `status: "pending"`. Body: `AliasRead`. |
 | `401` | Not authenticated |
 | `404` | Game not found |
-| `422` | Missing or invalid `reason` |
 
 **Frontend action required:**
-- Wire a "Report" button on game detail pages.
-- Show the 5 reason options as a select/radio — do not allow free text.
-- On 400 "already reported", show a message like "You've already reported this game."
-- On 400 "own game", this should not be reachable if the UI hides the button for your own games — add that guard if missing.
-- No auto-hide on report — the game remains visible until admin reviews.
+- Add a "Suggest a name" link/button on the game detail page (authenticated users only).
+- On 201: show "Thanks — your suggestion is under review."
 
 ---
 
-## 10. Generic error messages on 500s
+### `GET /games/{game_id}/aliases`
 
-**Change:** Internal server errors no longer leak database details (table names, column names,
-constraint names). All 500 responses now return:
+**Auth:** Open.
+
+Returns list of approved aliases for a game:
 
 ```json
-{"detail": "An unexpected error occurred"}
+[{"id": "...", "game_id": "...", "alias": "BS", "suggested_by": "...", "status": "approved", "created_at": "..."}]
 ```
 
-**Frontend action required:** None — the frontend should not have been parsing 500 detail
-strings. If it was, update that code to handle the generic message.
+**Frontend action required:** Not required separately — approved aliases are already included in
+`GameRead.aliases`. Use this endpoint only if you need the full alias metadata (e.g. to show
+who suggested an alias).
+
+---
+
+## 4. New endpoints — Admin Alias Review
+
+These endpoints are admin-only (`role === "admin"`). Non-admins receive `403`.
+
+### `GET /admin/aliases`
+
+Returns all pending alias suggestions across all games.
+
+```json
+[{"id": "...", "game_id": "...", "alias": "BS", "suggested_by": "...", "status": "pending", "created_at": "..."}]
+```
+
+### `PATCH /admin/aliases/{alias_id}`
+
+**Request body:**
+```json
+{"status": "approved"}
+```
+or
+```json
+{"status": "rejected"}
+```
+
+**Responses:**
+
+| Status | Meaning |
+|---|---|
+| `200` | Updated. Body: `AliasRead`. On approval, game is re-embedded server-side. |
+| `403` | Not admin |
+| `404` | Alias not found |
+| `422` | Invalid status value |
+
+**Frontend action required:**
+- Build a protected `/admin/aliases` page (guard with `role === "admin"`).
+- Show a table of pending suggestions with game name, suggested alias, submitter, and date.
+- Approve / Reject buttons per row — call `PATCH /admin/aliases/{id}`.
+- On 200: remove row from pending list, show toast.
+
+---
+
+## 5. New endpoints — Game Comments
+
+### `GET /games/{game_id}/comments`
+
+**Auth:** Open (optional — `liked_by_me` is populated for authenticated callers).
+
+Query params: `limit` (default 20, max 100), `offset` (default 0).
+
+Returns list sorted by likes descending:
+
+```json
+[
+  {
+    "id": "...",
+    "game_id": "...",
+    "user": {"username": "alice", "country_of_origin": "GB"},
+    "body": "We play this slightly differently...",
+    "comment_type": "rule_variant",
+    "likes": 3,
+    "liked_by_me": true,
+    "created_at": "..."
+  }
+]
+```
+
+`comment_type` is either `"general"` or `"rule_variant"`.
+
+**Frontend action required:**
+- Render a comments section on game detail pages.
+- Show `comment_type === "rule_variant"` with a "Rule variant" badge.
+- Show like count + like button (filled if `liked_by_me`, unfilled otherwise).
+- Show delete button only when `comment.user.username === currentUser.username`.
+- `liked_by_me` is always `false` for unauthenticated callers — show empty like button.
+- Implement "Load more" pagination if response returns exactly `limit` items.
+
+---
+
+### `POST /games/{game_id}/comments`
+
+**Auth:** Required.
+
+**Request body:**
+```json
+{"body": "We skip the setup step entirely", "comment_type": "general"}
+```
+
+`comment_type` defaults to `"general"`. Use `"rule_variant"` when the user is explicitly describing a rule difference.
+
+**Responses:**
+
+| Status | Meaning |
+|---|---|
+| `201` | Comment created. Body: `CommentRead`. |
+| `401` | Not authenticated |
+| `404` | Game not found |
+| `422` | Body exceeds 1000 characters |
+
+**Frontend action required:**
+- Add a comment form below the comments list (authenticated users only).
+- Include `comment_type` selector (e.g. radio: "General comment" / "Rule variant").
+- Enforce 1000-char limit client-side with a live counter.
+- On 401: show "Sign in to comment."
+
+---
+
+### `DELETE /games/{game_id}/comments/{comment_id}`
+
+**Auth:** Required. Own comment only (admins can delete any).
+
+**Responses:**
+
+| Status | Meaning |
+|---|---|
+| `204` | Deleted |
+| `403` | Not your comment |
+| `404` | Comment not found |
+
+**Frontend action required:**
+- On 204: remove comment from list without page reload.
+- On 403: show "You can only delete your own comments."
+
+---
+
+### `POST /games/{game_id}/comments/{comment_id}/like`
+
+**Auth:** Required. Toggles like on/off.
+
+**Response:** `200` with updated `CommentRead` (new `likes` count, updated `liked_by_me`).
+
+**Frontend action required:**
+- Update like count and button state in place from the response — no page reload.
+- On 401: prompt login.
 
 ---
 
@@ -238,15 +240,14 @@ strings. If it was, update that code to handle the generic message.
 
 | Endpoint | Method | What changed | Frontend handles |
 |---|---|---|---|
-| `/auth/token` | POST | Rate limited 5/min | 429 |
-| `/users/register/` | POST | Rate limited 3/min | 429 |
-| `/users/{id}` | DELETE | 204 → 200 with body | status check |
-| `/users/{id}` | PATCH | avatar_url https:// required | 422 validation |
-| `/users/complete-profile` | PATCH | Now actually saves | nothing (bug fix) |
-| `/games/` | GET | Age filter applied | fewer results |
-| `/games/{id}` | GET | 403 for age-restricted | 403 handling |
-| `/games/` | POST | Moderation gate + age gate | 422 with detail |
-| `/games/{id}` | PATCH | Moderation gate (text fields), description now patchable | 422 with detail |
-| `/optimise/` | POST | Moderation gate | 422 with detail |
-| `/auth/oauth/google` | GET | CSRF state param added (server-side) | nothing |
-| `/games/{id}/report` | POST | New endpoint — report a game | 201/400/401/404/422 |
+| `/games/` | GET | `aliases: string[]` on every game | display "Also known as" |
+| `/games/{id}` | GET | `aliases: string[]` on game | display "Also known as" |
+| `/games/` | POST | 409 if similar game found | duplicate warning modal + `?force=true` resubmit |
+| `/games/{id}/aliases` | POST | New — suggest alias | suggest form on game detail |
+| `/games/{id}/aliases` | GET | New — list approved aliases | optional metadata use |
+| `/admin/aliases` | GET | New — list pending (admin) | admin review page |
+| `/admin/aliases/{id}` | PATCH | New — approve/reject (admin) | approve/reject buttons |
+| `/games/{id}/comments` | GET | New — list comments | comments section on game detail |
+| `/games/{id}/comments` | POST | New — create comment | comment form |
+| `/games/{id}/comments/{id}` | DELETE | New — delete comment | delete button |
+| `/games/{id}/comments/{id}/like` | POST | New — toggle like | like button |

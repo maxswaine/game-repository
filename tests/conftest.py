@@ -137,3 +137,41 @@ def second_user(db):
     db.commit()
     db.refresh(user)
     return user
+
+
+@pytest.fixture
+def admin_user(db):
+    from src.models.enums.role_enum import Role
+    user = User(
+        id=str(uuid.uuid4()),
+        firstname="Admin",
+        lastname="User",
+        username="adminuser",
+        email="admin@example.com",
+        hashed_password="not-used",
+        country_of_origin="GB",
+        role=Role.admin,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def client_as_admin(db, admin_user):
+    def override_get_db():
+        yield db
+
+    def override_get_current_active_user():
+        return admin_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    with TestClient(app) as client:
+        yield client
+
+    app.dependency_overrides.clear()

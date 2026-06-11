@@ -8,7 +8,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements
+from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments
 from src.core.limiter import limiter
 from src.db.database import engine, Base
 
@@ -43,6 +43,9 @@ app.include_router(metadata.router, prefix="/metadata", tags=["metadata"])
 app.include_router(optimisation.router, prefix="/optimise", tags=["optimisation"])
 app.include_router(search.router, prefix="/games/search", tags=["search"])
 app.include_router(achievements.router, prefix="/achievements", tags=["achievements"])
+app.include_router(aliases.public_router, prefix="/games", tags=["aliases"])
+app.include_router(aliases.admin_router, prefix="/admin", tags=["admin"])
+app.include_router(comments.router, prefix="/games", tags=["comments"])
 
 
 @app.get("/")
