@@ -251,3 +251,55 @@ Returns list sorted by likes descending:
 | `/games/{id}/comments` | POST | New — create comment | comment form |
 | `/games/{id}/comments/{id}` | DELETE | New — delete comment | delete button |
 | `/games/{id}/comments/{id}/like` | POST | New — toggle like | like button |
+| `/users/me` | DELETE | Replaced `DELETE /users/{id}` — now soft-delete | show "30-day recovery" confirmation, not immediate "deleted" |
+| `/users/reactivate` | POST | New — reactivate within 30-day window | reactivation screen on login page |
+
+---
+
+## 6. Account Deletion
+
+### `DELETE /users/me`
+
+**Auth:** Required (own account only). Replaces the old `DELETE /users/{user_id}`.
+
+**Response 200:**
+```json
+{
+  "message": "Account deactivated. You have 30 days to reactivate before your data is permanently deleted."
+}
+```
+
+**Frontend action required:**
+- Update delete URL from `/users/{id}` to `/users/me` (no path param).
+- On 200: do NOT show "Account deleted". Show: "Your account has been deactivated. You have 30 days to reactivate before your data is permanently erased."
+- Offer a "Reactivate" link/button visible from the login screen for the 30-day window.
+
+---
+
+### `POST /users/reactivate`
+
+**Auth:** None (unauthenticated — user cannot log in while deactivated).
+
+**Request body:**
+```json
+{"email": "user@example.com", "password": "plaintextpassword"}
+```
+
+**Responses:**
+
+| Status | Meaning |
+|---|---|
+| `200` | Reactivated. Body: `{"access_token": "...", "token_type": "bearer"}`. Cookie also set. |
+| `400` | Invalid credentials, account not in deletion window, or window expired |
+| `404` | Email not found (user already purged) |
+
+**Frontend action required:**
+- Add a "Reactivate your account" form on the login page (email + password).
+- On 200: store token and redirect to home as normal login.
+- On 400 with expired window / 404: show "Your account has been permanently deleted. Contact us at whatsthatgameteam@gmail.com if you need help."
+
+---
+
+### OAuth reactivation
+
+No new endpoint. If a Google OAuth user logs in via the normal OAuth flow while their account is in the 30-day window, the backend reactivates it automatically. No frontend change required.

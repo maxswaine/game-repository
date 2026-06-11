@@ -7,11 +7,10 @@ from typing import Optional, Annotated
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
-
-from pydantic import BaseModel
 
 from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
 from src.core.limiter import limiter
@@ -264,8 +263,8 @@ async def google_callback(
         user = User(
             email=email,
             username=generate_unique_username(db, email.split("@")[0]),
-            firstname=userinfo.get("given_name"),
-            lastname=userinfo.get("family_name"),
+            firstname=userinfo.get("given_name") or "",
+            lastname=userinfo.get("family_name") or "",
             created_at=datetime.now(timezone.utc),
             oauth_provider="google",
             oauth_id=oauth_id,
@@ -340,8 +339,8 @@ async def google_token_exchange(
         user = User(
             email=email,
             username=generate_unique_username(db, email.split("@")[0]),
-            firstname=claims.get("given_name"),
-            lastname=claims.get("family_name"),
+            firstname=claims.get("given_name") or "",
+            lastname=claims.get("family_name") or "",
             created_at=datetime.now(timezone.utc),
             oauth_provider="google",
             oauth_id=oauth_id,
