@@ -136,3 +136,8 @@ class UserCompleteProfile(BaseModel):
         except ValueError:
             raise ValueError(date_of_birth_error)
         return v
+
+
+class UserReactivate(BaseModel):
+    email: str
+    password: str

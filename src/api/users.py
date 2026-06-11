@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi.responses import JSONResponse
 from src.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -15,16 +17,18 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
-from src.core.security import verify_access_token, hash_password, verify_password
+from src.core.security import verify_access_token, hash_password, verify_password, create_access_token, TOKEN_EXPIRES_MINUTES
 from src.db.database import get_db
 from src.db.tables import User
 from src.models.user_models.user import UserCreate, UserPublicRead, UserPrivateRead, UserCompleteProfile, UserUpdate, \
-    UserPasswordUpdate
+    UserPasswordUpdate, UserReactivate
 
 
 class MessageResponse(BaseModel):
     message: str
 
+
+IS_PRODUCTION = os.getenv("ENV") == "production"
 
 router = APIRouter()
 
@@ -203,6 +207,43 @@ def update_my_password(
     db.commit()
 
     return {"message": "Password updated successfully"}
+
+
+@router.post("/reactivate", status_code=200)
+def reactivate_account(
+        body: UserReactivate,
+        db: Annotated[Session, Depends(get_db)],
+):
+    user = db.query(User).filter(func.lower(User.email) == body.email.lower()).first()
+
+    if not user or not user.hashed_password or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    if user.is_active or user.deletion_requested_at is None:
+        raise HTTPException(status_code=400, detail="Account is not scheduled for deletion")
+
+    deletion_time = user.deletion_requested_at
+    if deletion_time.tzinfo is None:
+        deletion_time = deletion_time.replace(tzinfo=timezone.utc)
+
+    if datetime.now(timezone.utc) - deletion_time > timedelta(days=30):
+        raise HTTPException(status_code=400, detail="Reactivation window has expired")
+
+    user.is_active = True
+    user.deletion_requested_at = None
+    db.commit()
+
+    access_token = create_access_token(data={"sub": user.username})
+    response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
+        max_age=TOKEN_EXPIRES_MINUTES * 60,
+    )
+    return response
 
 
 # DELETE
