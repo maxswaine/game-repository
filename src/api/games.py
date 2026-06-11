@@ -247,7 +247,8 @@ def get_all_games(
     query = db.query(Game).options(
         joinedload(Game.equipment_items),
         joinedload(Game.setting_items),
-        joinedload(Game.contributor)
+        joinedload(Game.contributor),
+        joinedload(Game.alias_objects)
     ).filter(Game.is_public == True)
 
     query = _apply_age_content_filter(query, current_user)
@@ -329,6 +330,7 @@ def get_my_games(
         joinedload(Game.equipment_items),
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
+        joinedload(Game.alias_objects),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
              .offset(offset)
@@ -489,7 +491,8 @@ def map_game_to_read(db_game: Game) -> GameRead:
             country_of_origin=db_game.contributor.country_of_origin,
         ),
         created_at=db_game.created_at,
-        is_whats_that_game_certified=db_game.is_whats_that_game_verified
+        is_whats_that_game_certified=db_game.is_whats_that_game_verified,
+        aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"]
     )
 
 

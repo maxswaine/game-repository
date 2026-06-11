@@ -37,6 +37,7 @@ class GameRead(GameBase):
     upvotes: int
     contributor: UserPublicRead
     created_at: datetime
+    aliases: list[str] = []
 
     model_config = ConfigDict(from_attributes=True)
 
