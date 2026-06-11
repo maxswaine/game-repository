@@ -4,6 +4,14 @@ from tests.api.games.helper import create_user
 from tests.utils import valid_user_payload
 
 
+def test_register_under_13_returns_422(client_no_auth):
+    payload = valid_user_payload(overrides={"date_of_birth": "2015-01-01"})
+    response = client_no_auth.post("/users/register", json=payload)
+
+    assert response.status_code == 422
+    assert "13" in response.text
+
+
 def test_register_duplicate_username_returns_400_not_db_error(client_no_auth):
     payload = valid_user_payload()
     client_no_auth.post("/users/register", json=payload)
