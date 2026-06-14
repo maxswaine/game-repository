@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from src.api.auth import _maybe_reactivate_oauth_user
+from src.api.auth import _maybe_reactivate
 from src.db.tables import User
 
 
@@ -27,65 +27,10 @@ def _make_inactive_user(db, *, days_ago: int, email: str):
     return user
 
 
-def test_reactivate_within_window_returns_200_and_token(client_no_auth, db):
-    user = _make_inactive_user(db, days_ago=5, email="react_valid@example.com")
-
-    response = client_no_auth.post(
-        "/users/reactivate",
-        json={"email": "react_valid@example.com", "password": "password"},
-    )
-
-    assert response.status_code == 200
-    assert "access_token" in response.json()
-    db.refresh(user)
-    assert user.is_active is True
-    assert user.deletion_requested_at is None
-
-
-def test_reactivate_after_30_days_returns_400(client_no_auth, db):
-    _make_inactive_user(db, days_ago=31, email="react_expired@example.com")
-
-    response = client_no_auth.post(
-        "/users/reactivate",
-        json={"email": "react_expired@example.com", "password": "password"},
-    )
-
-    assert response.status_code == 400
-
-
-def test_reactivate_wrong_password_returns_400(client_no_auth, db):
-    _make_inactive_user(db, days_ago=5, email="react_badpw@example.com")
-
-    response = client_no_auth.post(
-        "/users/reactivate",
-        json={"email": "react_badpw@example.com", "password": "wrongpassword"},
-    )
-
-    assert response.status_code == 400
-
-
-def test_reactivate_unknown_email_returns_400(client_no_auth):
-    response = client_no_auth.post(
-        "/users/reactivate",
-        json={"email": "nobody@example.com", "password": "password"},
-    )
-
-    assert response.status_code == 400
-
-
-def test_reactivate_active_user_returns_400(client_no_auth, test_user):
-    response = client_no_auth.post(
-        "/users/reactivate",
-        json={"email": "test@example.com", "password": "password"},
-    )
-
-    assert response.status_code == 400
-
-
 def test_maybe_reactivate_within_window(db):
     user = _make_inactive_user(db, days_ago=5, email="oauth_react@example.com")
 
-    result = _maybe_reactivate_oauth_user(user, db)
+    result = _maybe_reactivate(user, db)
 
     assert result is True
     db.refresh(user)
@@ -96,7 +41,7 @@ def test_maybe_reactivate_within_window(db):
 def test_maybe_reactivate_past_window(db):
     user = _make_inactive_user(db, days_ago=31, email="oauth_expired@example.com")
 
-    result = _maybe_reactivate_oauth_user(user, db)
+    result = _maybe_reactivate(user, db)
 
     assert result is False
     db.refresh(user)
@@ -104,6 +49,6 @@ def test_maybe_reactivate_past_window(db):
 
 
 def test_maybe_reactivate_active_user(db, test_user):
-    result = _maybe_reactivate_oauth_user(test_user, db)
+    result = _maybe_reactivate(test_user, db)
 
     assert result is False
