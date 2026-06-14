@@ -13,7 +13,7 @@ from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
-from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, find_similar_games
+from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity
 from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD
 from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
@@ -102,26 +102,41 @@ def create_new_game(
     if not force:
         try:
             candidate_embedding = embed_text(build_game_text_from_create(new_game))
-            existing = (
-                db.query(Game)
+            slim = (
+                db.query(Game.id, Game.embedding)
                 .filter(Game.embedding.isnot(None))
-                .options(
-                    joinedload(Game.equipment_items),
-                    joinedload(Game.setting_items),
-                    joinedload(Game.contributor),
-                    joinedload(Game.alias_objects),
-                )
                 .all()
             )
-            similar = find_similar_games(existing, candidate_embedding, DUPLICATE_SIMILARITY_THRESHOLD)
-            if similar:
+            similar_ids: list[tuple] = []
+            for row in slim:
+                try:
+                    score = cosine_similarity(candidate_embedding, json_to_embedding(row.embedding))
+                    if score >= DUPLICATE_SIMILARITY_THRESHOLD:
+                        similar_ids.append((row.id, round(score, 4)))
+                except Exception:
+                    continue
+            similar_ids.sort(key=lambda x: x[1], reverse=True)
+
+            if similar_ids:
+                id_to_score = {id_: score for id_, score in similar_ids}
+                similar_games = (
+                    db.query(Game)
+                    .filter(Game.id.in_(id_to_score.keys()))
+                    .options(
+                        joinedload(Game.equipment_items),
+                        joinedload(Game.setting_items),
+                        joinedload(Game.contributor),
+                        joinedload(Game.alias_objects),
+                    )
+                    .all()
+                )
                 raise HTTPException(
                     status_code=409,
                     detail={
                         "code": "potential_duplicate",
                         "similar_games": [
-                            {**map_game_to_read(g).model_dump(mode="json"), "score": score}
-                            for g, score in similar
+                            {**map_game_to_read(g).model_dump(mode="json"), "score": id_to_score[g.id]}
+                            for g in similar_games
                         ],
                     },
                 )
