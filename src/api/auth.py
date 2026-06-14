@@ -23,6 +23,25 @@ IS_PRODUCTION = os.getenv("ENV") == "production"
 
 router = APIRouter(prefix="/auth")
 
+# Single-use exchange codes: code -> (jwt_token, expires_at)
+_exchange_codes: dict[str, tuple[str, datetime]] = {}
+
+
+def _create_exchange_code(jwt_token: str) -> str:
+    code = secrets.token_urlsafe(32)
+    _exchange_codes[code] = (jwt_token, datetime.now(timezone.utc) + timedelta(seconds=60))
+    return code
+
+
+def _consume_exchange_code(code: str) -> str | None:
+    entry = _exchange_codes.pop(code, None)
+    if entry is None:
+        return None
+    jwt_token, expires_at = entry
+    if datetime.now(timezone.utc) > expires_at:
+        return None
+    return jwt_token
+
 
 def generate_unique_username(db, base: str) -> str:
     if not db.query(User).filter(User.username == base).first():
@@ -281,7 +300,8 @@ async def google_callback(
     redirect_url = os.environ["FRONTEND_URL"]
 
     if is_new_user:
-        response = RedirectResponse(url=f"{redirect_url}/complete-profile")
+        code = _create_exchange_code(jwt_token)
+        response = RedirectResponse(url=f"{redirect_url}/complete-profile?code={code}")
     else:
         response = RedirectResponse(url=f"{redirect_url}")
 
@@ -297,19 +317,40 @@ async def google_callback(
     return response
 
 
+@router.post("/exchange", responses={400: {"description": "Invalid or expired exchange code"}})
+async def exchange_code(code: str):
+    jwt_token = _consume_exchange_code(code)
+    if not jwt_token:
+        raise HTTPException(status_code=400, detail="Invalid or expired exchange code")
+
+    response = JSONResponse(content={"access_token": jwt_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=jwt_token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
+        max_age=3600 * 24 * 7,
+    )
+    return response
+
+
 class GoogleTokenRequest(BaseModel):
     id_token: str
 
 
-@router.post("/oauth/google/token", tags=["oauth"])
+@router.post("/oauth/google/token", tags=["oauth"], responses={
+    400: {"description": "Invalid Google ID token, audience mismatch, unverified email, or missing account data."}
+})
 async def google_token_exchange(
         payload: GoogleTokenRequest,
         db: Annotated[Session, Depends(get_db)],
 ):
-    tokeninfo_resp = httpx.get(
-        "https://oauth2.googleapis.com/tokeninfo",
-        params={"id_token": payload.id_token},
-    )
+    async with httpx.AsyncClient() as client:
+        tokeninfo_resp = await client.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": payload.id_token},
+        )
 
     if tokeninfo_resp.status_code != 200:
         raise HTTPException(status_code=400, detail="Invalid Google ID token")

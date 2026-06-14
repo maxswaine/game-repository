@@ -29,8 +29,10 @@ def _run_purge_job() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     if engine.dialect.name != "sqlite":
-        scheduler.add_job(_run_purge_job, "cron", hour=0, minute=0, id="daily_purge")
-        scheduler.start()
+        if not scheduler.get_job("daily_purge"):
+            scheduler.add_job(_run_purge_job, "cron", hour=0, minute=0, id="daily_purge")
+        if not scheduler.running:
+            scheduler.start()
     yield
     if scheduler.running:
         scheduler.shutdown(wait=False)

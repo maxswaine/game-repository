@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from fastapi.testclient import TestClient
 
@@ -29,6 +29,15 @@ def _make_tokeninfo_mock(data: dict, status_code: int = 200):
     return mock_resp
 
 
+def _async_client_mock(data: dict, status_code: int = 200):
+    mock_resp = _make_tokeninfo_mock(data, status_code)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    return MagicMock(return_value=mock_client)
+
+
 def _client(db):
     def override_get_db():
         yield db
@@ -43,7 +52,7 @@ def _client(db):
 def test_google_token_new_user_returns_200(db):
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         assert response.status_code == 200
@@ -54,7 +63,7 @@ def test_google_token_new_user_returns_200(db):
 def test_google_token_new_user_returns_access_token(db):
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         body = response.json()
@@ -67,7 +76,7 @@ def test_google_token_new_user_returns_access_token(db):
 def test_google_token_new_user_returns_is_new_user_true(db):
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         assert response.json()["is_new_user"] is True
@@ -78,7 +87,7 @@ def test_google_token_new_user_returns_is_new_user_true(db):
 def test_google_token_new_user_created_in_db(db):
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         user = db.query(User).filter(User.oauth_id == "google-sub-12345").first()
@@ -107,7 +116,7 @@ def test_google_token_existing_user_returns_is_new_user_false(db):
 
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         assert response.json()["is_new_user"] is False
@@ -129,7 +138,7 @@ def test_google_token_existing_user_not_duplicated_in_db(db):
 
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(VALID_TOKENINFO)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         count = db.query(User).filter(User.oauth_id == "google-sub-12345").count()
@@ -154,7 +163,7 @@ def test_google_token_missing_body_returns_422(db):
 def test_google_token_invalid_id_token_returns_400(db):
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock({"error": "invalid_token"}, status_code=400)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock({"error": "invalid_token"}, status_code=400)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "bad-token"})
         assert response.status_code == 400
@@ -166,7 +175,7 @@ def test_google_token_unverified_email_returns_400(db):
     unverified = {**VALID_TOKENINFO, "email_verified": "false"}
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(unverified)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(unverified)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         assert response.status_code == 400
@@ -178,7 +187,7 @@ def test_google_token_wrong_audience_returns_400(db):
     wrong_aud = {**VALID_TOKENINFO, "aud": "some-other-app.apps.googleusercontent.com"}
     client = _client(db)
     try:
-        with patch("src.api.auth.httpx.get", return_value=_make_tokeninfo_mock(wrong_aud)), \
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(wrong_aud)), \
              patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
             response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
         assert response.status_code == 400
