@@ -80,6 +80,7 @@ class UserPrivateRead(BaseModel):
     email: str
     username: str
     country_of_origin: str
+    role: str
 
 
 class UserLogin(BaseModel):
