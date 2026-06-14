@@ -3,9 +3,10 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from src.api.games import map_game_to_read
+from src.api.games import map_game_to_read, _apply_age_content_filter
+from src.api.users import get_current_user_optional
 from src.db.database import get_db
-from src.db.tables import Game
+from src.db.tables import Game, User
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
 from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
 
@@ -37,6 +38,7 @@ def _apply_hard_filters(games: list, query: str) -> list:
 def semantic_search(
         request: GameSearchRequest,
         db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User | None, Depends(get_current_user_optional)],
 ):
     """
     Find games using natural language. Describe what you're looking for —
@@ -55,17 +57,19 @@ def semantic_search(
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Embedding service unavailable: {str(e)}")
 
-    # Load all public games that have an embedding
-    games = (
+    # Load all public games that have an embedding, applying age/content filter
+    query = (
         db.query(Game)
         .options(
             joinedload(Game.equipment_items),
             joinedload(Game.setting_items),
             joinedload(Game.contributor),
+            joinedload(Game.alias_objects),
         )
         .filter(Game.is_public == True, Game.embedding.isnot(None))
-        .all()
     )
+    query = _apply_age_content_filter(query, current_user)
+    games = query.all()
 
     if not games:
         return []
