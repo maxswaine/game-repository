@@ -236,6 +236,22 @@ Returns list sorted by likes descending:
 
 ---
 
+## 7. `GET /users/me` — new `role` field
+
+**Change:** `UserPrivateRead` (returned by `GET /users/me`, `PATCH /me`, `POST /me/complete-profile`) now includes:
+
+```json
+"role": "user"
+```
+
+Possible values: `"user"` | `"admin"`.
+
+**Frontend action required:**
+- Add `role?: string` (or `role: "user" | "admin"`) to your `UserPrivateRead` type.
+- Use `role === "admin"` to guard admin-only UI (e.g. admin tab, alias review page).
+
+---
+
 ## Summary table
 
 | Endpoint | Method | What changed | Frontend handles |
