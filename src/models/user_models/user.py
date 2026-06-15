@@ -81,6 +81,8 @@ class UserPrivateRead(BaseModel):
     username: str
     country_of_origin: str
     role: str
+    date_of_birth: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class UserLogin(BaseModel):
