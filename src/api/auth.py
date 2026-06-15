@@ -52,7 +52,7 @@ def generate_unique_username(db, base: str) -> str:
     return f"{base}_{counter}"
 
 
-def _maybe_reactivate_oauth_user(user: User, db: Session) -> bool:
+def _maybe_reactivate(user: User, db: Session) -> bool:
     if user.is_active or user.deletion_requested_at is None:
         return False
     deletion_time = user.deletion_requested_at
@@ -84,7 +84,9 @@ async def login_for_access_token(
         raise UNAUTHORIZED_EXCEPTION
 
     if not user.is_active:
-        raise INACTIVE_USER_EXCEPTION
+        if not _maybe_reactivate(user, db):
+            raise INACTIVE_USER_EXCEPTION
+        db.refresh(user)
 
     access_token = create_access_token(
         data={"sub": user.username},
@@ -272,7 +274,7 @@ async def google_callback(
     )
 
     if user and not user.is_active:
-        _maybe_reactivate_oauth_user(user, db)
+        _maybe_reactivate(user, db)
         db.refresh(user)
 
     is_new_user = False
@@ -373,6 +375,10 @@ async def google_token_exchange(
         User.oauth_provider == "google",
         User.oauth_id == oauth_id,
     ).first()
+
+    if user and not user.is_active:
+        _maybe_reactivate(user, db)
+        db.refresh(user)
 
     is_new_user = user is None
 

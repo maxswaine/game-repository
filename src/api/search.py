@@ -3,21 +3,20 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from src.api.games import map_game_to_read, _apply_age_content_filter
-from src.api.users import get_current_user_optional
+from src.api.games import map_game_to_read
 from src.db.database import get_db
-from src.db.tables import Game, User
+from src.db.tables import Game
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
 from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
 
 router = APIRouter()
 
-# Phrases that signal the user wants games with no equipment
 _NO_EQUIPMENT_PHRASES = [
     "no equipment", "without equipment", "no gear", "nothing needed",
     "hands only", "empty handed", "no props", "no materials", "no items",
     "no stuff", "need nothing",
 ]
+
 
 def _wants_no_equipment(query: str) -> bool:
     q = query.lower()
@@ -38,18 +37,7 @@ def _apply_hard_filters(games: list, query: str) -> list:
 def semantic_search(
         request: GameSearchRequest,
         db: Annotated[Session, Depends(get_db)],
-        current_user: Annotated[User | None, Depends(get_current_user_optional)],
 ):
-    """
-    Find games using natural language. Describe what you're looking for —
-    e.g. "a quick card game for a pub with 4 friends" — and we'll return
-    the closest matches using semantic similarity.
-
-    Only games that have been indexed (have a stored embedding) are searched.
-    Explicit constraints in the query (e.g. "no equipment") are applied as
-    hard filters before scoring.
-    """
-    # Embed the user's query
     try:
         query_vector = embed_text(request.query)
     except ValueError as e:
@@ -57,8 +45,7 @@ def semantic_search(
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Embedding service unavailable: {str(e)}")
 
-    # Load all public games that have an embedding, applying age/content filter
-    query = (
+    games = (
         db.query(Game)
         .options(
             joinedload(Game.equipment_items),
@@ -67,20 +54,17 @@ def semantic_search(
             joinedload(Game.alias_objects),
         )
         .filter(Game.is_public == True, Game.embedding.isnot(None))
+        .all()
     )
-    query = _apply_age_content_filter(query, current_user)
-    games = query.all()
 
     if not games:
         return []
 
-    # Apply hard filters for explicit constraints (e.g. "no equipment")
     games = _apply_hard_filters(games, request.query)
 
     if not games:
         return []
 
-    # Score each game against the query
     scored = []
     for game in games:
         try:
@@ -88,15 +72,12 @@ def semantic_search(
             score = cosine_similarity(query_vector, game_vector)
             scored.append((score, game))
         except Exception:
-            continue  # skip games with malformed embeddings
+            continue
 
-    # Sort by score descending, take top N
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:request.limit]
 
-    results = []
-    for score, game in top:
-        game_read = map_game_to_read(game)
-        results.append(GameSearchResult(**game_read.model_dump(), score=round(score, 4)))
-
-    return results
+    return [
+        GameSearchResult(**map_game_to_read(game).model_dump(), score=round(score, 4))
+        for score, game in top
+    ]
