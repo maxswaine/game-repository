@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 
 import httpx
+import jwt
 from jwt.algorithms import RSAAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
