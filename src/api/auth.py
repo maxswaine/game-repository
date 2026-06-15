@@ -1,10 +1,12 @@
 # src/api/auth.py
+import json
 import os
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 
 import httpx
+from jwt.algorithms import RSAAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -25,6 +27,52 @@ router = APIRouter(prefix="/auth")
 
 # Single-use exchange codes: code -> (jwt_token, expires_at)
 _exchange_codes: dict[str, tuple[str, datetime]] = {}
+
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+_apple_jwks_cache: list[dict] | None = None
+_apple_jwks_cache_expires: datetime | None = None
+
+
+async def _get_apple_jwks() -> list[dict]:
+    global _apple_jwks_cache, _apple_jwks_cache_expires
+    now = datetime.now(timezone.utc)
+    if _apple_jwks_cache is not None and _apple_jwks_cache_expires and now < _apple_jwks_cache_expires:
+        return _apple_jwks_cache
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(APPLE_JWKS_URL)
+    resp.raise_for_status()
+    _apple_jwks_cache = resp.json()["keys"]
+    _apple_jwks_cache_expires = now + timedelta(hours=24)
+    return _apple_jwks_cache
+
+
+async def verify_apple_token(identity_token: str) -> dict:
+    global _apple_jwks_cache, _apple_jwks_cache_expires
+    header = jwt.get_unverified_header(identity_token)
+    kid = header.get("kid")
+
+    keys = await _get_apple_jwks()
+    key_data = next((k for k in keys if k["kid"] == kid), None)
+
+    if key_data is None:
+        _apple_jwks_cache = None
+        _apple_jwks_cache_expires = None
+        keys = await _get_apple_jwks()
+        key_data = next((k for k in keys if k["kid"] == kid), None)
+
+    if key_data is None:
+        raise ValueError(f"Unknown Apple key ID: {kid}")
+
+    public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
+    bundle_id = os.environ["APPLE_BUNDLE_ID"]
+
+    return jwt.decode(
+        identity_token,
+        public_key,
+        algorithms=["RS256"],
+        audience=bundle_id,
+        issuer="https://appleid.apple.com",
+    )
 
 
 def _create_exchange_code(jwt_token: str) -> str:
