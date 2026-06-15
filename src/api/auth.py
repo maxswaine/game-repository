@@ -467,6 +467,71 @@ async def google_token_exchange(
     }
 
 
+class AppleTokenRequest(BaseModel):
+    identity_token: str
+    firstname: str = ""
+    lastname: str = ""
+
+
+@router.post("/oauth/apple/token", tags=["oauth"], responses={
+    400: {"description": "Invalid identity token, audience mismatch, or email conflict."}
+})
+async def apple_token_exchange(
+        payload: AppleTokenRequest,
+        db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        claims = await verify_apple_token(payload.identity_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Apple identity token")
+
+    sub = claims.get("sub")
+    email = claims.get("email")
+
+    if not sub or not email:
+        raise HTTPException(status_code=400, detail="Missing required Apple account data")
+
+    user = db.query(User).filter(
+        User.oauth_provider == "apple",
+        User.oauth_id == sub,
+    ).first()
+
+    if user and not user.is_active:
+        _maybe_reactivate(user, db)
+        db.refresh(user)
+
+    is_new_user = user is None
+
+    if is_new_user:
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already linked to another account")
+
+        user = User(
+            email=email,
+            username=generate_unique_username(db, email.split("@")[0]),
+            firstname=payload.firstname,
+            lastname=payload.lastname,
+            created_at=datetime.now(timezone.utc),
+            oauth_provider="apple",
+            oauth_id=sub,
+            avatar_url=None,
+            country_of_origin=None,
+            date_of_birth=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    jwt_token = create_access_token(data={"sub": user.username})
+
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "is_new_user": is_new_user,
+    }
+
+
 @router.post("/logout", responses={200: {"description": "Logged out successfully"}})
 async def logout():
     response = JSONResponse(content={
