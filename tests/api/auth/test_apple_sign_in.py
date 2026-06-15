@@ -244,13 +244,36 @@ def test_apple_token_missing_sub_returns_400(db):
         app.dependency_overrides.clear()
 
 
-def test_apple_token_missing_email_returns_400(db):
+def test_apple_token_new_user_missing_email_returns_400(db):
     claims_no_email = {**VALID_CLAIMS, "email": None}
     client = _client(db)
     try:
         with patch("src.api.auth.verify_apple_token", _mock_verify(claims=claims_no_email)):
             response = client.post("/auth/oauth/apple/token", json={"identity_token": "fake-token"})
         assert response.status_code == 400
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_apple_token_returning_user_without_email_in_claims_succeeds(db):
+    existing = User(
+        email="appleuser@privaterelay.appleid.com",
+        username="appleuser",
+        firstname="Max",
+        lastname="Swaine",
+        oauth_provider="apple",
+        oauth_id="apple-sub-12345",
+    )
+    db.add(existing)
+    db.commit()
+
+    claims_no_email = {**VALID_CLAIMS, "email": None}
+    client = _client(db)
+    try:
+        with patch("src.api.auth.verify_apple_token", _mock_verify(claims=claims_no_email)):
+            response = client.post("/auth/oauth/apple/token", json={"identity_token": "fake-token"})
+        assert response.status_code == 200
+        assert response.json()["is_new_user"] is False
     finally:
         app.dependency_overrides.clear()
 

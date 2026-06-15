@@ -480,16 +480,18 @@ async def apple_token_exchange(
         payload: AppleTokenRequest,
         db: Annotated[Session, Depends(get_db)],
 ):
+    bundle_id = os.environ.get("APPLE_BUNDLE_ID")
+    if not bundle_id:
+        raise HTTPException(status_code=500, detail="Apple Sign In not configured")
+
     try:
         claims = await verify_apple_token(payload.identity_token)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid Apple identity token")
 
     sub = claims.get("sub")
-    email = claims.get("email")
-
-    if not sub or not email:
-        raise HTTPException(status_code=400, detail="Missing required Apple account data")
+    if not sub:
+        raise HTTPException(status_code=400, detail="Missing Apple subject identifier")
 
     user = db.query(User).filter(
         User.oauth_provider == "apple",
@@ -503,6 +505,10 @@ async def apple_token_exchange(
     is_new_user = user is None
 
     if is_new_user:
+        email = claims.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Missing email for new Apple account")
+
         existing = db.query(User).filter(User.email == email).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already linked to another account")
