@@ -545,7 +545,8 @@ def map_game_to_read(db_game: Game) -> GameRead:
         ),
         created_at=db_game.created_at,
         is_whats_that_game_certified=db_game.is_whats_that_game_verified,
-        aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"]
+        aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
+        has_adult_content=db_game.has_adult_content,
     )
 
 
