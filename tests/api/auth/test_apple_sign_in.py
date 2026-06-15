@@ -187,6 +187,9 @@ def test_apple_token_inactive_user_within_30_days_is_reactivated(db):
         with patch("src.api.auth.verify_apple_token", _mock_verify()):
             response = client.post("/auth/oauth/apple/token", json={"identity_token": "fake-token"})
         assert response.status_code == 200
+        body = response.json()
+        assert "access_token" in body
+        assert body["is_new_user"] is False
         db.refresh(inactive)
         assert inactive.is_active is True
         assert inactive.deletion_requested_at is None
@@ -213,7 +216,7 @@ def test_apple_token_email_conflict_with_google_user_returns_400(db):
         with patch("src.api.auth.verify_apple_token", _mock_verify()):
             response = client.post("/auth/oauth/apple/token", json={"identity_token": "fake-token"})
         assert response.status_code == 400
-        assert "already linked" in response.json()["detail"]
+        assert response.json()["detail"] == "Email already linked to another account"
     finally:
         app.dependency_overrides.clear()
 
