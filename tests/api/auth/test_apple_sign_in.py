@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, AsyncMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.db.database import get_db
@@ -17,6 +18,12 @@ VALID_CLAIMS = {
     "email": "appleuser@privaterelay.appleid.com",
     "exp": 9999999999,
 }
+
+
+@pytest.fixture(autouse=True)
+def set_apple_bundle_id():
+    with patch.dict(os.environ, {"APPLE_BUNDLE_ID": FAKE_BUNDLE_ID}):
+        yield
 
 
 def _mock_verify(claims: dict = None, raises: Exception = None):
