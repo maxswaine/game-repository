@@ -42,14 +42,21 @@ async def _get_apple_jwks() -> list[dict]:
     async with httpx.AsyncClient() as client:
         resp = await client.get(APPLE_JWKS_URL)
     resp.raise_for_status()
-    _apple_jwks_cache = resp.json()["keys"]
+    data = resp.json()
+    if "keys" not in data:
+        raise ValueError("Apple JWKS response missing 'keys' field")
+    _apple_jwks_cache = data["keys"]
     _apple_jwks_cache_expires = now + timedelta(hours=24)
     return _apple_jwks_cache
 
 
 async def verify_apple_token(identity_token: str) -> dict:
     global _apple_jwks_cache, _apple_jwks_cache_expires
-    header = jwt.get_unverified_header(identity_token)
+    try:
+        header = jwt.get_unverified_header(identity_token)
+    except jwt.PyJWTError as exc:
+        raise ValueError("Malformed Apple identity token") from exc
+
     kid = header.get("kid")
 
     keys = await _get_apple_jwks()
@@ -67,13 +74,16 @@ async def verify_apple_token(identity_token: str) -> dict:
     public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
     bundle_id = os.environ["APPLE_BUNDLE_ID"]
 
-    return jwt.decode(
-        identity_token,
-        public_key,
-        algorithms=["RS256"],
-        audience=bundle_id,
-        issuer="https://appleid.apple.com",
-    )
+    try:
+        return jwt.decode(
+            identity_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=bundle_id,
+            issuer="https://appleid.apple.com",
+        )
+    except jwt.PyJWTError as exc:
+        raise ValueError("Invalid Apple identity token") from exc
 
 
 def _create_exchange_code(jwt_token: str) -> str:
