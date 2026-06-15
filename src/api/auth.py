@@ -1,10 +1,13 @@
 # src/api/auth.py
+import json
 import os
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 
 import httpx
+import jwt
+from jwt.algorithms import RSAAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -25,6 +28,62 @@ router = APIRouter(prefix="/auth")
 
 # Single-use exchange codes: code -> (jwt_token, expires_at)
 _exchange_codes: dict[str, tuple[str, datetime]] = {}
+
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+_apple_jwks_cache: list[dict] | None = None
+_apple_jwks_cache_expires: datetime | None = None
+
+
+async def _get_apple_jwks() -> list[dict]:
+    global _apple_jwks_cache, _apple_jwks_cache_expires
+    now = datetime.now(timezone.utc)
+    if _apple_jwks_cache is not None and _apple_jwks_cache_expires and now < _apple_jwks_cache_expires:
+        return _apple_jwks_cache
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(APPLE_JWKS_URL)
+    resp.raise_for_status()
+    data = resp.json()
+    if "keys" not in data:
+        raise ValueError("Apple JWKS response missing 'keys' field")
+    _apple_jwks_cache = data["keys"]
+    _apple_jwks_cache_expires = now + timedelta(hours=24)
+    return _apple_jwks_cache
+
+
+async def verify_apple_token(identity_token: str) -> dict:
+    global _apple_jwks_cache, _apple_jwks_cache_expires
+    try:
+        header = jwt.get_unverified_header(identity_token)
+    except jwt.PyJWTError as exc:
+        raise ValueError("Malformed Apple identity token") from exc
+
+    kid = header.get("kid")
+
+    keys = await _get_apple_jwks()
+    key_data = next((k for k in keys if k["kid"] == kid), None)
+
+    if key_data is None:
+        _apple_jwks_cache = None
+        _apple_jwks_cache_expires = None
+        keys = await _get_apple_jwks()
+        key_data = next((k for k in keys if k["kid"] == kid), None)
+
+    if key_data is None:
+        raise ValueError(f"Unknown Apple key ID: {kid}")
+
+    public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
+    bundle_id = os.environ["APPLE_BUNDLE_ID"]
+
+    try:
+        return jwt.decode(
+            identity_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=bundle_id,
+            issuer="https://appleid.apple.com",
+        )
+    except jwt.PyJWTError as exc:
+        raise ValueError("Invalid Apple identity token") from exc
 
 
 def _create_exchange_code(jwt_token: str) -> str:
@@ -392,6 +451,77 @@ async def google_token_exchange(
             oauth_provider="google",
             oauth_id=oauth_id,
             avatar_url=claims.get("picture"),
+            country_of_origin=None,
+            date_of_birth=None,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    jwt_token = create_access_token(data={"sub": user.username})
+
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "is_new_user": is_new_user,
+    }
+
+
+class AppleTokenRequest(BaseModel):
+    identity_token: str
+    firstname: str = ""
+    lastname: str = ""
+
+
+@router.post("/oauth/apple/token", tags=["oauth"], responses={
+    400: {"description": "Invalid identity token, audience mismatch, or email conflict."}
+})
+async def apple_token_exchange(
+        payload: AppleTokenRequest,
+        db: Annotated[Session, Depends(get_db)],
+):
+    bundle_id = os.environ.get("APPLE_BUNDLE_ID")
+    if not bundle_id:
+        raise HTTPException(status_code=500, detail="Apple Sign In not configured")
+
+    try:
+        claims = await verify_apple_token(payload.identity_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Apple identity token")
+
+    sub = claims.get("sub")
+    if not sub:
+        raise HTTPException(status_code=400, detail="Missing Apple subject identifier")
+
+    user = db.query(User).filter(
+        User.oauth_provider == "apple",
+        User.oauth_id == sub,
+    ).first()
+
+    if user and not user.is_active:
+        _maybe_reactivate(user, db)
+        db.refresh(user)
+
+    is_new_user = user is None
+
+    if is_new_user:
+        email = claims.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Missing email for new Apple account")
+
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already linked to another account")
+
+        user = User(
+            email=email,
+            username=generate_unique_username(db, email.split("@")[0]),
+            firstname=payload.firstname,
+            lastname=payload.lastname,
+            created_at=datetime.now(timezone.utc),
+            oauth_provider="apple",
+            oauth_id=sub,
+            avatar_url=None,
             country_of_origin=None,
             date_of_birth=None,
         )
