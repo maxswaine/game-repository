@@ -74,30 +74,32 @@ def create_new_game(
         force: bool = False,
         current_user: User = auth_required()
 ):
-    combined_text = " ".join(filter(None, [
-        new_game.name, new_game.description,
-        new_game.objective, new_game.setup, new_game.rules,
+    content_text = " ".join(filter(None, [
+        new_game.description, new_game.objective, new_game.setup, new_game.rules,
     ]))
+    submission_text = " ".join(filter(None, [new_game.name, content_text]))
 
     if not _user_is_adult(current_user):
         if detect_adult_content(
             new_game.game_type.value,
             [s.value if hasattr(s, "value") else str(s) for s in (new_game.game_setting or [])],
-            combined_text,
-        ) or detect_profanity(combined_text):
+            submission_text,
+        ) or detect_profanity(submission_text):
             raise HTTPException(
                 status_code=422,
                 detail="You must be 18 or over to submit games containing mature or explicit content.",
             )
 
-    if not check_content(combined_text):
+    if not check_content(submission_text):
         raise HTTPException(status_code=422, detail="Content violates community guidelines.")
 
+    # Exclude game name from adult_flag — a profane name alone doesn't make content adult.
+    # Age rating controls age-gating; has_adult_content controls explicit content in rules/desc.
     adult_flag = detect_adult_content(
         new_game.game_type.value,
         [s.value if hasattr(s, "value") else str(s) for s in (new_game.game_setting or [])],
-        combined_text,
-    ) or detect_profanity(combined_text)
+        content_text,
+    ) or detect_profanity(content_text)
 
     if not force:
         try:
@@ -175,6 +177,18 @@ def create_new_game(
     for s in (new_game.game_setting or []):
         db.add(GameSetting(game_id=db_new_game.id, setting_name=s))
 
+    now = datetime.now(timezone.utc)
+    creator_aliases = [a.strip() for a in (new_game.aliases or []) if a.strip()]
+    for alias_text in creator_aliases:
+        db.add(GameAlias(
+            game_id=db_new_game.id,
+            alias=alias_text,
+            suggested_by=current_user.id,
+            status="approved",
+            reviewed_by=current_user.id,
+            reviewed_at=now,
+        ))
+
     db.commit()
     db.refresh(db_new_game)
 
@@ -186,7 +200,7 @@ def create_new_game(
     db.commit()
 
     try:
-        db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game)))
+        db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game, aliases=creator_aliases)))
         db.commit()
     except Exception:
         pass  # embedding is best-effort — game is still created, backfill via embed_games.py
@@ -465,25 +479,25 @@ def update_game(
     db.refresh(db_game)
 
     settings_after = [s.setting_name for s in db_game.setting_items]
-    combined_text = " ".join(filter(None, [
-        db_game.name, db_game.description,
-        db_game.objective, db_game.setup, db_game.rules,
+    content_text = " ".join(filter(None, [
+        db_game.description, db_game.objective, db_game.setup, db_game.rules,
     ]))
+    submission_text = " ".join(filter(None, [db_game.name, content_text]))
 
     if _MODERATED_TEXT_FIELDS & update_data.keys():
         if not _user_is_adult(current_user):
-            if detect_adult_content(db_game.game_type, settings_after, combined_text) or \
-               detect_profanity(combined_text):
+            if detect_adult_content(db_game.game_type, settings_after, submission_text) or \
+               detect_profanity(submission_text):
                 raise HTTPException(
                     status_code=422,
                     detail="You must be 18 or over to submit games containing mature or explicit content.",
                 )
-        if not check_content(combined_text):
+        if not check_content(submission_text):
             raise HTTPException(status_code=422, detail="Content violates community guidelines.")
 
     db_game.has_adult_content = detect_adult_content(
-        db_game.game_type, settings_after, combined_text
-    ) or detect_profanity(combined_text)
+        db_game.game_type, settings_after, content_text
+    ) or detect_profanity(content_text)
     db.commit()
 
     try:
