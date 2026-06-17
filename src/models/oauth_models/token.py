@@ -11,3 +11,4 @@ class TokenResponse(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
     exp: Optional[int] = None
+    ver: Optional[int] = None

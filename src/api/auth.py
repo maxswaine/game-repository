@@ -148,7 +148,7 @@ async def login_for_access_token(
         db.refresh(user)
 
     access_token = create_access_token(
-        data={"sub": user.username},
+        data={"sub": user.username, "ver": user.token_version or 0},
         expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
     )
 
@@ -205,7 +205,7 @@ async def refresh_token(
         )
 
     new_token = create_access_token(
-        data={"sub": user.username},
+        data={"sub": user.username, "ver": user.token_version or 0},
         expires_delta=timedelta(minutes=TOKEN_EXPIRES_MINUTES)
     )
 
@@ -356,7 +356,7 @@ async def google_callback(
         db.commit()
         db.refresh(user)
 
-    jwt_token = create_access_token(data={"sub": user.username})
+    jwt_token = create_access_token(data={"sub": user.username, "ver": user.token_version or 0})
 
     redirect_url = os.environ["FRONTEND_URL"]
 
@@ -458,7 +458,7 @@ async def google_token_exchange(
         db.commit()
         db.refresh(user)
 
-    jwt_token = create_access_token(data={"sub": user.username})
+    jwt_token = create_access_token(data={"sub": user.username, "ver": user.token_version or 0})
 
     return {
         "access_token": jwt_token,
@@ -529,7 +529,7 @@ async def apple_token_exchange(
         db.commit()
         db.refresh(user)
 
-    jwt_token = create_access_token(data={"sub": user.username})
+    jwt_token = create_access_token(data={"sub": user.username, "ver": user.token_version or 0})
 
     return {
         "access_token": jwt_token,
@@ -539,7 +539,25 @@ async def apple_token_exchange(
 
 
 @router.post("/logout", responses={200: {"description": "Logged out successfully"}})
-async def logout():
+async def logout(
+        db: Annotated[Session, Depends(get_db)],
+        access_token: Annotated[Optional[str], Cookie] = None,
+        authorization: Annotated[Optional[str], Header()] = None,
+):
+    token = access_token
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+
+    if token:
+        try:
+            token_data = verify_access_token(token)
+            user = db.query(User).filter(func.lower(User.username) == token_data.username.lower()).first()
+            if user:
+                user.token_version = (user.token_version or 0) + 1
+                db.commit()
+        except Exception:
+            pass
+
     response = JSONResponse(content={
         "message": "Successfully logged out"
     })
