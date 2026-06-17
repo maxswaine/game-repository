@@ -28,6 +28,7 @@ class User(Base):
     oauth_provider = Column(String, nullable=True)
     oauth_id = Column(String, nullable=True, unique=True)
     avatar_url = Column(String, nullable=True)
+    token_version = Column(Integer, nullable=True, default=0)
 
     games = relationship("Game", back_populates="contributor")
     favourites = relationship("UserFavourites", back_populates="user")

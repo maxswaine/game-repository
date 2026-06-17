@@ -55,6 +55,10 @@ def get_current_user(
     if not user:
         raise USER_NOT_FOUND_EXCEPTION
 
+    if token_data.ver is not None and user.token_version is not None:
+        if token_data.ver != user.token_version:
+            raise UNAUTHORIZED_EXCEPTION
+
     return user
 
 
