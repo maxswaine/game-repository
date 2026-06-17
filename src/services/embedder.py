@@ -35,6 +35,10 @@ def build_game_text(game, aliases: list[str] | None = None) -> str:
         equipment = ", ".join(e.equipment_name for e in game.equipment_items)
         parts.append(f"Equipment: {equipment}")
     parts.append(game.objective)
+    if game.setup:
+        parts.append(f"Setup: {game.setup}")
+    if game.rules:
+        parts.append(f"Rules: {game.rules}")
     if aliases:
         parts.append(f"Also known as: {', '.join(aliases)}")
     return ". ".join(parts)
@@ -91,6 +95,10 @@ def build_game_text_from_create(game) -> str:
         if equipment:
             parts.append(f"Equipment: {', '.join(equipment)}")
     parts.append(game.objective)
+    if game.setup:
+        parts.append(f"Setup: {game.setup}")
+    if game.rules:
+        parts.append(f"Rules: {game.rules}")
     return ". ".join(parts)
 
 
