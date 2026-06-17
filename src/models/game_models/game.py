@@ -29,7 +29,7 @@ class GameBase(BaseModel):
 
 
 class GameCreate(GameBase):
-    pass
+    aliases: list[str] = []
 
 
 class GameRead(GameBase):
