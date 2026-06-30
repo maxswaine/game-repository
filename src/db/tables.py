@@ -52,7 +52,7 @@ class Game(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    age_rating = Column(String, nullable=False)
+    age_rating = Column(String, nullable=True)
 
     game_type = Column(String, nullable=False)
     min_players = Column(Integer, nullable=False)
@@ -149,4 +149,14 @@ class CommentLike(Base):
     __tablename__ = "comment_likes"
     comment_id = Column(String, ForeignKey("game_comments.id", ondelete="CASCADE"), primary_key=True, nullable=False)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    type = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="open")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

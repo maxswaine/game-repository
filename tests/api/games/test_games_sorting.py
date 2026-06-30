@@ -11,7 +11,6 @@ def _make_game(db, test_user, *, name, upvotes=0, verified=False, created_at=Non
         id=str(uuid.uuid4()),
         name=name,
         description="desc",
-        age_rating="7+",
         game_type="Card",
         min_players=2,
         max_players=6,

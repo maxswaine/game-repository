@@ -1,13 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import date
-from typing import Optional
-
-from src.models.enums.age_rating_enum import AgeRatingEnum
-
-_ALL_RATINGS = list(AgeRatingEnum)
-_UP_TO_16 = [r for r in AgeRatingEnum if r != AgeRatingEnum.age_18]
 
 _ADULT_GAME_TYPES = {"Drinking"}
 
@@ -62,21 +55,3 @@ def detect_adult_content(game_type: str, settings: list[str], text: str) -> bool
     return any(kw in lowered for kw in _ADULT_KEYWORDS)
 
 
-def allowed_age_ratings(date_of_birth: Optional[date]) -> list[AgeRatingEnum]:
-    if date_of_birth is None:
-        return _UP_TO_16
-
-    today = date.today()
-    age = (today - date_of_birth).days // 365
-
-    if age >= 18:
-        return _ALL_RATINGS
-    if age >= 16:
-        return _UP_TO_16
-    if age >= 12:
-        return [AgeRatingEnum.all_ages, AgeRatingEnum.age_3, AgeRatingEnum.age_7, AgeRatingEnum.age_12]
-    if age >= 7:
-        return [AgeRatingEnum.all_ages, AgeRatingEnum.age_3, AgeRatingEnum.age_7]
-    if age >= 3:
-        return [AgeRatingEnum.all_ages, AgeRatingEnum.age_3]
-    return [AgeRatingEnum.all_ages]

@@ -24,8 +24,6 @@ def test_get_games_returns_list(client_with_auth, client_no_auth):
     game = data[0]
     assert game["name"] == created_game["name"]
     assert game["game_type"] == created_game["game_type"]
-    assert game["age_rating"] == created_game["age_rating"]
-
     assert game["player_count"]["min_players"] == created_game["player_count"]["min_players"]
     assert game["player_count"]["max_players"] == created_game["player_count"]["max_players"]
 
@@ -72,7 +70,6 @@ def test_get_games_does_not_crash_for_oauth_contributor(db, client_no_auth):
         id=str(uuid.uuid4()),
         name="OAuth Game",
         description="A game contributed by an OAuth user with no country set",
-        age_rating="All Ages",
         game_type="Card",
         min_players=2,
         max_players=6,

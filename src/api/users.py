@@ -14,7 +14,8 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION
+from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
+from src.models.enums.role_enum import Role
 from src.core.security import verify_access_token, hash_password, verify_password
 from src.db.database import get_db
 from src.db.tables import User
@@ -70,7 +71,11 @@ def get_current_user_optional(
         return None
     try:
         token_data = verify_access_token(token)
-        return db.query(User).filter(func.lower(User.username) == token_data.username.lower()).first()
+        user = db.query(User).filter(func.lower(User.username) == token_data.username.lower()).first()
+        if user and token_data.ver is not None and user.token_version is not None:
+            if token_data.ver != user.token_version:
+                return None
+        return user
     except HTTPException:
         return None
 
@@ -78,6 +83,12 @@ def get_current_user_optional(
 def get_current_active_user(current_user: User = Depends(get_current_user)):
     if not current_user.is_active:
         raise INACTIVE_USER_EXCEPTION
+    return current_user
+
+
+def require_admin(current_user: User = Depends(get_current_active_user)):
+    if current_user.role != Role.admin:
+        raise FORBIDDEN_EXCEPTION
     return current_user
 
 
@@ -202,6 +213,7 @@ def update_my_password(
         )
 
     current_user.hashed_password = hash_password(password_update.new_password)
+    current_user.token_version = (current_user.token_version or 0) + 1
     current_user.last_updated = datetime.now(timezone.utc)
 
     db.commit()

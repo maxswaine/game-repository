@@ -18,7 +18,6 @@ def test_delete_account_with_game_returns_200_not_500(client_with_auth, test_use
         id=str(uuid.uuid4()),
         name="Test Game",
         description="A game",
-        age_rating="7+",
         game_type="card",
         min_players=2,
         max_players=4,

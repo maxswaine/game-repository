@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class OptimisationRequest(BaseModel):
     field_type: str = Field(..., description="Type of game element (objective, setup, rules)")
-    original_text: str = Field(..., min_length=10, description="The raw text from the user")
+    original_text: str = Field(..., min_length=10, max_length=5000, description="The raw text from the user")
 
 
 class OptimisationResult(BaseModel):

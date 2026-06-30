@@ -53,13 +53,11 @@ def _make_minor_user(db):
     return user
 
 
-def _make_game(db, contributor, age_rating="All Ages", game_type="Card",
-               has_adult_content=False, settings=None):
+def _make_game(db, contributor, game_type="Card", has_adult_content=False, settings=None):
     game = Game(
         id=str(uuid.uuid4()),
         name=f"Test Game {uuid.uuid4().hex[:6]}",
         description="A test game",
-        age_rating=age_rating,
         game_type=game_type,
         min_players=2,
         max_players=6,
@@ -150,58 +148,30 @@ def test_detect_adult_content_clean_family_game():
 
 
 # ---------------------------------------------------------------------------
-# allowed_age_ratings unit tests
-# ---------------------------------------------------------------------------
-
-def test_allowed_age_ratings_adult_user_sees_all():
-    from src.utils.age_filter import allowed_age_ratings
-    from src.models.enums.age_rating_enum import AgeRatingEnum
-    ratings = allowed_age_ratings(date.today() - timedelta(days=365 * 20))
-    assert AgeRatingEnum.age_18 in ratings
-
-
-def test_allowed_age_ratings_minor_excludes_18():
-    from src.utils.age_filter import allowed_age_ratings
-    from src.models.enums.age_rating_enum import AgeRatingEnum
-    ratings = allowed_age_ratings(date.today() - timedelta(days=365 * 16))
-    assert AgeRatingEnum.age_18 not in ratings
-    assert AgeRatingEnum.age_16 in ratings
-
-
-def test_allowed_age_ratings_none_excludes_18():
-    from src.utils.age_filter import allowed_age_ratings
-    from src.models.enums.age_rating_enum import AgeRatingEnum
-    ratings = allowed_age_ratings(None)
-    assert AgeRatingEnum.age_18 not in ratings
-    assert AgeRatingEnum.age_16 in ratings
-
-
-# ---------------------------------------------------------------------------
 # GET /games/ filter integration tests
 # ---------------------------------------------------------------------------
 
-def test_get_games_hides_18plus_from_anonymous(db, client_no_auth, test_user):
-    adult_game = _make_game(db, test_user, age_rating="18+")
+def test_get_games_hides_adult_content_from_anonymous(db, client_no_auth, test_user):
+    adult_game = _make_game(db, test_user, has_adult_content=True)
     ids = [g["id"] for g in client_no_auth.get("/games/").json()]
     assert adult_game.id not in ids
 
 
-def test_get_games_hides_mislabeled_drinking_game_from_anonymous(db, client_no_auth, test_user):
-    # Game claims to be "All Ages" but is flagged as adult content
-    drinking_game = _make_game(db, test_user, age_rating="All Ages", has_adult_content=True)
+def test_get_games_hides_drinking_game_from_anonymous(db, client_no_auth, test_user):
+    drinking_game = _make_game(db, test_user, has_adult_content=True)
     ids = [g["id"] for g in client_no_auth.get("/games/").json()]
     assert drinking_game.id not in ids
 
 
-def test_get_games_shows_all_ages_clean_game_to_anonymous(db, client_no_auth, test_user):
-    clean_game = _make_game(db, test_user, age_rating="All Ages", has_adult_content=False)
+def test_get_games_shows_clean_game_to_anonymous(db, client_no_auth, test_user):
+    clean_game = _make_game(db, test_user, has_adult_content=False)
     ids = [g["id"] for g in client_no_auth.get("/games/").json()]
     assert clean_game.id in ids
 
 
-def test_get_games_shows_18plus_to_adult_user(db, test_user):
+def test_get_games_shows_adult_content_to_adult_user(db, test_user):
     adult_user = _make_adult_user(db)
-    adult_game = _make_game(db, test_user, age_rating="18+")
+    adult_game = _make_game(db, test_user, has_adult_content=True)
     client = _client_as(db, adult_user)
     try:
         ids = [g["id"] for g in client.get("/games/").json()]
@@ -210,9 +180,9 @@ def test_get_games_shows_18plus_to_adult_user(db, test_user):
         app.dependency_overrides.clear()
 
 
-def test_get_games_hides_18plus_from_minor_user(db, test_user):
+def test_get_games_hides_adult_content_from_minor_user(db, test_user):
     minor_user = _make_minor_user(db)
-    adult_game = _make_game(db, test_user, age_rating="18+")
+    adult_game = _make_game(db, test_user, has_adult_content=True)
     client = _client_as(db, minor_user)
     try:
         ids = [g["id"] for g in client.get("/games/").json()]
@@ -221,9 +191,9 @@ def test_get_games_hides_18plus_from_minor_user(db, test_user):
         app.dependency_overrides.clear()
 
 
-def test_get_games_hides_adult_content_from_minor_user(db, test_user):
+def test_get_games_hides_drinking_game_from_minor_user(db, test_user):
     minor_user = _make_minor_user(db)
-    drinking_game = _make_game(db, test_user, age_rating="All Ages", has_adult_content=True)
+    drinking_game = _make_game(db, test_user, has_adult_content=True)
     client = _client_as(db, minor_user)
     try:
         ids = [g["id"] for g in client.get("/games/").json()]
@@ -236,15 +206,15 @@ def test_get_games_hides_adult_content_from_minor_user(db, test_user):
 # GET /games/{id} direct link filter
 # ---------------------------------------------------------------------------
 
-def test_get_game_by_id_returns_403_for_18plus_to_anonymous(db, client_no_auth, test_user):
-    adult_game = _make_game(db, test_user, age_rating="18+")
+def test_get_game_by_id_returns_403_for_adult_content_to_anonymous(db, client_no_auth, test_user):
+    adult_game = _make_game(db, test_user, has_adult_content=True)
     response = client_no_auth.get(f"/games/{adult_game.id}")
     assert response.status_code == 403
 
 
 def test_get_game_by_id_returns_game_to_adult_user(db, test_user):
     adult_user = _make_adult_user(db)
-    adult_game = _make_game(db, test_user, age_rating="18+")
+    adult_game = _make_game(db, test_user, has_adult_content=True)
     client = _client_as(db, adult_user)
     try:
         response = client.get(f"/games/{adult_game.id}")

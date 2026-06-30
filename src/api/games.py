@@ -17,7 +17,6 @@ from src.services.embedder import build_game_text, embed_text, embedding_to_json
 from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD
 from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
-from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
@@ -28,7 +27,7 @@ from src.models.game_models.game_vote import GameVoteRead
 from src.models.game_models.player_count import PlayerCount
 from src.models.user_models.user import UserPublicRead
 from src.services.moderation import check_content
-from src.utils.age_filter import detect_adult_content, detect_profanity, allowed_age_ratings
+from src.utils.age_filter import detect_adult_content, detect_profanity
 
 protected_router = APIRouter()
 public_router = APIRouter()
@@ -56,10 +55,7 @@ def _user_is_adult(user) -> bool:
 def _apply_age_content_filter(query, current_user):
     if _user_is_adult(current_user):
         return query
-    allowed = allowed_age_ratings(_parse_dob(current_user))
-    return (query
-            .filter(Game.age_rating.in_(allowed))
-            .filter(Game.has_adult_content == False))
+    return query.filter(Game.has_adult_content == False)
 
 
 def auth_required():
@@ -150,7 +146,6 @@ def create_new_game(
     db_new_game = Game(
         name=new_game.name,
         description=new_game.description,
-        age_rating=new_game.age_rating,
         game_type=new_game.game_type,
         min_players=new_game.player_count.min_players,
         max_players=new_game.player_count.max_players,
@@ -292,7 +287,6 @@ def get_all_games(
         current_user: Annotated[User | None, Depends(get_current_user_optional)],
         name: Optional[str] = None,
         game_type: Optional[GameTypeEnum] = None,
-        age_rating: Optional[AgeRatingEnum] = None,
         min_players: Optional[int] = None,
         max_players: Optional[int] = None,
         duration: Optional[str] = None,
@@ -325,9 +319,6 @@ def get_all_games(
 
     if game_type:
         query = query.filter(Game.game_type == game_type)
-
-    if age_rating:
-        query = query.filter(Game.age_rating == age_rating)
 
     if min_players:
         query = query.filter(Game.min_players >= min_players)
@@ -421,10 +412,8 @@ def get_game_by_id(
         if not current_user or game.contributor_id != current_user.id:
             raise FORBIDDEN_EXCEPTION
 
-    if not _user_is_adult(current_user):
-        allowed = allowed_age_ratings(_parse_dob(current_user))
-        if game.age_rating not in allowed or game.has_adult_content:
-            raise FORBIDDEN_EXCEPTION
+    if not _user_is_adult(current_user) and game.has_adult_content:
+        raise FORBIDDEN_EXCEPTION
 
     return map_game_to_read(game)
 
@@ -537,7 +526,6 @@ def map_game_to_read(db_game: Game) -> GameRead:
         id=db_game.id,
         name=db_game.name,
         description=db_game.description,
-        age_rating=db_game.age_rating,
         game_type=db_game.game_type,
         player_count=PlayerCount(
             min_players=db_game.min_players,
