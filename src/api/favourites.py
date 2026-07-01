@@ -54,7 +54,7 @@ def get_all_favourites(
         .all()
     )
 
-    return [map_game_to_read(game) for game in games]
+    return [map_game_to_read(game, set(game_ids)) for game in games]
 
 
 @router.post("/{game_id}", response_model=UserFavouriteBase, status_code=201,

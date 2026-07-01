@@ -3,9 +3,10 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from src.api.games import map_game_to_read
+from src.api.games import map_game_to_read, _get_liked_ids
+from src.api.users import get_current_user_optional
 from src.db.database import get_db
-from src.db.tables import Game
+from src.db.tables import Game, User
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
 from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
 
@@ -37,6 +38,7 @@ def _apply_hard_filters(games: list, query: str) -> list:
 def semantic_search(
         request: GameSearchRequest,
         db: Annotated[Session, Depends(get_db)],
+        current_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
 ):
     try:
         query_vector = embed_text(request.query)
@@ -77,7 +79,8 @@ def semantic_search(
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:request.limit]
 
+    liked_ids = _get_liked_ids(db, current_user.id) if current_user else None
     return [
-        GameSearchResult(**map_game_to_read(game).model_dump(), score=round(score, 4))
+        GameSearchResult(**map_game_to_read(game, liked_ids).model_dump(), score=round(score, 4))
         for score, game in top
     ]
