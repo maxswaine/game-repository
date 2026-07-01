@@ -371,7 +371,8 @@ def get_all_games(
 
     games = query.distinct().limit(limit).offset(offset).all()
 
-    return [map_game_to_read(game) for game in games]
+    liked_ids = _get_liked_ids(db, current_user.id) if current_user else None
+    return [map_game_to_read(game, liked_ids) for game in games]
 
 
 @protected_router.get("/mine", response_model=List[GameRead], status_code=200,
@@ -394,7 +395,8 @@ def get_my_games(
              .offset(offset)
              .all())
 
-    return [map_game_to_read(game) for game in games]
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return [map_game_to_read(game, liked_ids) for game in games]
 
 
 @public_router.get("/{game_id}", response_model=GameRead, status_code=200,
@@ -415,7 +417,8 @@ def get_game_by_id(
     if not _user_is_adult(current_user) and game.has_adult_content:
         raise FORBIDDEN_EXCEPTION
 
-    return map_game_to_read(game)
+    liked_ids = _get_liked_ids(db, current_user.id) if current_user else None
+    return map_game_to_read(game, liked_ids)
 
 
 # UPDATE
@@ -495,7 +498,8 @@ def update_game(
     except Exception:
         pass  # embedding is best-effort
 
-    return map_game_to_read(db_game)
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
 
 
 @protected_router.patch("/{game_id}/visibility", response_model=GameRead, status_code=200,
@@ -518,10 +522,16 @@ def change_game_visibility(
     db.commit()
     db.refresh(db_game)
 
-    return map_game_to_read(db_game)
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
 
 
-def map_game_to_read(db_game: Game) -> GameRead:
+def _get_liked_ids(db: Session, user_id: str) -> set[str]:
+    rows = db.query(UserFavourites.game_id).filter(UserFavourites.user_id == user_id).all()
+    return {row.game_id for row in rows}
+
+
+def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> GameRead:
     return GameRead(
         id=db_game.id,
         name=db_game.name,
@@ -549,6 +559,7 @@ def map_game_to_read(db_game: Game) -> GameRead:
         is_whats_that_game_certified=db_game.is_whats_that_game_verified,
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
+        liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,
     )
 
 

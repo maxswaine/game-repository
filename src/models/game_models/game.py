@@ -37,6 +37,7 @@ class GameRead(GameBase):
     created_at: datetime
     aliases: list[str] = []
     has_adult_content: bool = False
+    liked_by_me: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
