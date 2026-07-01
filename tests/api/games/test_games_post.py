@@ -11,8 +11,8 @@ def test_create_game_rejects_description_over_2000_chars(client_with_auth):
     assert response.status_code == 422
 
 
-def test_create_game_rejects_rules_over_2000_chars(client_with_auth):
-    payload = valid_public_game_payload(overrides={"rules": "x" * 2001})
+def test_create_game_rejects_rules_over_5000_chars(client_with_auth):
+    payload = valid_public_game_payload(overrides={"rules": "x" * 5001})
     response = client_with_auth.post("/games/", json=payload)
     assert response.status_code == 422
 
@@ -36,7 +36,6 @@ def test_create_game_success(client_with_auth):
     assert data["id"] is not None
     assert data["name"] == payload["name"]
     assert data["game_type"] == payload["game_type"]
-    assert data["age_rating"] == payload["age_rating"]
     assert data["player_count"]["min_players"] == 2
     assert data["player_count"]["max_players"] == 6
 

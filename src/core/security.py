@@ -5,10 +5,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
+from dotenv import load_dotenv
 from passlib.context import CryptContext
 
 from src.core.exceptions import UNAUTHORIZED_EXCEPTION
 from src.models.oauth_models.token import TokenData
+
+load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
@@ -51,3 +54,28 @@ def verify_access_token(token: str) -> TokenData:
         return TokenData(username=username, exp=payload.get("exp"), ver=payload.get("ver"))
     except jwt.PyJWTError:
         raise UNAUTHORIZED_EXCEPTION
+
+
+PASSWORD_RESET_EXPIRES_MINUTES = 15
+
+
+def create_password_reset_token(email: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_EXPIRES_MINUTES)
+    return jwt.encode(
+        {"sub": email, "type": "password_reset", "exp": expire},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def verify_password_reset_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "password_reset":
+            raise ValueError("Invalid token type")
+        email: str | None = payload.get("sub")
+        if not email:
+            raise ValueError("Missing subject")
+        return email
+    except jwt.PyJWTError as exc:
+        raise ValueError("Invalid or expired token") from exc

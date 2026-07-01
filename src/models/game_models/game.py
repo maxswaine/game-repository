@@ -3,7 +3,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.player_count import PlayerCount
@@ -11,9 +10,8 @@ from src.models.user_models.user import UserPublicRead
 
 
 class GameBase(BaseModel):
-    name: str
+    name: str = Field(max_length=100)
     description: str = Field(max_length=2000)
-    age_rating: AgeRatingEnum
     game_type: GameTypeEnum
     player_count: PlayerCount
     duration: str
@@ -21,7 +19,7 @@ class GameBase(BaseModel):
     equipment: List[str]
     objective: str = Field(max_length=2000)
     setup: str = Field(max_length=2000)
-    rules: str = Field(max_length=2000)
+    rules: str = Field(max_length=5000)
     image_url: Optional[str] = None
     is_public: bool
     is_whats_that_game_certified: bool = False
@@ -44,19 +42,18 @@ class GameRead(GameBase):
 
 
 class GameUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = Field(None, max_length=2000)
     game_type: Optional[GameTypeEnum] = None
-    age_rating: Optional[AgeRatingEnum] = None
     min_players: Optional[int] = None
     max_players: Optional[int] = None
     duration: Optional[str] = None
     difficulty: Optional[GameDifficultyEnum] = None
     equipment: Optional[List[str]] = None
     is_public: Optional[bool] = None
-    objective: Optional[str] = None
-    setup: Optional[str] = None
-    rules: Optional[str] = None
+    objective: Optional[str] = Field(None, max_length=2000)
+    setup: Optional[str] = Field(None, max_length=2000)
+    rules: Optional[str] = Field(None, max_length=5000)
     game_setting: Optional[List[str]] = None
 
 

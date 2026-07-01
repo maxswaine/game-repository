@@ -3,12 +3,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from src.api.users import get_current_active_user
-from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, FORBIDDEN_EXCEPTION
+from src.api.users import get_current_active_user, require_admin
+from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION
 from src.db.database import get_db
 from src.db.tables import Game, GameAlias
 from src.models.alias_models.alias import AliasCreate, AliasRead, AliasPatch
-from src.models.enums.role_enum import Role
 from src.services.embedder import build_game_text, embed_text, embedding_to_json
 
 public_router = APIRouter()
@@ -49,10 +48,8 @@ def get_game_aliases(game_id: str, db: Session = Depends(get_db)):
 @admin_router.get("/aliases", response_model=list[AliasRead])
 def list_pending_aliases(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_admin),
 ):
-    if current_user.role != Role.admin:
-        raise FORBIDDEN_EXCEPTION
     return db.query(GameAlias).filter(GameAlias.status == "pending").all()
 
 
@@ -61,10 +58,8 @@ def review_alias(
     alias_id: str,
     body: AliasPatch,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_admin),
 ):
-    if current_user.role != Role.admin:
-        raise FORBIDDEN_EXCEPTION
     if body.status not in ("approved", "rejected"):
         raise HTTPException(status_code=422, detail="status must be 'approved' or 'rejected'")
     alias = db.query(GameAlias).filter(GameAlias.id == alias_id).first()

@@ -19,6 +19,8 @@ from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
 from src.core.limiter import limiter
 from src.core.security import create_access_token, verify_access_token
 from src.core.security import verify_password, TOKEN_EXPIRES_MINUTES
+from src.core.security import create_password_reset_token, verify_password_reset_token, hash_password
+from src.services.email import send_password_reset_email
 from src.db.database import get_db
 from src.db.tables import User
 
@@ -394,6 +396,55 @@ async def exchange_code(code: str):
         max_age=3600 * 24 * 7,
     )
     return response
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(
+        request: Request,
+        body: ForgotPasswordRequest,
+        db: Annotated[Session, Depends(get_db)],
+):
+    user = db.query(User).filter(func.lower(User.email) == body.email.lower()).first()
+    if user and user.is_active and user.hashed_password:
+        token = create_password_reset_token(user.email)
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        reset_url = f"{frontend_url}/reset-password?token={token}"
+        try:
+            send_password_reset_email(user.email, reset_url)
+        except Exception:
+            pass
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password", responses={400: {"description": "Invalid or expired reset token"}})
+async def reset_password(
+        body: ResetPasswordRequest,
+        db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        email = verify_password_reset_token(body.token)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.hashed_password = hash_password(body.new_password)
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+
+    return {"message": "Password reset successfully"}
 
 
 class GoogleTokenRequest(BaseModel):

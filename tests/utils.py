@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from src.models.enums.age_rating_enum import AgeRatingEnum
 from src.models.enums.duration_enum import DurationEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -12,7 +11,6 @@ def valid_public_game_payload(overrides: dict | None = None):
     payload = {
         "name": "Test Game",
         "description": "Test description",
-        "age_rating": AgeRatingEnum.age_7.value,
         "game_type": GameTypeEnum.card.value,
         "player_count": {
             "min_players": 2,
@@ -41,7 +39,6 @@ def valid_private_game_payload(overrides: dict | None = None):
     payload = {
         "name": "Test Game",
         "description": "Test description",
-        "age_rating": AgeRatingEnum.age_7.value,
         "game_type": GameTypeEnum.card.value,
         "player_count": {
             "min_players": 2,

@@ -20,7 +20,6 @@ def _make_game(db, contributor):
         id=str(uuid.uuid4()),
         name="Reportable Game",
         description="A game to be reported",
-        age_rating="All Ages",
         game_type="Card",
         min_players=2,
         max_players=6,

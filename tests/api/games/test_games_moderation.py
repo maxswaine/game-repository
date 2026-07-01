@@ -177,7 +177,7 @@ def test_adult_submitted_profane_game_hidden_from_minors(db):
     try:
         with patch("src.api.games.check_content", return_value=True):
             resp = adult_client.post("/games/", json=valid_public_game_payload(
-                overrides={"rules": "Loser must say 'what the fuck' out loud", "age_rating": "All Ages"}
+                overrides={"rules": "Loser must say 'what the fuck' out loud"}
             ))
         assert resp.status_code == 201
         game_id = resp.json()["id"]

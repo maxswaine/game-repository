@@ -252,6 +252,80 @@ Possible values: `"user"` | `"admin"`.
 
 ---
 
+---
+
+## 8. `age_rating` removed — replaced by `has_adult_content`
+
+`age_rating` has been removed from all game responses and request bodies. Age gating is now a single boolean: `has_adult_content` (already present on `GameRead`).
+
+### Changes to `GameRead` (all game endpoints)
+
+**Before:**
+```json
+{ "age_rating": "18+", "has_adult_content": true, ... }
+```
+**After:**
+```json
+{ "has_adult_content": true, ... }
+```
+
+**Frontend action required:**
+- Remove `age_rating` from your `GameRead` TypeScript type.
+- Remove any UI that displays `age_rating` (badge, label, filter tag).
+- Age gating is now purely `has_adult_content: boolean` — use this to show/hide adult content warnings.
+
+---
+
+### Changes to `POST /games/` and `PATCH /games/{game_id}`
+
+`age_rating` is no longer accepted in the request body. If you currently send it, remove it — the field will be silently ignored but keeping it is misleading.
+
+**Frontend action required:**
+- Remove `age_rating` from your game creation and update form payloads.
+- Remove the age rating selector from the create/edit game form.
+
+---
+
+### Changes to `GET /games/` — filter param removed
+
+`age_rating` query param no longer exists.
+
+**Before:** `GET /games/?age_rating=18%2B`
+**After:** not supported — 422 if sent.
+
+**Frontend action required:**
+- Remove `age_rating` from any filter UI on the game list page.
+- Remove `age_rating` from the query string you build for `GET /games/`.
+
+---
+
+### Changes to `GET /metadata/metadata`
+
+`age_ratings` field removed from response.
+
+**Before:**
+```json
+{ "age_ratings": ["All ages", "3+", "7+", "12+", "16+", "18+"], ... }
+```
+**After:** field absent.
+
+**Frontend action required:**
+- Remove `age_ratings` from your `GameMetadata` type.
+- Remove any UI that renders the age ratings list (e.g. a filter dropdown populated from metadata).
+
+---
+
+### Age gating behaviour change
+
+Previously: games were filtered by matching `age_rating` against the user's allowed ratings (derived from DOB).
+Now: games with `has_adult_content: true` are hidden from users under 18 and anonymous users. All other games are always visible.
+
+No frontend change required for the gate itself — it's enforced server-side. But:
+- If you show an "adult content" warning badge anywhere, drive it from `has_adult_content`.
+- If you previously warned users "this game is rated 18+" using `age_rating`, switch to checking `has_adult_content === true`.
+
+---
+
 ## Summary table
 
 | Endpoint | Method | What changed | Frontend handles |
