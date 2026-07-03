@@ -469,8 +469,14 @@ async def google_token_exchange(
 
     claims = tokeninfo_resp.json()
 
-    expected_aud = os.environ.get("GOOGLE_CLIENT_ID")
-    if claims.get("aud") != expected_aud:
+    valid_audiences = [
+        aud for aud in [
+            os.environ.get("GOOGLE_CLIENT_ID"),
+            os.environ.get("GOOGLE_IOS_CLIENT_ID"),
+            os.environ.get("GOOGLE_ANDROID_CLIENT_ID"),
+        ] if aud
+    ]
+    if claims.get("aud") not in valid_audiences:
         raise HTTPException(status_code=400, detail="Token audience mismatch")
 
     if str(claims.get("email_verified")).lower() != "true":
