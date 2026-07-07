@@ -59,16 +59,16 @@ def verify_access_token(token: str) -> TokenData:
 PASSWORD_RESET_EXPIRES_MINUTES = 15
 
 
-def create_password_reset_token(email: str) -> str:
+def create_password_reset_token(email: str, token_version: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_EXPIRES_MINUTES)
     return jwt.encode(
-        {"sub": email, "type": "password_reset", "exp": expire},
+        {"sub": email, "type": "password_reset", "exp": expire, "ver": token_version},
         SECRET_KEY,
         algorithm=ALGORITHM,
     )
 
 
-def verify_password_reset_token(token: str) -> str:
+def verify_password_reset_token(token: str) -> tuple[str, int]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "password_reset":
@@ -76,6 +76,9 @@ def verify_password_reset_token(token: str) -> str:
         email: str | None = payload.get("sub")
         if not email:
             raise ValueError("Missing subject")
-        return email
+        ver = payload.get("ver")
+        if ver is None:
+            raise ValueError("Missing version")
+        return email, int(ver)
     except jwt.PyJWTError as exc:
         raise ValueError("Invalid or expired token") from exc

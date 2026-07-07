@@ -1,2 +1,8 @@
 .env
 graphify-out
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+test.db
+.DS_Store
