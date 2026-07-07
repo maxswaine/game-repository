@@ -17,7 +17,7 @@ from starlette.responses import RedirectResponse, JSONResponse
 
 from src.core.exceptions import UNAUTHORIZED_EXCEPTION, INACTIVE_USER_EXCEPTION
 from src.core.limiter import limiter
-from src.core.security import create_access_token, verify_access_token
+from src.core.security import create_access_token, verify_access_token, SECRET_KEY, ALGORITHM
 from src.core.security import verify_password, TOKEN_EXPIRES_MINUTES
 from src.core.security import create_password_reset_token, verify_password_reset_token, hash_password
 from src.services.email import send_password_reset_email
@@ -178,33 +178,32 @@ async def refresh_token(
         token = authorization.split(" ", 1)[1]
 
     if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="No access token found"
-        )
+        raise HTTPException(status_code=401, detail={"reason": "no_token", "message": "No access token found"})
 
+    # Decode without expiry check so mobile clients can refresh after backgrounding past token TTL
     try:
-        token_data = verify_access_token(token)
-    except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail={"reason": "invalid_token", "message": "Invalid or tampered token"})
 
-    # Get the user from database
-    user = db.query(User).filter(User.username == token_data.username).first()
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail={"reason": "invalid_token", "message": "Invalid token"})
 
+    # Enforce max session lifetime (30 days past expiry) — prevents indefinite silent refresh
+    exp = payload.get("exp")
+    if exp and (datetime.now(timezone.utc).timestamp() - exp) > 30 * 24 * 3600:
+        raise HTTPException(status_code=401, detail={"reason": "session_expired", "message": "Session expired, please log in again"})
+
+    user = db.query(User).filter(User.username == username).first()
     if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-
+        raise HTTPException(status_code=401, detail={"reason": "invalid_token", "message": "User not found"})
     if not user.is_active:
-        raise HTTPException(
-            status_code=401,
-            detail="User account is inactive"
-        )
+        raise HTTPException(status_code=401, detail={"reason": "account_inactive", "message": "User account is inactive"})
+
+    # Revocation check — token version must match (incremented on logout/password reset)
+    if payload.get("ver", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail={"reason": "token_revoked", "message": "Session revoked, please log in again"})
 
     new_token = create_access_token(
         data={"sub": user.username, "ver": user.token_version or 0},
@@ -416,7 +415,7 @@ async def forgot_password(
 ):
     user = db.query(User).filter(func.lower(User.email) == body.email.lower()).first()
     if user and user.is_active and user.hashed_password:
-        token = create_password_reset_token(user.email)
+        token = create_password_reset_token(user.email, user.token_version or 0)
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
         reset_url = f"{frontend_url}/reset-password?token={token}"
         try:
@@ -432,12 +431,15 @@ async def reset_password(
         db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        email = verify_password_reset_token(body.token)
+        email, token_ver = verify_password_reset_token(body.token)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
     if not user or not user.is_active:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    if (user.token_version or 0) != token_ver:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.hashed_password = hash_password(body.new_password)

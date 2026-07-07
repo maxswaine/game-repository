@@ -52,8 +52,6 @@ class Game(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    age_rating = Column(String, nullable=True)
-
     game_type = Column(String, nullable=False)
     min_players = Column(Integer, nullable=False)
     max_players = Column(Integer, nullable=False)
