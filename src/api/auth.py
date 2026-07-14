@@ -10,7 +10,7 @@ import jwt
 from jwt.algorithms import RSAAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
@@ -20,6 +20,7 @@ from src.core.limiter import limiter
 from src.core.security import create_access_token, verify_access_token, SECRET_KEY, ALGORITHM
 from src.core.security import verify_password, TOKEN_EXPIRES_MINUTES
 from src.core.security import create_password_reset_token, verify_password_reset_token, hash_password
+from src.core.security import validate_password_length
 from src.services.email import send_password_reset_email
 from src.db.database import get_db
 from src.db.tables import User
@@ -405,6 +406,11 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, v):
+        return validate_password_length(v)
+
 
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
@@ -568,7 +574,7 @@ async def apple_token_exchange(
         if not email:
             raise HTTPException(status_code=400, detail="Missing email for new Apple account")
 
-        existing = db.query(User).filter(User.email == email).first()
+        existing = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already linked to another account")
 
