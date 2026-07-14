@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Optional
 
 import pycountry
 from pydantic import ConfigDict, BaseModel, field_validator
+
+from src.utils.age_filter import detect_profanity
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
 minimum_age_error = 'You must be at least 13 years old to register'
@@ -83,6 +86,8 @@ class UserPrivateRead(BaseModel):
     role: str
     date_of_birth: Optional[str] = None
     avatar_url: Optional[str] = None
+    access_token: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserLogin(BaseModel):
@@ -100,9 +105,21 @@ class UserUpdate(BaseModel):
     firstname: Optional[str] = None
     lastname: Optional[str] = None
     email: Optional[str] = None
+    username: Optional[str] = None
     country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
     avatar_url: Optional[str] = None
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if v is None:
+            return v
+        if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
+            raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
+        if detect_profanity(v):
+            raise ValueError('username is not allowed')
+        return v
 
     @field_validator('avatar_url')
     @classmethod

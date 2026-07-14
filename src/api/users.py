@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -13,14 +14,17 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.responses import JSONResponse
 
 from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.models.enums.role_enum import Role
-from src.core.security import verify_access_token, hash_password, verify_password
+from src.core.security import verify_access_token, hash_password, verify_password, create_access_token, TOKEN_EXPIRES_MINUTES
 from src.db.database import get_db
 from src.db.tables import User
 from src.models.user_models.user import UserCreate, UserPublicRead, UserPrivateRead, UserCompleteProfile, UserUpdate, \
     UserPasswordUpdate
+
+IS_PRODUCTION = os.getenv("ENV") == "production"
 
 
 class MessageResponse(BaseModel):
@@ -161,7 +165,7 @@ def get_me(
 
 # UPDATE
 @router.patch("/me", response_model=UserPrivateRead, status_code=200,
-              responses={400: {"description": "Email already in use exception"}})
+              responses={400: {"description": "Email already in use, or Username taken"}})
 def update_my_profile(
         updates: UserUpdate,
         current_user: Annotated[User, Depends(get_current_active_user)],
@@ -180,6 +184,21 @@ def update_my_profile(
                 detail="Email already in use"
             )
 
+    username_changed = False
+    if "username" in update_data:
+        new_username = update_data["username"]
+        if new_username != current_user.username:
+            existing_username = db.query(User).filter(
+                func.lower(User.username) == new_username.lower(),
+                User.id != current_user.id
+            ).first()
+            if existing_username:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Username taken"
+                )
+            username_changed = True
+
     for key, value in update_data.items():
         if value is not None:
             setattr(current_user, key, value)
@@ -189,7 +208,27 @@ def update_my_profile(
     db.commit()
     db.refresh(current_user)
 
-    return current_user
+    body = UserPrivateRead.model_validate(current_user).model_dump()
+
+    if username_changed:
+        new_access_token = create_access_token(
+            data={"sub": current_user.username, "ver": current_user.token_version or 0}
+        )
+        body["access_token"] = new_access_token
+
+    response = JSONResponse(content=body)
+
+    if username_changed:
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=IS_PRODUCTION,
+            samesite="none" if IS_PRODUCTION else "lax",
+            max_age=TOKEN_EXPIRES_MINUTES * 60,
+        )
+
+    return response
 
 
 @router.patch("/me/password", status_code=200, responses={
