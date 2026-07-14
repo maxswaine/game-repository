@@ -20,6 +20,14 @@ def _check_minimum_age(dob: date) -> None:
         raise ValueError(minimum_age_error)
 
 
+def _validate_username_format(v: str) -> str:
+    if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
+        raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
+    if detect_profanity(v):
+        raise ValueError('username is not allowed')
+    return v
+
+
 class UserBase(BaseModel):
     firstname: str
     lastname: str
@@ -115,11 +123,7 @@ class UserUpdate(BaseModel):
     def validate_username(cls, v):
         if v is None:
             return v
-        if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
-            raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
-        if detect_profanity(v):
-            raise ValueError('username is not allowed')
-        return v
+        return _validate_username_format(v)
 
     @field_validator('avatar_url')
     @classmethod
@@ -156,6 +160,7 @@ class UserCompleteProfile(BaseModel):
     """For OAuth users completing their profile after signup"""
     date_of_birth: str
     country_of_origin: str
+    username: Optional[str] = None
 
     @field_validator('date_of_birth')
     @classmethod
@@ -166,6 +171,13 @@ class UserCompleteProfile(BaseModel):
             raise ValueError(date_of_birth_error)
         _check_minimum_age(dob)
         return v
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if v is None:
+            return v
+        return _validate_username_format(v)
 
 
 class UserReactivate(BaseModel):
