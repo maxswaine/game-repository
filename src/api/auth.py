@@ -341,6 +341,10 @@ async def google_callback(
     is_new_user = False
 
     if not user:
+        existing = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already linked to another account")
+
         is_new_user = True
         user = User(
             email=email,
