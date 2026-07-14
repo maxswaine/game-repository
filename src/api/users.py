@@ -136,20 +136,65 @@ def create_new_user(
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 
+def _check_username_available(db: Session, current_user: User, new_username: str) -> bool:
+    """Returns True if new_username differs from current and is free (case-insensitive).
+    Raises 400 if taken by another user."""
+    if new_username == current_user.username:
+        return False
+    existing = db.query(User).filter(
+        func.lower(User.username) == new_username.lower(),
+        User.id != current_user.id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username taken")
+    return True
+
+
 @router.post("/me/complete-profile", response_model=UserPrivateRead, status_code=200,
              responses={401: {"description": "Authentication required"},
-                        400: {"description": "Profile already complete"}})
+                        400: {"description": "Username taken"},
+                        422: {"description": "Profile already complete"}})
 def complete_profile(
         db: Annotated[Session, Depends(get_db)],
         profile_data: UserCompleteProfile,
         current_user: Annotated[User, Depends(get_current_active_user)],
 ):
+    update_data = profile_data.model_dump(exclude_unset=True)
+
+    username_changed = False
+    if "username" in update_data and update_data["username"] is not None:
+        username_changed = _check_username_available(db, current_user, update_data["username"])
+        if username_changed:
+            current_user.username = update_data["username"]
+
     current_user.date_of_birth = profile_data.date_of_birth
     current_user.country_of_origin = profile_data.country_of_origin
     current_user.last_updated = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(current_user)
-    return current_user
+
+    body = UserPrivateRead.model_validate(current_user).model_dump()
+
+    if username_changed:
+        new_access_token = create_access_token(
+            data={"sub": current_user.username, "ver": current_user.token_version or 0}
+        )
+        body["access_token"] = new_access_token
+
+    response = JSONResponse(content=body)
+
+    if username_changed:
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=IS_PRODUCTION,
+            samesite="none" if IS_PRODUCTION else "lax",
+            max_age=TOKEN_EXPIRES_MINUTES * 60,
+        )
+
+    return response
 
 
 # READ
@@ -186,18 +231,7 @@ def update_my_profile(
 
     username_changed = False
     if "username" in update_data:
-        new_username = update_data["username"]
-        if new_username != current_user.username:
-            existing_username = db.query(User).filter(
-                func.lower(User.username) == new_username.lower(),
-                User.id != current_user.id
-            ).first()
-            if existing_username:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Username taken"
-                )
-            username_changed = True
+        username_changed = _check_username_available(db, current_user, update_data["username"])
 
     for key, value in update_data.items():
         if value is not None:
