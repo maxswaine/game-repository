@@ -6,7 +6,7 @@ import resend
 def send_password_reset_email(to_email: str, reset_url: str) -> None:
     resend.api_key = os.environ["RESEND_API_KEY"]
     resend.Emails.send({
-        "from": "onboarding@resend.dev",
+        "from": "noreply@mail.whatsthatgame.co.uk",
         "to": to_email,
         "subject": "Reset your What's That Game password",
         "html": (
