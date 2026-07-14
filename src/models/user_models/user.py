@@ -7,6 +7,7 @@ from typing import Optional
 import pycountry
 from pydantic import ConfigDict, BaseModel, field_validator
 
+from src.core.security import validate_password_length
 from src.utils.age_filter import detect_profanity
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
@@ -18,6 +19,14 @@ def _check_minimum_age(dob: date) -> None:
     age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
     if age < 13:
         raise ValueError(minimum_age_error)
+
+
+def _validate_username_format(v: str) -> str:
+    if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
+        raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
+    if detect_profanity(v):
+        raise ValueError('username is not allowed')
+    return v
 
 
 class UserBase(BaseModel):
@@ -42,6 +51,11 @@ class UserCreate(BaseModel):
     password: str
     country_of_origin: str
     date_of_birth: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        return validate_password_length(v)
 
     @field_validator('date_of_birth')
     @classmethod
@@ -115,11 +129,7 @@ class UserUpdate(BaseModel):
     def validate_username(cls, v):
         if v is None:
             return v
-        if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
-            raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
-        if detect_profanity(v):
-            raise ValueError('username is not allowed')
-        return v
+        return _validate_username_format(v)
 
     @field_validator('avatar_url')
     @classmethod
@@ -147,15 +157,14 @@ class UserPasswordUpdate(BaseModel):
     @field_validator('new_password')
     @classmethod
     def validate_new_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        return v
+        return validate_password_length(v)
 
 
 class UserCompleteProfile(BaseModel):
     """For OAuth users completing their profile after signup"""
     date_of_birth: str
     country_of_origin: str
+    username: Optional[str] = None
 
     @field_validator('date_of_birth')
     @classmethod
@@ -166,6 +175,13 @@ class UserCompleteProfile(BaseModel):
             raise ValueError(date_of_birth_error)
         _check_minimum_age(dob)
         return v
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if v is None:
+            return v
+        return _validate_username_format(v)
 
 
 class UserReactivate(BaseModel):
