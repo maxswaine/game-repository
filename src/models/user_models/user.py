@@ -90,7 +90,7 @@ class UserPrivateRead(BaseModel):
     lastname: str
     email: str
     username: str
-    country_of_origin: str
+    country_of_origin: Optional[str] = None
     role: str
     date_of_birth: Optional[str] = None
     avatar_url: Optional[str] = None
