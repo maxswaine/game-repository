@@ -7,7 +7,6 @@ from typing import Optional
 import pycountry
 from pydantic import ConfigDict, BaseModel, field_validator
 
-from src.core.security import validate_password_length
 from src.utils.age_filter import detect_profanity
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
@@ -51,11 +50,6 @@ class UserCreate(BaseModel):
     password: str
     country_of_origin: str
     date_of_birth: Optional[str] = None
-
-    @field_validator('password')
-    @classmethod
-    def validate_password(cls, v):
-        return validate_password_length(v)
 
     @field_validator('date_of_birth')
     @classmethod
@@ -157,7 +151,9 @@ class UserPasswordUpdate(BaseModel):
     @field_validator('new_password')
     @classmethod
     def validate_new_password(cls, v):
-        return validate_password_length(v)
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
 
 
 class UserCompleteProfile(BaseModel):
