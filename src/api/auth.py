@@ -507,6 +507,10 @@ async def google_token_exchange(
     is_new_user = user is None
 
     if is_new_user:
+        existing = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already linked to another account")
+
         user = User(
             email=email,
             username=generate_unique_username(db, email.split("@")[0]),

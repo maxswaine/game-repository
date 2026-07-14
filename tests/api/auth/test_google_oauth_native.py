@@ -148,6 +148,54 @@ def test_google_token_existing_user_not_duplicated_in_db(db):
 
 
 # ---------------------------------------------------------------------------
+# Duplicate email
+# ---------------------------------------------------------------------------
+
+def test_google_token_duplicate_email_returns_400(db):
+    existing = User(
+        email="testuser@gmail.com",
+        username="testuser",
+        firstname="Test",
+        lastname="User",
+        hashed_password="hashed",
+    )
+    db.add(existing)
+    db.commit()
+
+    client = _client(db)
+    try:
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
+             patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
+            response = client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Email already linked to another account"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_google_token_duplicate_email_does_not_create_user(db):
+    existing = User(
+        email="testuser@gmail.com",
+        username="testuser",
+        firstname="Test",
+        lastname="User",
+        hashed_password="hashed",
+    )
+    db.add(existing)
+    db.commit()
+
+    client = _client(db)
+    try:
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
+             patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
+            client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
+        count = db.query(User).filter(User.email == "testuser@gmail.com").count()
+        assert count == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
 # Validation failures
 # ---------------------------------------------------------------------------
 
