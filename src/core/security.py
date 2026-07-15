@@ -22,6 +22,18 @@ if not SECRET_KEY:
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 128
+
+
+def validate_password_length(password: str) -> str:
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters long")
+    if len(password) > MAX_PASSWORD_LENGTH:
+        raise ValueError(f"Password must be at most {MAX_PASSWORD_LENGTH} characters long")
+    return password
+
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 

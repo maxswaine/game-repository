@@ -228,6 +228,28 @@ def test_apple_token_email_conflict_with_google_user_returns_400(db):
         app.dependency_overrides.clear()
 
 
+def test_apple_token_email_conflict_case_insensitive_returns_400(db):
+    google_user = User(
+        email="AppleUser@PrivateRelay.AppleID.com",
+        username="appleuser2",
+        firstname="Max",
+        lastname="Swaine",
+        oauth_provider="google",
+        oauth_id="google-sub-88888",
+    )
+    db.add(google_user)
+    db.commit()
+
+    client = _client(db)
+    try:
+        with patch("src.api.auth.verify_apple_token", _mock_verify()):
+            response = client.post("/auth/oauth/apple/token", json={"identity_token": "fake-token"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Email already linked to another account"
+    finally:
+        app.dependency_overrides.clear()
+
+
 # Task 8: Invalid token and missing claims → 400
 
 def test_apple_token_invalid_token_returns_400(db):

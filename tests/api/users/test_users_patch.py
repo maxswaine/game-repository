@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.security import SECRET_KEY, ALGORITHM, TOKEN_EXPIRES_MINUTES
-from src.models.user_models.user import UserUpdate
+from src.models.user_models.user import UserUpdate, UserPasswordUpdate
 
 
 def _make_token(username: str, ver: int = 0) -> str:
@@ -65,6 +65,21 @@ def test_username_accepts_valid_value():
 def test_username_accepts_none():
     model = UserUpdate(username=None)
     assert model.username is None
+
+
+def test_new_password_rejects_too_short():
+    with pytest.raises(ValidationError):
+        UserPasswordUpdate(current_password="whatever", new_password="short1")
+
+
+def test_new_password_rejects_too_long():
+    with pytest.raises(ValidationError):
+        UserPasswordUpdate(current_password="whatever", new_password="a" * 129)
+
+
+def test_new_password_accepts_valid_length():
+    model = UserPasswordUpdate(current_password="whatever", new_password="a" * 128)
+    assert model.new_password == "a" * 128
 
 
 def test_change_username_success(client_with_auth, test_user, db):
