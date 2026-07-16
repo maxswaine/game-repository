@@ -1,20 +1,12 @@
 # Technical Debt
 
-Updated 2026-06-30.
+Updated 2026-07-16.
 
 ---
 
 ### Remaining Before Launch
 
-#### 1. Forgot-password flow — JWT revocation not yet wired
-
-**File:** `src/api/auth.py`
-
-The forgot-password feature is not yet built. When it ships, the reset endpoint must increment `user.token_version` so that outstanding sessions are invalidated on password reset. Token lifetime is also still 7 days (`TOKEN_EXPIRES_MINUTES = 10080` in `src/core/security.py`) — revisit once refresh-token flow exists.
-
----
-
-#### 2. `age_rating` DB column — drop after deploy
+#### 1. `age_rating` DB column — drop after deploy
 
 **File:** Railway Postgres console
 
@@ -31,6 +23,11 @@ ALTER TABLE games DROP COLUMN age_rating;
 - **Moderation fails open on OpenAI API error** — `check_content()` returns `True` on error, logs at `ERROR`. Acceptable for pre-launch; revisit if OpenAI reliability becomes a concern.
 
 ---
+
+### Fixed This Sprint (2026-07-16)
+
+- `POST /auth/reset-password` double-submit no longer surfaces a false "invalid or expired" error — a replayed token carrying the already-applied password now returns the same 200 success instead of a version-mismatch 400. Previously a double-click/retry on the reset form would change the password in the DB but show the user an error, leaving them stuck trying their old password.
+- `POST /auth/reset-password` now clears the `access_token` cookie on success (matching `/auth/logout`), so a stale browser session doesn't later surface a confusing "Could not validate credentials" 401.
 
 ### Fixed This Sprint (2026-06-30)
 

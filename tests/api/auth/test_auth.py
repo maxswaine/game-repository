@@ -1,3 +1,58 @@
+from src.core.security import create_password_reset_token
+
+
+def test_reset_password_double_submit_is_idempotent(client_no_auth, test_user):
+    token = create_password_reset_token(test_user.email, test_user.token_version or 0)
+
+    first = client_no_auth.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "NewPassword456"},
+    )
+    assert first.status_code == 200
+
+    second = client_no_auth.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "NewPassword456"},
+    )
+    assert second.status_code == 200
+    assert second.json() == {"message": "Password reset successfully"}
+
+    login = client_no_auth.post(
+        "/auth/token",
+        data={"username": "testuser", "password": "NewPassword456"},
+    )
+    assert login.status_code == 200
+
+
+def test_reset_password_clears_stale_session_cookie(client_no_auth, test_user):
+    token = create_password_reset_token(test_user.email, test_user.token_version or 0)
+
+    response = client_no_auth.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "NewPassword456"},
+    )
+    assert response.status_code == 200
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "access_token=" in set_cookie
+    assert "Max-Age=0" in set_cookie or "expires=Thu, 01 Jan 1970" in set_cookie
+
+
+def test_reset_password_replay_with_different_password_rejected(client_no_auth, test_user):
+    token = create_password_reset_token(test_user.email, test_user.token_version or 0)
+
+    first = client_no_auth.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "NewPassword456"},
+    )
+    assert first.status_code == 200
+
+    second = client_no_auth.post(
+        "/auth/reset-password",
+        json={"token": token, "new_password": "SomeOtherPassword789"},
+    )
+    assert second.status_code == 400
+
+
 def test_login_sets_access_token_cookie(client_no_auth, test_user):
     response = client_no_auth.post(
         "/auth/token",
