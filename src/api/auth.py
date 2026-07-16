@@ -450,13 +450,37 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     if (user.token_version or 0) != token_ver:
+        # Replay of a token that already completed this exact reset (e.g. a
+        # double-submitted form) is harmless — the desired state already
+        # holds. Anything else (foreign/stale token, different password)
+        # is rejected as normal.
+        if verify_password(body.new_password, user.hashed_password):
+            response = JSONResponse(content={"message": "Password reset successfully"})
+            response.delete_cookie(
+                key="access_token",
+                path="/",
+                domain=None,
+                secure=IS_PRODUCTION,
+                httponly=True,
+                samesite="none" if IS_PRODUCTION else "lax"
+            )
+            return response
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.hashed_password = hash_password(body.new_password)
     user.token_version = (user.token_version or 0) + 1
     db.commit()
 
-    return {"message": "Password reset successfully"}
+    response = JSONResponse(content={"message": "Password reset successfully"})
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        domain=None,
+        secure=IS_PRODUCTION,
+        httponly=True,
+        samesite="none" if IS_PRODUCTION else "lax"
+    )
+    return response
 
 
 class GoogleTokenRequest(BaseModel):

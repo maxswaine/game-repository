@@ -68,6 +68,10 @@ Content-Type: application/json
 
 → Show success message, then redirect to `/login` after 2–3 seconds (or immediately with a toast).
 
+**Note on resubmission:** this endpoint is idempotent for a duplicate submission of the same token/password (e.g. a double-click) — you'll get 200 both times, not an error. No client-side guard needed for that case.
+
+**Note on stale sessions:** on success, the backend clears the `access_token` cookie (web only). Mobile/bearer-token clients must discard any locally stored token themselves and route the user back through login — the old token is revoked server-side and will 401 ("Could not validate credentials") if reused.
+
 **Error (400):**
 ```json
 { "detail": "Invalid or expired reset token" }
