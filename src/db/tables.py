@@ -158,3 +158,14 @@ class Feedback(Base):
     message = Column(String, nullable=False)
     status = Column(String, nullable=False, default="open")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ShortLink(Base):
+    __tablename__ = "short_links"
+    code = Column(String, primary_key=True)
+    target_url = Column(String, nullable=False)
+    label = Column(String, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    scan_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
