@@ -510,6 +510,28 @@ Claude-Session: https://claude.ai/code/session_0124jB12JdamqoFv59wd5jed"
 
 ---
 
+### Task 4: Clean root slugs on the QR host (amendment)
+
+Added after review: QR URLs should read `qr.whatsthatgame.co.uk/instagram`, not
+`.../qr/instagram`. Implemented as a pure-ASGI `QRHostRewrite` middleware (not a second
+app, not a root catch-all — both have defects: sub-app breaks `dependency_overrides`, a
+root `/{code}` route shadows real routes and can break `/version` on every host).
+
+**Files:**
+- Modify: `src/utils/config.py` — add `QR_HOST = os.getenv("QR_HOST", "qr.whatsthatgame.co.uk")`
+- Modify: `src/api/short_links.py` — add `QRHostRewrite` ASGI middleware class
+- Modify: `src/main.py` — `app.add_middleware(short_links.QRHostRewrite, qr_host=QR_HOST)`
+- Test: `tests/api/short_links/test_short_links.py`
+
+**Behaviour:** when `Host == QR_HOST` and path is not `/` and not already `/qr/...`,
+rewrite `scope["path"]` to `/qr` + path before routing. Reuses the existing handler.
+
+**Tests added (all passing):**
+- qr-host `/instagram` (seeded) → 302 to target
+- qr-host `/version` → 404 (API isolated on the QR host)
+- non-qr-host `/instagram` → 404 (no root-level leak)
+- qr-host `/qr/instagram` → 302 (idempotent rewrite, prefixed form still works)
+
 ## Self-Review
 
 **Spec coverage:**
