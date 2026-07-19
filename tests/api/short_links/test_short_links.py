@@ -61,3 +61,94 @@ def test_redirect_inactive_code_returns_404(client_no_auth, db):
 def test_redirect_missing_code_returns_404(client_no_auth):
     response = client_no_auth.get("/qr/nonexistent", follow_redirects=False)
     assert response.status_code == 404
+
+
+def test_admin_create_link_returns_201(client_as_admin):
+    response = client_as_admin.post(
+        "/admin/links",
+        json={"code": "freshers25", "target_url": "https://example.com/dl", "label": "Freshers"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["code"] == "freshers25"
+    assert data["scan_count"] == 0
+    assert data["is_active"] is True
+
+
+def test_admin_create_duplicate_code_returns_409(client_as_admin):
+    payload = {"code": "dup1", "target_url": "https://example.com"}
+    client_as_admin.post("/admin/links", json=payload)
+    response = client_as_admin.post("/admin/links", json=payload)
+    assert response.status_code == 409
+
+
+def test_admin_create_bad_url_returns_422(client_as_admin):
+    response = client_as_admin.post(
+        "/admin/links", json={"code": "x1", "target_url": "notaurl"}
+    )
+    assert response.status_code == 422
+
+
+def test_admin_create_bad_code_returns_422(client_as_admin):
+    response = client_as_admin.post(
+        "/admin/links", json={"code": "bad code!", "target_url": "https://example.com"}
+    )
+    assert response.status_code == 422
+
+
+def test_admin_list_links(client_as_admin):
+    client_as_admin.post(
+        "/admin/links", json={"code": "listme", "target_url": "https://example.com"}
+    )
+    response = client_as_admin.get("/admin/links")
+    assert response.status_code == 200
+    assert any(link["code"] == "listme" for link in response.json())
+
+
+def test_admin_patch_target_url(client_as_admin):
+    client_as_admin.post(
+        "/admin/links", json={"code": "patch1", "target_url": "https://old.com"}
+    )
+    response = client_as_admin.patch(
+        "/admin/links/patch1", json={"target_url": "https://new.com"}
+    )
+    assert response.status_code == 200
+    assert response.json()["target_url"] == "https://new.com"
+
+
+def test_admin_patch_deactivate_then_redirect_404(client_as_admin, client_no_auth):
+    client_as_admin.post(
+        "/admin/links", json={"code": "kill1", "target_url": "https://example.com"}
+    )
+    client_as_admin.patch("/admin/links/kill1", json={"is_active": False})
+    response = client_no_auth.get("/qr/kill1", follow_redirects=False)
+    assert response.status_code == 404
+
+
+def test_admin_patch_missing_returns_404(client_as_admin):
+    response = client_as_admin.patch(
+        "/admin/links/ghost", json={"target_url": "https://example.com"}
+    )
+    assert response.status_code == 404
+
+
+def test_admin_delete_link(client_as_admin, client_no_auth):
+    client_as_admin.post(
+        "/admin/links", json={"code": "del1", "target_url": "https://example.com"}
+    )
+    delete = client_as_admin.delete("/admin/links/del1")
+    assert delete.status_code == 204
+    redirect = client_no_auth.get("/qr/del1", follow_redirects=False)
+    assert redirect.status_code == 404
+
+
+def test_admin_delete_missing_returns_404(client_as_admin):
+    response = client_as_admin.delete("/admin/links/ghost")
+    assert response.status_code == 404
+
+
+def test_non_admin_cannot_create_link(client_with_auth):
+    response = client_with_auth.post(
+        "/admin/links", json={"code": "nope", "target_url": "https://example.com"}
+    )
+    assert response.status_code == 403

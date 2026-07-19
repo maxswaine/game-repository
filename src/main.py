@@ -71,6 +71,7 @@ app.include_router(aliases.admin_router, prefix="/admin", tags=["admin"])
 app.include_router(comments.router, prefix="/games", tags=["comments"])
 app.include_router(feedback.router, prefix="", tags=["feedback"])
 app.include_router(short_links.public_router, prefix="", tags=["short_links"])
+app.include_router(short_links.admin_router, prefix="/admin", tags=["short_links"])
 
 
 @app.get("/")
