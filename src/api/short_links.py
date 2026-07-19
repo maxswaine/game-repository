@@ -17,6 +17,26 @@ public_router = APIRouter()
 admin_router = APIRouter()
 
 
+class QRHostRewrite:
+    """On the QR host, rewrite root paths (/instagram) to the short-link
+    handler (/qr/instagram) so slugs live at the domain root. Pure ASGI so the
+    routing table is untouched and cannot shadow other routes. Idempotent:
+    paths already under /qr/ pass through unchanged."""
+
+    def __init__(self, app, qr_host: str):
+        self.app = app
+        self.qr_host = qr_host
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            host = dict(scope["headers"]).get(b"host", b"").decode().split(":")[0]
+            path = scope["path"]
+            if host == self.qr_host and path != "/" and not path.startswith("/qr/"):
+                scope = dict(scope)
+                scope["path"] = "/qr" + path
+        await self.app(scope, receive, send)
+
+
 @public_router.get("/qr/{code}")
 def redirect_short_link(code: str, db: Session = Depends(get_db)):
     link = db.query(ShortLink).filter(ShortLink.code == code).first()

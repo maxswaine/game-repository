@@ -74,8 +74,30 @@ GET /qr/{code}
   - return RedirectResponse(target_url, status_code=302)
 ```
 
-The `/qr` top-level prefix is now reserved. It is chosen for clarity and is unlikely to
-collide with a real API resource. It cannot change after QRs are printed.
+The `/qr` top-level prefix is reserved. It works on every host the API serves.
+
+### Clean root slugs on the QR host (`QRHostRewrite` middleware)
+
+The API is served on a shared FastAPI app across multiple hosts (`api.`, the Railway
+domain, and a dedicated `qr.` subdomain). We want QR URLs to read cleanly —
+`qr.whatsthatgame.co.uk/instagram`, not `.../qr/instagram` — without a redundant path
+segment and without a root-level catch-all that could shadow real API routes.
+
+Solution: a pure-ASGI middleware `QRHostRewrite` in `src/api/short_links.py`. When the
+request `Host` equals `QR_HOST` (env var, default `qr.whatsthatgame.co.uk`) and the path
+is not `/` and does not already start with `/qr/`, it rewrites `scope["path"]` from
+`/instagram` to `/qr/instagram` before routing. The existing `/qr/{code}` handler then
+serves it.
+
+Why middleware rather than a second app or a root `/{code}` route:
+- Same app → all existing fixtures and `dependency_overrides` keep working.
+- Routing table is untouched → cannot shadow `/version`, `/games`, etc.
+- Full host isolation: on the QR host, any non-`/qr/` path becomes a short-link lookup,
+  so `qr.whatsthatgame.co.uk/version` returns 404 (the API is not exposed there). No
+  reserved-slug caveat.
+
+Both forms work: `qr.whatsthatgame.co.uk/instagram` (rewritten) and `.../qr/instagram`
+(direct) hit the same handler. The printed QR uses the clean root form.
 
 ### Admin management (`require_admin`, mounted at `/admin`)
 

@@ -152,3 +152,40 @@ def test_non_admin_cannot_create_link(client_with_auth):
         "/admin/links", json={"code": "nope", "target_url": "https://example.com"}
     )
     assert response.status_code == 403
+
+
+QR_HOST = "qr.whatsthatgame.co.uk"
+
+
+def test_qr_host_root_slug_redirects(client_no_auth, db):
+    _seed_link(db, code="instagram", target="https://www.instagram.com/wtg")
+    response = client_no_auth.get(
+        "/instagram", headers={"host": QR_HOST}, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://www.instagram.com/wtg"
+
+
+def test_qr_host_isolates_api_routes(client_no_auth):
+    # On the qr host, non-short-link paths must NOT serve the API.
+    response = client_no_auth.get("/version", headers={"host": QR_HOST})
+    assert response.status_code == 404
+
+
+def test_non_qr_host_root_slug_does_not_redirect(client_no_auth, db):
+    # Same slug on a normal host stays 404 — no root-level leak.
+    _seed_link(db, code="instagram", target="https://www.instagram.com/wtg")
+    response = client_no_auth.get(
+        "/instagram", headers={"host": "testserver"}, follow_redirects=False
+    )
+    assert response.status_code == 404
+
+
+def test_qr_host_still_serves_prefixed_path(client_no_auth, db):
+    # /qr/{code} keeps working even on the qr host (idempotent rewrite).
+    _seed_link(db, code="instagram", target="https://www.instagram.com/wtg")
+    response = client_no_auth.get(
+        "/qr/instagram", headers={"host": QR_HOST}, follow_redirects=False
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://www.instagram.com/wtg"

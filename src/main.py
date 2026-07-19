@@ -14,6 +14,7 @@ from src.core.limiter import limiter
 from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
 from src.services.purge import run_purge
+from src.utils.config import QR_HOST
 
 _version_file = Path(__file__).parent.parent / "VERSION"
 APP_VERSION = _version_file.read_text().strip() if _version_file.exists() else "unknown"
@@ -72,6 +73,7 @@ app.include_router(comments.router, prefix="/games", tags=["comments"])
 app.include_router(feedback.router, prefix="", tags=["feedback"])
 app.include_router(short_links.public_router, prefix="", tags=["short_links"])
 app.include_router(short_links.admin_router, prefix="/admin", tags=["short_links"])
+app.add_middleware(short_links.QRHostRewrite, qr_host=QR_HOST)
 
 
 @app.get("/")
