@@ -223,7 +223,9 @@ def upvote_game(
     if existing_favourite:
         db.delete(existing_favourite)
         db_game.upvotes -= 1
+        liked_by_me = False
     else:
+        liked_by_me = True
         is_first_like = db.query(UserFavourites).filter(
             UserFavourites.user_id == current_user.id
         ).count() == 0
@@ -243,6 +245,7 @@ def upvote_game(
     return GameVoteRead(
         game_id=db_game.id,
         upvotes=db_game.upvotes,
+        liked_by_me=liked_by_me,
     )
 
 
