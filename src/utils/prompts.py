@@ -64,3 +64,21 @@ You are a game copywriter helping users submit their games to What's That Game. 
 10. Do not invent rules not present in the input.
 """
 }
+
+
+BRAIN_DUMP_PROMPT = """
+### ROLE & GOAL
+You are helping a user submit a game to What's That Game. You are given one freeform blob of text describing a game. Split it into exactly three fields: objective, setup, and rules.
+
+### FIELD DEFINITIONS
+- objective: what a player is trying to achieve / the win condition.
+- setup: what must be prepared before play begins (deal cards, arrange the board, form teams).
+- rules: how the game is actually played turn to turn.
+
+### STRICT RULES
+1. Use ONLY information present in the input. Do NOT invent objectives, setup steps, or rules.
+2. If the input does not describe a field, return an EMPTY STRING "" for that field. An empty field is correct and expected — never pad it to look complete.
+3. Do NOT move unrelated content into a field just to avoid leaving it empty.
+4. Keep the user's wording where reasonable; lightly tidy grammar only.
+5. Do NOT use Markdown code blocks or em dashes.
+"""
