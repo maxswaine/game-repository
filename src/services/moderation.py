@@ -19,3 +19,20 @@ def check_content(text: str) -> bool:
     except Exception as e:
         logger.error("Moderation API error: %s", e)
         return True
+
+
+def check_image(image_url: str) -> bool:
+    """Returns True if the image is safe to make public, False otherwise. Fail-closed."""
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.moderations.create(
+            model="omni-moderation-2024-09-26",
+            input=[{"type": "image_url", "image_url": {"url": image_url}}],
+        )
+        c = response.results[0].categories
+        return not (
+            c.sexual or c.sexual_minors or c.violence_graphic or c.hate or c.hate_threatening
+        )
+    except Exception as e:
+        logger.error("Image moderation error: %s", e)
+        return False
