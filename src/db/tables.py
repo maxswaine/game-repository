@@ -77,6 +77,11 @@ class Game(Base):
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
     alias_objects = relationship("GameAlias")
+    photos = relationship(
+        "GamePhoto",
+        cascade="all, delete-orphan",
+        order_by="GamePhoto.position",
+    )
 
 
 class UserAchievement(Base):
@@ -115,6 +120,16 @@ class GameSetting(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     game_id = Column(String, ForeignKey(GAMES_ID_FK), nullable=False)
     setting_name = Column(String, nullable=False)
+
+
+class GamePhoto(Base):
+    __tablename__ = "game_photos"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    object_key = Column(String, nullable=False)
+    public_url = Column(String, nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class GameAlias(Base):

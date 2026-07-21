@@ -11,3 +11,11 @@ DUPLICATE_SIMILARITY_THRESHOLD: float = float(
 DELETED_USER_ID: str = "00000000-0000-0000-0000-000000000001"
 # Host that serves short links at root (e.g. qr.example/instagram -> /qr/instagram)
 QR_HOST: str = os.getenv("QR_HOST", "qr.whatsthatgame.co.uk")
+
+# Cloudflare R2 photo storage
+R2_ACCOUNT_ID: str = os.getenv("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY: str = os.getenv("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET: str = os.getenv("R2_BUCKET", "")
+R2_QUARANTINE_BUCKET: str = os.getenv("R2_QUARANTINE_BUCKET", "")
+R2_PUBLIC_URL: str = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
