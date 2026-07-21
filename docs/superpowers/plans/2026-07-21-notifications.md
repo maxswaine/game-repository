@@ -1087,6 +1087,17 @@ Expected: FAIL — 404s (route doesn't exist) / `ModuleNotFoundError` for `src.a
 
 - [ ] **Step 3: Create the router**
 
+**Invariant to preserve — don't "simplify" this:** `_broadcast_task` must construct its own
+`SessionLocal()` and must NOT take a `db` session as a parameter, even though that would look
+like a natural refactor (reusing the request's session, one fewer object to manage). The reason
+this matters is invisible from the test alone: `test_dispatches_via_background_task_and_reaches_active_users`
+(Step 1) injects a session via `patch("src.api.admin_notifications.SessionLocal", return_value=db)`
+purely to *observe* behavior in the isolated per-test transaction — it does not verify session
+*independence*. If `_broadcast_task` were refactored to accept `db` as a parameter instead of
+calling `SessionLocal()` itself, that test would still pass, silently reintroducing the exact
+request-scoped-session-lifetime bug this design avoids (a `BackgroundTasks` callback can run
+after the request-scoped session from `Depends(get_db)` has already started closing).
+
 Create `src/api/admin_notifications.py`:
 
 ```python
