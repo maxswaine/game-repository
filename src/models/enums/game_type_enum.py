@@ -5,7 +5,6 @@ class GameTypeEnum(str, Enum):
     # Core formats
     card = "Card"
     dice = "Dice"
-    board = "Board"
 
     # Social / party formats
     drinking = "Drinking"
@@ -17,20 +16,14 @@ class GameTypeEnum(str, Enum):
 
     # Thinking / structure
     strategy = "Strategy"
-    logic = "Logic"
-    puzzle = "Puzzle"
-
-    # Role-based / imagination
-    roleplay = "Roleplay"
 
     # Guessing & deception
     guessing = "Guessing"
-    bluffing = "Bluffing"
+    acting = "Acting"
 
     # Drawing / creativity
     drawing = "Drawing"
 
-    # Real-world / improvised
-    improv = "Improv"
+    music = "Music"
 
     other = "Other"
