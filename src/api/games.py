@@ -21,6 +21,7 @@ from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
+from src.models.game_models.game_photo import GamePhotoRead
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
@@ -125,6 +126,7 @@ def create_new_game(
                         joinedload(Game.setting_items),
                         joinedload(Game.contributor),
                         joinedload(Game.alias_objects),
+                        joinedload(Game.photos),
                     )
                     .all()
                 )
@@ -307,7 +309,8 @@ def get_all_games(
         joinedload(Game.equipment_items),
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
-        joinedload(Game.alias_objects)
+        joinedload(Game.alias_objects),
+        joinedload(Game.photos)
     ).filter(Game.is_public == True)
 
     query = _apply_age_content_filter(query, current_user)
@@ -393,6 +396,7 @@ def get_my_games(
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
         joinedload(Game.alias_objects),
+        joinedload(Game.photos),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
              .offset(offset)
@@ -563,6 +567,10 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
         liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,
+        photos=[
+            GamePhotoRead(id=p.id, public_url=p.public_url, position=p.position)
+            for p in sorted(db_game.photos, key=lambda p: p.position)
+        ],
     )
 
 

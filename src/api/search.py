@@ -54,6 +54,7 @@ def semantic_search(
             joinedload(Game.setting_items),
             joinedload(Game.contributor),
             joinedload(Game.alias_objects),
+            joinedload(Game.photos),
         )
         .filter(Game.is_public == True, Game.embedding.isnot(None))
         .all()

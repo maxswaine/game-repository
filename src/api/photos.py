@@ -43,6 +43,10 @@ def _photo_count(db: Session, game_id: str) -> int:
 
 
 def _resync_cover(db: Session, game: Game) -> None:
+    # Flush pending position/photo changes first: the session runs with
+    # autoflush=False, so without this the ordered query below would read
+    # stale positions and pick the wrong cover.
+    db.flush()
     photos = (
         db.query(GamePhoto)
         .filter(GamePhoto.game_id == game.id)
