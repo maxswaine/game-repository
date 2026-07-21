@@ -13,6 +13,8 @@
 ## Global Constraints
 
 - Tests run with `DATABASE_URL="sqlite:///./test.db"` — verify this is set before running any test command in this plan (`echo $DATABASE_URL`), export it if not: `export DATABASE_URL="sqlite:///./test.db"`.
+- Multi-file/whole-suite test runs in this plan are run with `OPENAI_API_KEY=""`, not whatever real key is in `.env`. This is unrelated to notifications: a handful of pre-existing achievements/favourites tests create near-identical games ("Game 1"/"Game 2") assuming duplicate-detection is off; with a real `OPENAI_API_KEY` set, embeddings compute and dedup silently rejects the near-duplicate games, failing those tests. If a broad checkpoint in this plan fails on `TestFiveUploads`/`TestScenarios`-style tests, that's this pre-existing issue, not something this feature broke — don't "fix" it as part of this plan.
+- **Never combine two client fixtures (e.g. `client_with_auth` + `client_as_admin`) in one test.** `app.dependency_overrides` is a single dict on the app object; whichever fixture sets it up last wins for the entire test body, silently collapsing both "clients" onto the same user. Use one client fixture for auth and seed any other user's data directly via the `db` fixture (see `TestTenLikes` in `tests/api/achievements/test_achievements.py` for the existing pattern).
 - No Alembic. `Base.metadata.create_all(bind=engine)` in `src/main.py` auto-creates new tables on next deploy — no manual migration needed for `push_tokens`/`notifications`.
 - `exponent-server-sdk==2.2.0` (confirmed available on PyPI at plan time) — pin exactly, append to `requirements.txt`.
 - `notifications.send()` must never raise (all Expo/network errors caught and swallowed) and must never call `db.commit()` internally — it only `db.add()`/`db.query().delete()`s against the session it's given; the caller commits. This is required for the documented rollback-consistency behavior in the spec (§4) to actually hold.
@@ -171,7 +173,7 @@ Expected: 4 passed
 
 - [ ] **Step 6: Run the full achievements test file to confirm no other regressions**
 
-Run: `DATABASE_URL="sqlite:///./test.db" pytest tests/api/achievements/test_achievements.py -v`
+Run: `OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest tests/api/achievements/test_achievements.py -v`
 Expected: all pass (the only other test touching the count, `test_returns_all_expected_types`, computes the expected set dynamically from the enum so it needs no change).
 
 - [ ] **Step 7: Commit**
@@ -233,7 +235,7 @@ This patches the real SDK class method (not our wrapper), so it works regardless
 
 - [ ] **Step 3: Run the full test suite to confirm the safety net alone doesn't break anything**
 
-Run: `DATABASE_URL="sqlite:///./test.db" pytest -v`
+Run: `OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest -v`
 Expected: same pass/fail state as before this step (this fixture is inert until something calls the real `PushClient.publish_multiple`, which nothing does yet).
 
 - [ ] **Step 4: Write the failing tests for `send()`**
@@ -580,7 +582,7 @@ Expected: 3 passed
 
 This is the critical check for the invariant noted in the spec: these tests use `client_with_auth`/`client_as_second_user`, whose users never register a `PushToken`, so `send()` always takes the `no_token` early-return path — no real Expo call, and the autouse safety net (Task 2) would fail loudly if that assumption were ever violated.
 
-Run: `DATABASE_URL="sqlite:///./test.db" pytest tests/api/achievements/ tests/api/favourites/ tests/api/games/ -v`
+Run: `OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest tests/api/achievements/ tests/api/favourites/ tests/api/games/ -v`
 Expected: all pass, zero failures, zero errors from the `block_real_push_notifications` safety net.
 
 - [ ] **Step 10: Commit**
@@ -635,10 +637,15 @@ class TestRegisterPushToken:
         assert row.user_id == test_user.id
         assert row.platform == "ios"
 
-    def test_upserts_existing_token_to_new_owner(self, client_with_auth, client_as_second_user, db):
-        client_as_second_user.post(
-            "/push-tokens/", json={"token": "ExponentPushToken[shared]", "platform": "android"}
-        )
+    def test_upserts_existing_token_to_new_owner(self, client_with_auth, db, second_user, test_user):
+        # Seed the token as owned by second_user directly in the DB — do NOT use a second
+        # client fixture here. app.dependency_overrides is one dict on one app object; using
+        # two client fixtures (e.g. client_with_auth + client_as_second_user) in the same test
+        # means the second one's override wins for the whole test body, silently collapsing
+        # both "clients" onto the same user and making this test pass vacuously.
+        db.add(PushToken(token="ExponentPushToken[shared]", user_id=second_user.id, platform="android"))
+        db.commit()
+
         response = client_with_auth.post(
             "/push-tokens/", json={"token": "ExponentPushToken[shared]", "platform": "ios"}
         )
@@ -646,6 +653,7 @@ class TestRegisterPushToken:
 
         rows = db.query(PushToken).filter_by(token="ExponentPushToken[shared]").all()
         assert len(rows) == 1
+        assert rows[0].user_id == test_user.id
         assert rows[0].platform == "ios"
 
 
@@ -796,9 +804,31 @@ Expected: only the definition in `src/models/game_models/game.py`, no other refe
 Create `tests/api/games/test_games_verify.py`:
 
 ```python
-from src.db.tables import UserAchievement
+import uuid
+
+from src.db.tables import Game, UserAchievement
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from tests.api.games.helper import create_public_game
+
+
+def _seed_game_owned_by(db, contributor_id: str) -> Game:
+    game = Game(
+        id=str(uuid.uuid4()),
+        name="Contributor's Game",
+        description="desc",
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 minutes",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        is_public=True,
+        contributor_id=contributor_id,
+    )
+    db.add(game)
+    db.commit()
+    return game
 
 
 class TestVerifyGame:
@@ -815,15 +845,20 @@ class TestVerifyGame:
         response = client_as_admin.post("/games/does-not-exist/verify")
         assert response.status_code == 404
 
-    def test_sets_verified_flag(self, client_with_auth, client_as_admin):
-        game = create_public_game(client_with_auth)
-        response = client_as_admin.post(f"/games/{game['id']}/verify")
+    def test_sets_verified_flag(self, client_as_admin, db, test_user):
+        # Only ONE client fixture per test — app.dependency_overrides is one dict on one app
+        # object, so mixing client_with_auth + client_as_admin in the same test makes the
+        # later fixture's auth override win for the whole test body, silently collapsing both
+        # "clients" onto admin_user. Seed the game directly in the DB instead of creating it
+        # via a second client.
+        game = _seed_game_owned_by(db, test_user.id)
+        response = client_as_admin.post(f"/games/{game.id}/verify")
         assert response.status_code == 200
         assert response.json()["is_whats_that_game_certified"] is True
 
-    def test_grants_hall_of_fame_to_contributor(self, client_with_auth, client_as_admin, db, test_user):
-        game = create_public_game(client_with_auth)
-        client_as_admin.post(f"/games/{game['id']}/verify")
+    def test_grants_hall_of_fame_to_contributor(self, client_as_admin, db, test_user):
+        game = _seed_game_owned_by(db, test_user.id)
+        client_as_admin.post(f"/games/{game.id}/verify")
 
         achievement = db.query(UserAchievement).filter_by(
             user_id=test_user.id,
@@ -831,10 +866,10 @@ class TestVerifyGame:
         ).first()
         assert achievement is not None
 
-    def test_idempotent_on_repeat_verify(self, client_with_auth, client_as_admin, db, test_user):
-        game = create_public_game(client_with_auth)
-        client_as_admin.post(f"/games/{game['id']}/verify")
-        client_as_admin.post(f"/games/{game['id']}/verify")
+    def test_idempotent_on_repeat_verify(self, client_as_admin, db, test_user):
+        game = _seed_game_owned_by(db, test_user.id)
+        client_as_admin.post(f"/games/{game.id}/verify")
+        client_as_admin.post(f"/games/{game.id}/verify")
 
         count = db.query(UserAchievement).filter_by(
             user_id=test_user.id,
@@ -895,7 +930,7 @@ Expected: 6 passed
 
 - [ ] **Step 7: Run the full games test suite to confirm no regressions**
 
-Run: `DATABASE_URL="sqlite:///./test.db" pytest tests/api/games/ -v`
+Run: `OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest tests/api/games/ -v`
 Expected: all pass
 
 - [ ] **Step 8: Commit**
@@ -1124,7 +1159,7 @@ Expected: 7 passed
 
 - [ ] **Step 6: Run the full test suite**
 
-Run: `DATABASE_URL="sqlite:///./test.db" pytest -v`
+Run: `OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest -v`
 Expected: all pass, no regressions anywhere in the suite.
 
 - [ ] **Step 7: Commit**
@@ -1141,7 +1176,7 @@ git commit -m "feat(notifications): add admin single-user and broadcast notifica
 After Task 6, run the complete suite one more time and confirm the count is sane relative to the pre-existing baseline (313 tests passed before this feature, per project memory):
 
 ```bash
-DATABASE_URL="sqlite:///./test.db" pytest -v 2>&1 | tail -20
+OPENAI_API_KEY="" DATABASE_URL="sqlite:///./test.db" pytest -v 2>&1 | tail -20
 ```
 
 Expect roughly 313 + 4 (Task1) + 4 (Task2) + 2 (Task3 notifications) + 3 (Task3 achievements hook) + 7 (Task4) + 6 (Task5) + 7 (Task6) ≈ 346 tests, all passing, zero real network calls (the Task 2 safety net would surface those as `AssertionError` failures, not silent successes).
