@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, exists as sql_exists
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
-from src.api.users import get_current_active_user, get_current_user_optional
+from src.api.users import get_current_active_user, get_current_user_optional, require_admin
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
@@ -282,6 +282,26 @@ def report_game(
     ))
     db.commit()
     return GameReportResponse(message="Report received.")
+
+
+@protected_router.post("/{game_id}/verify", response_model=GameRead, status_code=200,
+                       responses={403: {"description": "Admin only"}, 404: {"description": "Game not found"}})
+def verify_game(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = Depends(require_admin),
+):
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+
+    db_game.is_whats_that_game_verified = True
+    grant_if_not_exists(db, db_game.contributor_id, AchievementTypeEnum.HALL_OF_FAME)
+    db.commit()
+    db.refresh(db_game)
+
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
 
 
 # READ
