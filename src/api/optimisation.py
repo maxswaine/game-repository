@@ -5,10 +5,14 @@ from src.api.users import get_current_active_user
 from src.db.tables import User
 from src.models.enums.ai_agents_enum import AIAgentEnum
 from src.models.optimisation_models.optimisation_models import OptimisationRequest, OptimisationResponse
+from src.models.optimisation_models.brain_dump_models import BrainDumpRequest, BrainDumpResponse
 from src.services.moderation import check_content
 from src.services.optimiser import get_optimiser
+from src.services.brain_dump import get_brain_dump_splitter, MIN_DUMP_LENGTH
 
 router = APIRouter()
+
+MAX_DUMP_LENGTH = 4000
 
 
 def auth_required():
@@ -47,3 +51,33 @@ async def optimise_text(request: OptimisationRequest, _current_user: User = auth
     )
 
     return response_model
+
+
+@router.post("/brain-dump", response_model=BrainDumpResponse)
+async def brain_dump(request: BrainDumpRequest, _current_user: User = auth_required()):
+    dump = request.dump_text.strip()
+
+    if len(dump) < MIN_DUMP_LENGTH:
+        return BrainDumpResponse(
+            success=False,
+            data=None,
+            missing_fields=[],
+            error_message="Text too short to split.",
+        )
+
+    if len(dump) > MAX_DUMP_LENGTH:
+        raise HTTPException(status_code=422, detail="Brain dump text is too long (max 4000 characters).")
+
+    if not check_content(dump):
+        raise HTTPException(status_code=422, detail="Content violates community guidelines.")
+
+    result, missing, error = get_brain_dump_splitter().split(dump)
+
+    if result is None:
+        return BrainDumpResponse(
+            success=False, data=None, missing_fields=[], error_message=error
+        )
+
+    return BrainDumpResponse(
+        success=True, data=result, missing_fields=missing, error_message=None
+    )

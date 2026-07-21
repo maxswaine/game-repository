@@ -20,9 +20,9 @@ class TestGetAchievements:
     def test_requires_auth(self, client_no_auth):
         assert client_no_auth.get("/achievements/").status_code == 401
 
-    def test_returns_all_seven_locked_for_new_user(self, client_with_auth):
+    def test_returns_all_eight_locked_for_new_user(self, client_with_auth):
         achievements = _get_achievements(client_with_auth)
-        assert len(achievements) == 7
+        assert len(achievements) == 8
         assert all(not a["achieved"] for a in achievements)
         assert all(a["achieved_at"] is None for a in achievements)
 

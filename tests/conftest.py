@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone, date, timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,6 +17,17 @@ from src.main import app
 @pytest.fixture(autouse=True)
 def reset_rate_limiter():
     limiter._storage.reset()
+
+
+@pytest.fixture(autouse=True)
+def block_real_push_notifications():
+    def _raise(*args, **kwargs):
+        raise AssertionError(
+            "Real Expo push call attempted in a test — mock "
+            "src.services.notifications._get_push_client instead."
+        )
+    with patch("exponent_server_sdk.PushClient.publish_multiple", side_effect=_raise):
+        yield
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 

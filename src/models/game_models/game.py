@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.player_count import PlayerCount
+from src.models.game_models.game_photo import GamePhotoRead
 from src.models.user_models.user import UserPublicRead
 
 
@@ -38,6 +39,7 @@ class GameRead(GameBase):
     aliases: list[str] = []
     has_adult_content: bool = False
     liked_by_me: bool = False
+    photos: list[GamePhotoRead] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,7 +58,3 @@ class GameUpdate(BaseModel):
     setup: Optional[str] = Field(None, max_length=2000)
     rules: Optional[str] = Field(None, max_length=5000)
     game_setting: Optional[List[str]] = None
-
-
-class GameUpdateAdmin(GameUpdate):
-    is_whats_that_game_certified: Optional[bool] = None

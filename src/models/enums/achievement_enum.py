@@ -9,6 +9,7 @@ class AchievementTypeEnum(str, Enum):
     TEN_LIKES_ON_UPLOAD = "ten_likes_on_upload"
     GIVE_FEEDBACK = "give_feedback"
     COMPLETE_TUTORIAL = "complete_tutorial"
+    HALL_OF_FAME = "hall_of_fame"
 
 
 SIGNAL_ONLY_ACHIEVEMENTS = {

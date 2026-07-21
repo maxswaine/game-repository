@@ -77,6 +77,11 @@ class Game(Base):
     contributor = relationship("User", back_populates="games")
     favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
     alias_objects = relationship("GameAlias")
+    photos = relationship(
+        "GamePhoto",
+        cascade="all, delete-orphan",
+        order_by="GamePhoto.position",
+    )
 
 
 class UserAchievement(Base):
@@ -117,6 +122,16 @@ class GameSetting(Base):
     setting_name = Column(String, nullable=False)
 
 
+class GamePhoto(Base):
+    __tablename__ = "game_photos"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    object_key = Column(String, nullable=False)
+    public_url = Column(String, nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
 class GameAlias(Base):
     __tablename__ = "game_aliases"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -147,6 +162,32 @@ class CommentLike(Base):
     __tablename__ = "comment_likes"
     comment_id = Column(String, ForeignKey("game_comments.id", ondelete="CASCADE"), primary_key=True, nullable=False)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+    token = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    platform = Column(String, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    data = Column(String, nullable=True)
+    achievement_type = Column(String, nullable=True)
+    status = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 

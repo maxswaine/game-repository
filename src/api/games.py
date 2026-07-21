@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, exists as sql_exists
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
-from src.api.users import get_current_active_user, get_current_user_optional
+from src.api.users import get_current_active_user, get_current_user_optional, require_admin
 from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
@@ -21,6 +21,7 @@ from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
+from src.models.game_models.game_photo import GamePhotoRead
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
@@ -125,6 +126,7 @@ def create_new_game(
                         joinedload(Game.setting_items),
                         joinedload(Game.contributor),
                         joinedload(Game.alias_objects),
+                        joinedload(Game.photos),
                     )
                     .all()
                 )
@@ -223,7 +225,9 @@ def upvote_game(
     if existing_favourite:
         db.delete(existing_favourite)
         db_game.upvotes -= 1
+        liked_by_me = False
     else:
+        liked_by_me = True
         is_first_like = db.query(UserFavourites).filter(
             UserFavourites.user_id == current_user.id
         ).count() == 0
@@ -243,6 +247,7 @@ def upvote_game(
     return GameVoteRead(
         game_id=db_game.id,
         upvotes=db_game.upvotes,
+        liked_by_me=liked_by_me,
     )
 
 
@@ -279,6 +284,26 @@ def report_game(
     return GameReportResponse(message="Report received.")
 
 
+@protected_router.post("/{game_id}/verify", response_model=GameRead, status_code=200,
+                       responses={403: {"description": "Admin only"}, 404: {"description": "Game not found"}})
+def verify_game(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = Depends(require_admin),
+):
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+
+    db_game.is_whats_that_game_verified = True
+    grant_if_not_exists(db, db_game.contributor_id, AchievementTypeEnum.HALL_OF_FAME)
+    db.commit()
+    db.refresh(db_game)
+
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
+
+
 # READ
 @public_router.get("/", response_model=List[GameRead], status_code=200,
                    responses={401: {"description": "Authentication required for non-public access"}})
@@ -304,7 +329,8 @@ def get_all_games(
         joinedload(Game.equipment_items),
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
-        joinedload(Game.alias_objects)
+        joinedload(Game.alias_objects),
+        joinedload(Game.photos)
     ).filter(Game.is_public == True)
 
     query = _apply_age_content_filter(query, current_user)
@@ -390,6 +416,7 @@ def get_my_games(
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
         joinedload(Game.alias_objects),
+        joinedload(Game.photos),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
              .offset(offset)
@@ -560,6 +587,10 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
         liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,
+        photos=[
+            GamePhotoRead(id=p.id, public_url=p.public_url, position=p.position)
+            for p in sorted(db_game.photos, key=lambda p: p.position)
+        ],
     )
 
 
