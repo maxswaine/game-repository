@@ -11,6 +11,7 @@ from exponent_server_sdk import (
 from sqlalchemy.orm import Session
 
 from src.db.tables import Notification, PushToken
+from src.models.enums.achievement_enum import AchievementTypeEnum
 
 _push_client: Optional[PushClient] = None
 
@@ -71,3 +72,27 @@ def _log(db, user_id, title, body, notification_type, data, achievement_type, st
         achievement_type=achievement_type,
         status=status,
     ))
+
+
+ACHIEVEMENT_COPY: dict[AchievementTypeEnum, tuple[str, str]] = {
+    AchievementTypeEnum.FIRST_LIKE: ("Achievement unlocked!", "You liked your first game."),
+    AchievementTypeEnum.FIRST_SUBMIT: ("Achievement unlocked!", "You submitted your first game."),
+    AchievementTypeEnum.FIVE_UPLOADS: ("Achievement unlocked!", "You've uploaded 5 games."),
+    AchievementTypeEnum.TEN_LIKES_ON_UPLOAD: ("Achievement unlocked!", "One of your games hit 10 likes."),
+    AchievementTypeEnum.HALL_OF_FAME: ("Hall of Fame!", "Your game has been verified by What's That Game."),
+}
+
+_DEFAULT_ACHIEVEMENT_COPY = ("Achievement unlocked!", "You've earned a new achievement.")
+
+
+def send_achievement_notification(db: Session, user_id: str, achievement_type: AchievementTypeEnum) -> None:
+    title, body = ACHIEVEMENT_COPY.get(achievement_type, _DEFAULT_ACHIEVEMENT_COPY)
+    send(
+        db,
+        user_id,
+        title,
+        body,
+        notification_type="achievement",
+        data={"achievement_type": achievement_type.value},
+        achievement_type=achievement_type.value,
+    )

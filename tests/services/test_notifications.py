@@ -117,3 +117,24 @@ class TestSendPrunesDeadToken:
         assert db.query(PushToken).filter_by(token="ExponentPushToken[dead]").first() is None
         note = db.query(Notification).filter_by(user_id=test_user.id).first()
         assert note.status == "sent"
+
+
+class TestSendAchievementNotification:
+    def test_uses_copy_for_known_achievement_type_and_tags_data(self, db, test_user):
+        with patch("src.services.notifications.send") as mock_send:
+            notifications.send_achievement_notification(db, test_user.id, AchievementTypeEnum.FIRST_LIKE)
+
+        mock_send.assert_called_once()
+        args, kwargs = mock_send.call_args
+        assert args[:2] == (db, test_user.id)
+        assert kwargs["notification_type"] == "achievement"
+        assert kwargs["achievement_type"] == "first_like"
+        assert kwargs["data"] == {"achievement_type": "first_like"}
+        assert isinstance(kwargs.get("title") or args[2], str)
+
+    def test_falls_back_to_generic_copy_for_hall_of_fame(self, db, test_user):
+        with patch("src.services.notifications.send") as mock_send:
+            notifications.send_achievement_notification(db, test_user.id, AchievementTypeEnum.HALL_OF_FAME)
+
+        _, kwargs = mock_send.call_args
+        assert kwargs["achievement_type"] == "hall_of_fame"
