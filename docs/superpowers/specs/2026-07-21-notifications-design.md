@@ -142,6 +142,12 @@ site with `BackgroundTasks` instead, so `send()` isn't inline) because that alte
 "zero call-site changes" property that makes this hook point valuable. If upvote-path latency becomes a real
 problem post-launch, revisit by moving the hook to the API layer with `BackgroundTasks` — not in this feature.
 
+Same tradeoff has a correctness facet, not just latency: the hook fires before the caller's `db.commit()`. If the
+caller's transaction later rolls back (e.g. a later step in the same request fails), the `UserAchievement` and
+`Notification` rows roll back with it — DB stays consistent — but the Expo push already left the building and can't
+be un-sent. A rolled-back grant can still produce a delivered push. Low-probability, accepted for v1 under the same
+best-effort convention as the rest of this hook; not fixed here.
+
 Title/body copy per achievement type lives in a small dict in `notifications.py` (e.g.
 `{"first_like": ("Achievement unlocked!", "You liked your first game.")}`) — implementer fills in exact copy per
 achievement, not user-facing-critical enough to need sign-off here.
@@ -233,6 +239,13 @@ All tests mock the Expo SDK client — no real network calls.
 - Achievement hook: `grant_if_not_exists` calls `send()` for non-signal-only types, does not call it for
   `SIGNAL_ONLY_ACHIEVEMENTS` types (existing no-push behavior for `share_game`/`give_feedback`/`complete_tutorial`
   unchanged); does not call it when the achievement already existed (no re-notify).
+
+  **Invariant to preserve, not just a test detail:** hooking `send()` into `grant_if_not_exists` means every
+  existing achievement test (favourites, games x3) now routes through it too. That's safe only because `send()`
+  early-returns with `status="no_token"` when the calling user has no registered `PushToken` — so no real Expo call
+  fires from those pre-existing tests. Shared test fixtures/users must not register push tokens by default, or
+  ~5 existing green tests silently turn into live Expo network calls. State this explicitly in the plan so it's
+  preserved deliberately, not discovered later.
 - `POST /games/{id}/verify`: 403 non-admin, 404 missing game, grants `HALL_OF_FAME` once and is idempotent on repeat
   calls, triggers one `send()` call.
 - `POST /admin/notifications`: 403 non-admin, single-user path calls `send()` synchronously, broadcast path is
