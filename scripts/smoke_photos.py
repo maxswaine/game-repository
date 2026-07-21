@@ -15,10 +15,11 @@ Expected: exercises presign PUT -> upload -> head -> presign GET -> OpenAI
 moderation (must return NOT flagged) -> copy_to_public -> delete, and prints
 "SMOKE PASS". Any failure raises loudly instead of being swallowed.
 """
-import base64
 import os
+import struct
 import uuid
 import urllib.request
+import zlib
 
 from dotenv import load_dotenv
 
@@ -28,10 +29,21 @@ from openai import OpenAI
 
 from src.services import storage
 
-# A 1x1 white PNG — deterministic, unambiguously safe content.
-PNG_BYTES = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-)
+
+def _make_1x1_white_png() -> bytes:
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    raw = b"\x00" + bytes([255, 255, 255])  # filter byte + one white RGB pixel
+    idat = chunk(b"IDAT", zlib.compress(raw))
+    iend = chunk(b"IEND", b"")
+    return sig + ihdr + idat + iend
+
+
+# A 1x1 white PNG, built at runtime — deterministic, unambiguously safe content.
+PNG_BYTES = _make_1x1_white_png()
 
 object_key = f"games/smoke-{uuid.uuid4().hex}/test.png"
 
@@ -67,8 +79,23 @@ print("   moderation OK — safe image not flagged, all category attrs present")
 print("5. copy_to_public + verify public URL reachable...")
 storage.copy_to_public(object_key)
 public_url = storage.public_url_for(object_key)
-with urllib.request.urlopen(public_url) as resp:
-    assert resp.status == 200, f"public URL not reachable: {resp.status}"
+# r2.dev is Cloudflare's rate-limited, non-production "Public Development URL" —
+# freshly-copied objects can take up to ~60s to become servable through it.
+# A production custom domain (with Cloudflare Cache in front) should not have
+# this lag; this retry is a dev-only accommodation for r2.dev, not a code fix.
+import time
+last_error = None
+for attempt in range(20):
+    try:
+        with urllib.request.urlopen(public_url) as resp:
+            assert resp.status == 200, f"public URL not reachable: {resp.status}"
+        last_error = None
+        break
+    except urllib.error.HTTPError as e:
+        last_error = e
+        time.sleep(6)
+if last_error is not None:
+    raise last_error
 print("   public_url:", public_url)
 
 print("6. cleanup...")

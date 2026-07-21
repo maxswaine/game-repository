@@ -47,7 +47,12 @@ Before this ships to Railway, the user must provision and set env vars:
 - A **lifecycle rule** on the quarantine bucket expiring objects after **24 hours**, so uploads
   that are never registered (or fail moderation before delete) self-clean.
 - An R2 **API token** (S3-compatible access key + secret) with access to both buckets.
-- A **public base URL** for the public bucket (Cloudflare CDN or custom domain).
+- A **public base URL** for the public bucket — **must be a Cloudflare custom domain**, not
+  the `r2.dev` "Public Development URL". `r2.dev` is Cloudflare's explicitly non-production,
+  rate-limited dev domain (per Cloudflare docs) and was observed in testing to take up to
+  ~60-100s for a freshly-copied object to become servable — unacceptable latency for a photo
+  that a register call just approved. A custom domain (your domain added as a Cloudflare zone,
+  connected to the bucket) gets Cloudflare Cache in front and does not have this lag.
 
 New environment variables (loaded via `src/utils/config.py` from `.env`):
 
