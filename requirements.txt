@@ -22,3 +22,4 @@ itsdangerous==2.2.0
 apscheduler==3.11.0
 resend==2.10.0
 boto3==1.43.52
+exponent-server-sdk==2.2.0

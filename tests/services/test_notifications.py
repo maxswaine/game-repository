@@ -1,7 +1,11 @@
 import uuid
+from unittest.mock import MagicMock, patch
+
+from exponent_server_sdk import DeviceNotRegisteredError
 
 from src.db.tables import Notification, PushToken
 from src.models.enums.achievement_enum import AchievementTypeEnum, SIGNAL_ONLY_ACHIEVEMENTS
+from src.services import notifications
 
 
 class TestPushTokenSchema:
@@ -43,3 +47,73 @@ class TestHallOfFameEnum:
 
     def test_not_signal_only(self):
         assert AchievementTypeEnum.HALL_OF_FAME not in SIGNAL_ONLY_ACHIEVEMENTS
+
+
+class TestSendNoToken:
+    def test_writes_no_token_status_and_never_touches_expo(self, db, test_user):
+        with patch("src.services.notifications._get_push_client") as mock_get_client:
+            notifications.send(db, test_user.id, "Title", "Body")
+            db.commit()
+
+        mock_get_client.assert_not_called()
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "no_token"
+        assert note.title == "Title"
+        assert note.body == "Body"
+        assert note.type == "custom"
+
+
+class TestSendSuccess:
+    def test_writes_sent_status_and_calls_expo_with_data(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[abc]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        mock_ticket = MagicMock()
+        mock_ticket.validate_response.return_value = None
+        mock_client = MagicMock()
+        mock_client.publish_multiple.return_value = [mock_ticket]
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send(db, test_user.id, "Title", "Body", data={"game_id": "g1"})
+            db.commit()
+
+        mock_client.publish_multiple.assert_called_once()
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "sent"
+        assert note.data == '{"game_id": "g1"}'
+
+
+class TestSendFailure:
+    def test_writes_failed_status_when_expo_call_raises(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[abc]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        mock_client = MagicMock()
+        mock_client.publish_multiple.side_effect = RuntimeError("network down")
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send(db, test_user.id, "Title", "Body")
+            db.commit()
+
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "failed"
+
+
+class TestSendPrunesDeadToken:
+    def test_deletes_token_on_device_not_registered_but_still_logs_sent(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[dead]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        mock_ticket = MagicMock()
+        mock_ticket.push_message.to = "ExponentPushToken[dead]"
+        mock_ticket.validate_response.side_effect = DeviceNotRegisteredError(mock_ticket)
+        mock_client = MagicMock()
+        mock_client.publish_multiple.return_value = [mock_ticket]
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send(db, test_user.id, "Title", "Body")
+            db.commit()
+
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[dead]").first() is None
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "sent"
