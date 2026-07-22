@@ -18,6 +18,13 @@ class TestRegisterPushToken:
         assert row.user_id == test_user.id
         assert row.platform == "ios"
 
+    def test_rejects_malformed_token(self, client_with_auth, db):
+        response = client_with_auth.post(
+            "/push-tokens/", json={"token": "some-old-fcm-token-not-expo-format", "platform": "ios"}
+        )
+        assert response.status_code == 400
+        assert db.query(PushToken).filter_by(token="some-old-fcm-token-not-expo-format").first() is None
+
     def test_upserts_existing_token_to_new_owner(self, client_with_auth, db, second_user, test_user):
         # Seed the token as owned by second_user directly in the DB — do NOT use a second
         # client fixture here. app.dependency_overrides is one dict on one app object; using

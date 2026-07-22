@@ -1,9 +1,9 @@
 import uuid
 from unittest.mock import MagicMock, patch
 
-from exponent_server_sdk import DeviceNotRegisteredError
+from exponent_server_sdk import DeviceNotRegisteredError, PushTicketError
 
-from src.db.tables import Notification, PushToken
+from src.db.tables import Notification, PushDeliveryTicket, PushToken
 from src.models.enums.achievement_enum import AchievementTypeEnum, SIGNAL_ONLY_ACHIEVEMENTS
 from src.services import notifications
 
@@ -69,6 +69,8 @@ class TestSendSuccess:
         db.commit()
 
         mock_ticket = MagicMock()
+        mock_ticket.id = "ticket-abc"
+        mock_ticket.push_message.to = "ExponentPushToken[abc]"
         mock_ticket.validate_response.return_value = None
         mock_client = MagicMock()
         mock_client.publish_multiple.return_value = [mock_ticket]
@@ -81,6 +83,11 @@ class TestSendSuccess:
         note = db.query(Notification).filter_by(user_id=test_user.id).first()
         assert note.status == "sent"
         assert note.data == '{"game_id": "g1"}'
+
+        ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).first()
+        assert ticket_row.token == "ExponentPushToken[abc]"
+        assert ticket_row.ticket_id == "ticket-abc"
+        assert ticket_row.status == "pending"
 
 
 class TestSendFailure:
@@ -98,9 +105,13 @@ class TestSendFailure:
         note = db.query(Notification).filter_by(user_id=test_user.id).first()
         assert note.status == "failed"
 
+        ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).first()
+        assert ticket_row.token == "ExponentPushToken[abc]"
+        assert ticket_row.status == "failed"
+
 
 class TestSendPrunesDeadToken:
-    def test_deletes_token_on_device_not_registered_but_still_logs_sent(self, db, test_user):
+    def test_deletes_token_on_device_not_registered_and_logs_failed(self, db, test_user):
         db.add(PushToken(token="ExponentPushToken[dead]", user_id=test_user.id, platform="ios"))
         db.commit()
 
@@ -116,7 +127,63 @@ class TestSendPrunesDeadToken:
 
         assert db.query(PushToken).filter_by(token="ExponentPushToken[dead]").first() is None
         note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "failed"
+
+        ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).first()
+        assert ticket_row.status == "failed"
+        assert ticket_row.error_message == "DeviceNotRegistered"
+
+
+class TestSendBadTokenDoesNotPoisonBatch:
+    def test_malformed_token_from_before_registration_validation_existed_is_pruned_not_fatal(self, db, test_user):
+        # Simulates a row written before push_tokens.py validated format — send() must not
+        # let it kill delivery to this user's other, valid tokens.
+        db.add(PushToken(token="ExponentPushToken[good]", user_id=test_user.id, platform="ios"))
+        db.add(PushToken(token="some-old-fcm-token-not-expo-format", user_id=test_user.id, platform="android"))
+        db.commit()
+
+        mock_ticket = MagicMock()
+        mock_ticket.id = "ticket-good"
+        mock_ticket.push_message.to = "ExponentPushToken[good]"
+        mock_ticket.validate_response.return_value = None
+        mock_client = MagicMock()
+        mock_client.publish_multiple.return_value = [mock_ticket]
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send(db, test_user.id, "Title", "Body")
+            db.commit()
+
+        # Only the well-formed token was ever handed to Expo.
+        sent_messages = mock_client.publish_multiple.call_args[0][0]
+        assert [m.to for m in sent_messages] == ["ExponentPushToken[good]"]
+
+        assert db.query(PushToken).filter_by(token="some-old-fcm-token-not-expo-format").first() is None
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[good]").first() is not None
+
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
         assert note.status == "sent"
+
+
+class TestSendTicketErrorIsHonestAboutStatus:
+    def test_non_device_not_registered_ticket_error_marks_failed_not_sent(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[abc]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        mock_ticket = MagicMock()
+        mock_ticket.push_message.to = "ExponentPushToken[abc]"
+        mock_ticket.validate_response.side_effect = PushTicketError(mock_ticket)
+        mock_client = MagicMock()
+        mock_client.publish_multiple.return_value = [mock_ticket]
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send(db, test_user.id, "Title", "Body")
+            db.commit()
+
+        note = db.query(Notification).filter_by(user_id=test_user.id).first()
+        assert note.status == "failed"
+
+        ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).first()
+        assert ticket_row.status == "failed"
 
 
 class TestSendAchievementNotification:

@@ -191,6 +191,18 @@ class Notification(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
+class PushDeliveryTicket(Base):
+    __tablename__ = "push_delivery_tickets"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    notification_id = Column(String, ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True)
+    token = Column(String, nullable=False)
+    ticket_id = Column(String, nullable=True)
+    status = Column(String, nullable=False)
+    error_message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    checked_at = Column(DateTime, nullable=True)
+
+
 class Feedback(Base):
     __tablename__ = "feedback"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
