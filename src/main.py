@@ -14,6 +14,7 @@ from src.core.limiter import limiter
 from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
 from src.services.purge import run_purge
+from src.services.receipts import check_pending_deliveries
 from src.utils.config import QR_HOST
 
 _version_file = Path(__file__).parent.parent / "VERSION"
@@ -27,11 +28,22 @@ def _run_purge_job() -> None:
         db.close()
 
 
+def _run_check_receipts_job() -> None:
+    db = SessionLocal()
+    try:
+        check_pending_deliveries(db)
+        db.commit()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     if engine.dialect.name != "sqlite":
         if not scheduler.get_job("daily_purge"):
             scheduler.add_job(_run_purge_job, "cron", hour=0, minute=0, id="daily_purge")
+        if not scheduler.get_job("check_push_receipts"):
+            scheduler.add_job(_run_check_receipts_job, "interval", minutes=15, id="check_push_receipts")
         if not scheduler.running:
             scheduler.start()
     yield

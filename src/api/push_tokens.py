@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from exponent_server_sdk import PushClient
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
@@ -18,6 +19,9 @@ def register_push_token(
         body: PushTokenCreate,
         current_user: User = Depends(get_current_active_user),
 ):
+    if not PushClient.is_exponent_push_token(body.token):
+        raise HTTPException(status_code=400, detail="Not a valid Expo push token")
+
     existing = db.query(PushToken).filter(PushToken.token == body.token).first()
     if existing:
         existing.user_id = current_user.id
