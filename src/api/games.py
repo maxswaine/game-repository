@@ -157,6 +157,7 @@ def create_new_game(
         setup=new_game.setup,
         rules=new_game.rules,
         image_url=new_game.image_url,
+        icon=new_game.icon,
         is_public=new_game.is_public,
         is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         has_adult_content=adult_flag,
@@ -576,6 +577,7 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         setup=db_game.setup,
         rules=db_game.rules,
         image_url=db_game.image_url,
+        icon=db_game.icon,
         is_public=db_game.is_public,
         upvotes=db_game.upvotes,
         contributor=UserPublicRead(
