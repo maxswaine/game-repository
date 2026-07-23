@@ -94,6 +94,7 @@ def test_google_token_new_user_created_in_db(db):
         assert user is not None
         assert user.email == "testuser@gmail.com"
         assert user.oauth_provider == "google"
+        assert user.avatar_url is None
     finally:
         app.dependency_overrides.clear()
 

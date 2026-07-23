@@ -122,7 +122,6 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
-    avatar_url: Optional[str] = None
 
     @field_validator('username')
     @classmethod
@@ -130,13 +129,6 @@ class UserUpdate(BaseModel):
         if v is None:
             return v
         return _validate_username_format(v)
-
-    @field_validator('avatar_url')
-    @classmethod
-    def validate_avatar_url(cls, v):
-        if v is not None and not v.startswith('https://'):
-            raise ValueError('avatar_url must start with https://')
-        return v
 
     @field_validator('date_of_birth')
     @classmethod

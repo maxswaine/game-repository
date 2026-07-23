@@ -1,4 +1,6 @@
 import uuid
+from itertools import count
+from unittest.mock import patch
 
 import pytest
 
@@ -6,6 +8,24 @@ from src.db.tables import Game, UserAchievement
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from tests.api.games.helper import create_public_game
 from tests.utils import valid_public_game_payload
+
+_vector_counter = count()
+
+
+def _unique_embedding(_text):
+    """Each call gets a distinct one-hot vector, so games in a loop never
+    collide with each other on the duplicate-detection cosine-similarity
+    check (see src/api/games.py) regardless of how similar their text is."""
+    idx = next(_vector_counter) % 1536
+    vector = [0.0] * 1536
+    vector[idx] = 1.0
+    return vector
+
+
+@pytest.fixture(autouse=True)
+def mock_embeddings():
+    with patch("src.api.games.embed_text", side_effect=_unique_embedding):
+        yield
 
 
 def _get_achievements(client):

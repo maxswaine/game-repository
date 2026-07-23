@@ -354,7 +354,6 @@ async def google_callback(
             created_at=datetime.now(timezone.utc),
             oauth_provider="google",
             oauth_id=oauth_id,
-            avatar_url=userinfo.get("picture"),
             country_of_origin=None,
             date_of_birth=None
         )
@@ -547,7 +546,6 @@ async def google_token_exchange(
             created_at=datetime.now(timezone.utc),
             oauth_provider="google",
             oauth_id=oauth_id,
-            avatar_url=claims.get("picture"),
             country_of_origin=None,
             date_of_birth=None,
         )
