@@ -1,5 +1,28 @@
+from itertools import count
+from unittest.mock import patch
+
+import pytest
+
 from tests.conftest import client_no_auth
 from tests.utils import valid_public_game_payload
+
+_vector_counter = count()
+
+
+def _unique_embedding(_text):
+    """Each call gets a distinct one-hot vector, so games in a loop never
+    collide with each other on the duplicate-detection cosine-similarity
+    check (see src/api/games.py) regardless of how similar their text is."""
+    idx = next(_vector_counter) % 1536
+    vector = [0.0] * 1536
+    vector[idx] = 1.0
+    return vector
+
+
+@pytest.fixture(autouse=True)
+def mock_embeddings():
+    with patch("src.api.games.embed_text", side_effect=_unique_embedding):
+        yield
 
 
 def test_add_favourite_success(client_with_auth):
