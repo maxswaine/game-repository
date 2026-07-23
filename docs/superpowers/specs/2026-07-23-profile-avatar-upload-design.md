@@ -24,14 +24,20 @@ at all.
   feature as-is — no changes to either module.
 - Close the unmoderated bypass: remove `avatar_url` from `UserUpdate`
   (`src/models/user_models/user.py`) so `PATCH /users/me` can no longer set it directly.
+- Stop OAuth signup from auto-setting `avatar_url` from the provider's picture claim
+  (`src/api/auth.py:357,550`) — the upload flow becomes the only way `avatar_url` gets set going
+  forward. New OAuth users get `avatar_url=None` until they upload one; existing OAuth users are
+  unaffected (see below).
 
 **Out of scope (YAGNI)**
 - Cropping / resizing server-side — client crops/compresses before upload, same as Photos.
 - A gallery of past avatars — single slot per user, replace-only.
 - Admin moderation override / review queue — synchronous fail-closed moderation only, same as
   Photos.
-- Changing how OAuth sets `avatar_url` (`src/api/auth.py:357,550`) — untouched; those write to
-  the `User` object directly, not through `UserUpdate`.
+- Backfilling `avatar_url=None` onto existing users who already have a Google-set avatar — both
+  call sites only fire in the `is_new_user` signup branch (`src/api/auth.py:343-360` /
+  equivalent OAuth-mobile path), never on repeat logins, so existing users are unaffected either
+  way; they keep their current Google URL until they next upload or remove it.
 
 ## Architecture
 
@@ -108,6 +114,15 @@ Remove `avatar_url: Optional[str] = None` and its `@field_validator('avatar_url'
 `setattr` loop simply won't see the field once it's gone from the model. `UserPrivateRead`
 (which still has `avatar_url`) is unaffected — reads keep working.
 
+### Removing OAuth's direct avatar_url set
+
+Drop `avatar_url=userinfo.get("picture")` (`src/api/auth.py:357`, web OAuth signup) and
+`avatar_url=claims.get("picture")` (`src/api/auth.py:550`, mobile OAuth signup) from the two
+`User(...)` constructions — both fire only in the `is_new_user` branch. Leave
+`avatar_url=None` (`src/api/auth.py:621`, password signup) as-is; it's already the value we
+want. The upload flow in this spec becomes the only way `avatar_url` gets set after account
+creation, for both OAuth and password users alike.
+
 ## Pydantic models
 
 Add to `src/models/user_models/user.py` (or a new `avatar.py` alongside `game_photo.py` — either
@@ -151,6 +166,8 @@ Mock `storage` and `check_image`, same as Photos tests — no live R2/OpenAI.
   was an OAuth URL or already `None`; no auth → 401.
 - `PATCH /users/me` with `avatar_url` in the body no longer changes `User.avatar_url` (field
   silently dropped).
+- Google OAuth signup (new user) creates a `User` with `avatar_url=None`, regardless of the
+  `picture` claim on the Google profile.
 
 Follow existing test setup (SQLite `test.db`, `client_with_auth`). Run with
 `DATABASE_URL="sqlite:///./test.db"`.
