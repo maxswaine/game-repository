@@ -17,24 +17,13 @@ def _make_token(username: str, ver: int = 0) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def test_avatar_url_rejects_javascript_protocol():
-    with pytest.raises(ValidationError):
-        UserUpdate(avatar_url="javascript:alert(1)")
-
-
-def test_avatar_url_rejects_http_protocol():
-    with pytest.raises(ValidationError):
-        UserUpdate(avatar_url="http://example.com/avatar.jpg")
-
-
-def test_avatar_url_accepts_https():
-    model = UserUpdate(avatar_url="https://example.com/avatar.jpg")
-    assert model.avatar_url == "https://example.com/avatar.jpg"
-
-
-def test_avatar_url_accepts_none():
-    model = UserUpdate(avatar_url=None)
-    assert model.avatar_url is None
+def test_patch_avatar_url_is_ignored(client_with_auth, test_user, db):
+    response = client_with_auth.patch(
+        "/users/me", json={"avatar_url": "https://example.com/hijack.jpg"}
+    )
+    assert response.status_code == 200
+    db.refresh(test_user)
+    assert test_user.avatar_url is None
 
 
 def test_username_rejects_too_short():
