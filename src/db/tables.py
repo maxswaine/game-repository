@@ -60,6 +60,7 @@ class Game(Base):
     setup = Column(String, nullable=False)
     rules = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
+    icon = Column(String, nullable=True)
     is_public = Column(Boolean, nullable=False, default=True)
     is_whats_that_game_verified = Column(Boolean, nullable=False, default=False)
 

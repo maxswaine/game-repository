@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
+from src.models.enums.game_icon_enum import GameIconEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.player_count import PlayerCount
 from src.models.game_models.game_photo import GamePhotoRead
@@ -22,6 +23,7 @@ class GameBase(BaseModel):
     setup: str = Field(max_length=2000)
     rules: str = Field(max_length=5000)
     image_url: Optional[str] = None
+    icon: Optional[GameIconEnum] = None
     is_public: bool
     is_whats_that_game_certified: bool = False
     game_setting: Optional[List[str]] = None
@@ -53,6 +55,7 @@ class GameUpdate(BaseModel):
     duration: Optional[str] = None
     difficulty: Optional[GameDifficultyEnum] = None
     equipment: Optional[List[str]] = None
+    icon: Optional[GameIconEnum] = None
     is_public: Optional[bool] = None
     objective: Optional[str] = Field(None, max_length=2000)
     setup: Optional[str] = Field(None, max_length=2000)

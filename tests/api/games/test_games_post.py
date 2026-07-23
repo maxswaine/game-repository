@@ -52,6 +52,24 @@ def test_create_game_unauthorized(client_no_auth):
     assert response.status_code == 401
 
 
+def test_create_game_with_valid_icon(client_with_auth):
+    payload = valid_public_game_payload(overrides={"icon": "sports-esports"})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 201
+    assert response.json()["icon"] == "sports-esports"
+
+
+def test_create_game_without_icon_defaults_to_none(client_with_auth):
+    data = create_public_game(client_with_auth)
+    assert data["icon"] is None
+
+
+def test_create_game_rejects_unknown_icon(client_with_auth):
+    payload = valid_public_game_payload(overrides={"icon": "not-a-real-icon"})
+    response = client_with_auth.post("/games/", json=payload)
+    assert response.status_code == 422
+
+
 def test_upvote_game(client_with_auth):
     game = create_public_game(client_with_auth)
 

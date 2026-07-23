@@ -43,6 +43,29 @@ def test_patch_game_success(client_with_auth, db):
     assert {s.setting_name for s in db_settings} == {"Chill", "Party"}
 
 
+def test_patch_game_icon(client_with_auth, db):
+    payload = valid_public_game_payload()
+    post_resp = client_with_auth.post("/games/", json=payload)
+    assert post_resp.status_code == 201
+    game_id = post_resp.json()["id"]
+
+    patch_resp = client_with_auth.patch(f"/games/{game_id}", json={"icon": "bolt"})
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["icon"] == "bolt"
+
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    assert db_game.icon == "bolt"
+
+
+def test_patch_game_rejects_unknown_icon(client_with_auth):
+    payload = valid_public_game_payload()
+    post_resp = client_with_auth.post("/games/", json=payload)
+    game_id = post_resp.json()["id"]
+
+    patch_resp = client_with_auth.patch(f"/games/{game_id}", json={"icon": "not-a-real-icon"})
+    assert patch_resp.status_code == 422
+
+
 def test_patch_game_no_changes(client_with_auth, db):
     payload = valid_public_game_payload()
     post_resp = client_with_auth.post("/games/", json=payload)
