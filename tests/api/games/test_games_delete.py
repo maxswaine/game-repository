@@ -4,12 +4,26 @@ from src.api.users import get_current_active_user
 from src.db.database import get_db
 from src.main import app
 from src.models import GameRead
-from tests.api.games.helper import create_public_game
+from tests.api.games.helper import create_public_game, upvote_game
 
 
 def test_delete_game_success(client_with_auth):
     created_game: GameRead = create_public_game(client_with_auth)
     game_id = created_game["id"]
+    resp = client_with_auth.delete(f"/games/{game_id}")
+    assert resp.status_code == 204
+
+
+def test_delete_game_with_alias_and_upvote(client_with_auth):
+    created_game: GameRead = create_public_game(client_with_auth)
+    game_id = created_game["id"]
+
+    alias_resp = client_with_auth.post(f"/games/{game_id}/aliases", json={"alias": "Alt Name"})
+    assert alias_resp.status_code == 201
+
+    upvote_resp = upvote_game(client_with_auth, game_id)
+    assert upvote_resp.status_code == 200
+
     resp = client_with_auth.delete(f"/games/{game_id}")
     assert resp.status_code == 204
 

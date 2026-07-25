@@ -467,7 +467,7 @@ def update_game(
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        if key in ["equipment", "game_setting"]:
+        if key in ["equipment", "game_setting", "aliases"]:
             continue
         if value is None:
             continue
@@ -493,6 +493,23 @@ def update_game(
             db.add(GameSetting(
                 game_id=db_game.id,
                 setting_name=s
+            ))
+
+    if "aliases" in update_data:
+        db.query(GameAlias).filter(
+            GameAlias.game_id == db_game.id
+        ).delete()
+
+        now = datetime.now(timezone.utc)
+        updated_aliases = [a.strip() for a in (updates.aliases or []) if a.strip()]
+        for alias_text in updated_aliases:
+            db.add(GameAlias(
+                game_id=db_game.id,
+                alias=alias_text,
+                suggested_by=current_user.id,
+                status="approved",
+                reviewed_by=current_user.id,
+                reviewed_at=now,
             ))
 
     db.commit()
@@ -521,7 +538,8 @@ def update_game(
     db.commit()
 
     try:
-        db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game)))
+        approved_aliases = [a.alias for a in db_game.alias_objects if a.status == "approved"]
+        db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game, aliases=approved_aliases)))
         db.commit()
     except Exception:
         pass  # embedding is best-effort

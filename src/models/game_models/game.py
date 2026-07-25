@@ -61,3 +61,4 @@ class GameUpdate(BaseModel):
     setup: Optional[str] = Field(None, max_length=2000)
     rules: Optional[str] = Field(None, max_length=5000)
     game_setting: Optional[List[str]] = None
+    aliases: Optional[List[str]] = None

@@ -76,8 +76,10 @@ class Game(Base):
     equipment_items = relationship("GameEquipment", cascade="all, delete-orphan")
     setting_items = relationship("GameSetting", cascade="all, delete-orphan")
     contributor = relationship("User", back_populates="games")
-    favourited_by = relationship("UserFavourites", back_populates="game", lazy="noload")
-    alias_objects = relationship("GameAlias")
+    favourited_by = relationship(
+        "UserFavourites", back_populates="game", lazy="noload", cascade="all, delete-orphan"
+    )
+    alias_objects = relationship("GameAlias", cascade="all, delete-orphan")
     photos = relationship(
         "GamePhoto",
         cascade="all, delete-orphan",
