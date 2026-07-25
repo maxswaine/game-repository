@@ -55,7 +55,7 @@ app = FastAPI(lifespan=lifespan, version=APP_VERSION)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme"))
+app.add_middleware(SessionMiddleware, secret_key=os.environ["SECRET_KEY"])
 Base.metadata.create_all(bind=engine)
 
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -69,6 +69,15 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(games.protected_router, prefix="/games", tags=["games"])
