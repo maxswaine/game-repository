@@ -1,3 +1,4 @@
+import re
 from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,6 +8,7 @@ from src.api.games import map_game_to_read, _get_liked_ids
 from src.api.users import get_current_user_optional
 from src.db.database import get_db
 from src.db.tables import Game, User
+from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
 from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
 
@@ -18,18 +20,66 @@ _NO_EQUIPMENT_PHRASES = [
     "no stuff", "need nothing",
 ]
 
+_STOPWORDS = {"a", "an", "of", "the", "and", "to", "for"}
+
+_NEGATION_RE = re.compile(
+    r"(?:no|without|never|don'?t (?:want|need)(?: any)?|not any) ([a-z]+(?: [a-z]+)?)"
+)
+
+
+def _fold_plural(word: str) -> str:
+    return word[:-1] if word.endswith("s") and len(word) > 3 else word
+
+
+def _build_equipment_keyword_index() -> dict:
+    index: dict[str, set] = {}
+    for member in GameEquipmentEnum:
+        words = re.split(r"[\s-]+", member.value.lower())
+        for word in words:
+            if word in _STOPWORDS or not word:
+                continue
+            key = _fold_plural(word)
+            index.setdefault(key, set()).add(member)
+    return index
+
+
+_EQUIPMENT_KEYWORD_INDEX = _build_equipment_keyword_index()
+
 
 def _wants_no_equipment(query: str) -> bool:
     q = query.lower()
     return any(phrase in q for phrase in _NO_EQUIPMENT_PHRASES)
 
 
+def _excluded_equipment_from_negations(query: str) -> set:
+    """Resolve every 'no/without <item>' phrase in the query to specific equipment enum members."""
+    excluded: set = set()
+    for phrase in _NEGATION_RE.findall(query.lower()):
+        if phrase in _EQUIPMENT_KEYWORD_INDEX:
+            excluded |= _EQUIPMENT_KEYWORD_INDEX[phrase]
+            continue
+        for word in phrase.split(" "):
+            key = _fold_plural(word)
+            if key in _EQUIPMENT_KEYWORD_INDEX:
+                excluded |= _EQUIPMENT_KEYWORD_INDEX[key]
+    return excluded
+
+
 def _apply_hard_filters(games: list, query: str) -> list:
     """Remove games that cannot satisfy explicit constraints in the query."""
     if _wants_no_equipment(query):
+        no_equipment_values = {GameEquipmentEnum.none.value, GameEquipmentEnum.nothing.value}
+        return [
+            g for g in games
+            if all(e.equipment_name in no_equipment_values for e in g.equipment_items)
+        ]
+
+    excluded = _excluded_equipment_from_negations(query)
+    if excluded:
+        excluded_values = {e.value for e in excluded}
         games = [
             g for g in games
-            if all(e.equipment_name == "No Equipment" for e in g.equipment_items)
+            if not any(e.equipment_name in excluded_values for e in g.equipment_items)
         ]
     return games
 
