@@ -1,6 +1,6 @@
 # Privacy Policy — What's That Game
 
-**Last updated:** 11 June 2026
+**Last updated:** 25 July 2026
 **Applies to:** the "What's That Game" mobile app (iOS and Android) and its backend API.
 
 ## 1. Who we are
@@ -15,7 +15,7 @@ The project founders act as joint data controllers for the purposes of the UK GD
 
 ## 2. Summary
 
-What's That Game lets you create, store, search and discover party/board games. To do that we store an account for you, the games you contribute, and the games you favourite. We use a small number of third-party providers (Google, OpenAI, Amplitude, Railway) to sign you in, power semantic search and AI text suggestions, measure how the app is used, and host the service. We do **not** sell your personal data.
+What's That Game lets you create, store, search and discover party/board games. To do that we store an account for you, the games you contribute (including photos), and your activity — favourites, comments, aliases suggestions, and achievements. We use a small number of third-party providers (Google, OpenAI, Amplitude, Railway, Cloudflare, Resend, Expo) to sign you in, power semantic search and AI text suggestions, moderate uploaded content, measure how the app is used, host the service, store photos, send account emails, and deliver push notifications. We do **not** sell your personal data.
 
 ---
 
@@ -32,7 +32,7 @@ What's That Game lets you create, store, search and discover party/board games. 
 | Password | Only for email/password sign-up | Authentication — stored only as a **bcrypt hash**, never in plain text |
 | Date of birth | Yes | Age-appropriate content (age ratings, adult-content gating) |
 | Country of origin | Yes | Personalisation / regional context (stored as a 2-letter ISO code) |
-| Avatar image URL | Optional | Profile picture |
+| Avatar image | Optional | Profile picture (see §3.6 for how images are handled) |
 
 We also automatically record an account `role`, an active/inactive flag, and account `created`/`last updated` timestamps.
 
@@ -49,18 +49,37 @@ We store these to create and identify your account. We do **not** receive your G
 
 ### 3.3 Content you create
 
-- Games you contribute: name, description, objective, setup, rules, type, player counts, duration, difficulty, age rating, equipment, setting, image URL, and public/private visibility.
-- Games you favourite or upvote.
-- Achievements you earn.
-- Reports you submit about other games (the reason text and which game).
+- **Games** you contribute: name, description, objective, setup, rules, type, player counts, duration, difficulty, age rating, equipment, setting, up to 10 photos, and public/private visibility.
+- **Comments** you post on games, and comments you like.
+- **Alias suggestions** you submit for a game's alternative names, and their review status.
+- **Games you favourite or upvote.**
+- **Achievements** you earn.
+- **Reports** you submit about other games (the reason text and which game).
+- **Feedback** you submit to us (type and message).
 
 Anything you mark **public** is visible to other users. Anything you mark **private** is visible only to you.
 
-### 3.4 Analytics data (Amplitude)
+### 3.4 Photos and images
+
+When you upload a photo (for a game or your avatar), it is first placed in a private **quarantine** storage area and screened by our AI moderation provider (see §3.5) before it becomes publicly visible. Approved images are copied to public storage and served via a public URL; rejected images are discarded. We store the image file itself, its storage location, and, for game photos, its display position.
+
+### 3.5 Content moderation
+
+Text you submit (e.g. comments, game descriptions) and images you upload are automatically checked with an AI moderation model before being made public, to detect content such as hate speech or graphic/sexual imagery. This is an automated screening step, not a decision that produces legal effects on you — see §4.
+
+### 3.6 Analytics data (Amplitude)
 
 Our app uses **Amplitude** to understand how the app is used (for example: which screens are viewed and key in-app actions/moments). Amplitude may process a device identifier, app/usage events, and technical data such as device type, OS version and approximate location derived from IP. This helps us improve the product. See Amplitude's privacy policy: https://amplitude.com/privacy.
 
-### 3.5 Technical data
+### 3.7 Push notification data
+
+If you enable notifications, we store a device push token and platform (iOS/Android) so we can deliver notifications (e.g. achievement unlocks, announcements) via Expo's push service. We keep a record of notifications sent to you and their delivery status.
+
+### 3.8 QR / short-link data
+
+Some marketing/social links route through short codes we host (e.g. `qr.whatsthatgame.co.uk/<code>`). We record an aggregate scan count per link. We do not tie individual scans to your account.
+
+### 3.9 Technical data
 
 When the app calls our backend, our hosting provider processes standard request metadata (IP address, timestamps, user-agent) for security and reliability. Authentication uses a JWT token stored in a secure, HTTP-only cookie and/or sent as a bearer token from the app.
 
@@ -71,14 +90,17 @@ When the app calls our backend, our hosting provider processes standard request 
 | Purpose | Legal basis (GDPR) |
 |---------|--------------------|
 | Create and run your account, authenticate you | Performance of a contract |
-| Store and display the games and favourites you create | Performance of a contract |
+| Store and display the games, photos, comments, aliases and favourites you create | Performance of a contract |
 | Semantic search and AI text suggestions (see §5) | Performance of a contract / legitimate interest |
+| Automated content moderation of text and images (see §3.5) | Legitimate interest / legal obligation |
 | Age-appropriate content gating | Legitimate interest / legal obligation |
+| Push notifications | Consent (notification permission) |
+| Transactional emails (e.g. password reset) | Performance of a contract |
 | Product analytics and improvement (Amplitude) | Consent, where required, otherwise legitimate interest |
 | Security, fraud/abuse prevention, debugging | Legitimate interest |
 | Service and security communications | Performance of a contract / legitimate interest |
 
-We do not use your data for automated decisions that produce legal effects on you.
+We do not use your data for automated decisions that produce legal effects on you. Automated content moderation (§3.5) only screens content before publication; it does not affect your account status, and rejected content can be appealed by contacting us.
 
 ---
 
@@ -87,9 +109,10 @@ We do not use your data for automated decisions that produce legal effects on yo
 When you create or edit a game, the game's text is sent to **OpenAI** to:
 
 1. Generate a semantic-search embedding (`text-embedding-3-small`), stored so your game can be found by meaning-based search.
-2. Optionally improve a field's wording when you use the AI optimiser (`gpt-4.1-nano`).
+2. Optionally improve a field's wording when you use the AI optimiser (`gpt-4.1-nano`) or the "brain dump" free-text-to-fields feature.
+3. Screen text and uploaded images for policy violations using an AI moderation model, before the content is made public.
 
-Only the game text you submit is sent — not your account credentials. OpenAI processes this as our service provider. See OpenAI's privacy policy: https://openai.com/policies/privacy-policy. We recommend not putting personal or sensitive information into game text fields.
+Only the content you submit (game text, comments, images) is sent — not your account credentials. OpenAI processes this as our service provider. See OpenAI's privacy policy: https://openai.com/policies/privacy-policy. We recommend not putting personal or sensitive information into game text, comments, or photos.
 
 ---
 
@@ -100,9 +123,12 @@ We share data only with providers that help us run the service:
 | Provider | Role | What they receive |
 |----------|------|-------------------|
 | **Google** | Sign-in (OAuth) | Authentication exchange; we receive your basic profile (§3.2) |
-| **OpenAI** | Embeddings + AI text suggestions | Game text you submit (§5) |
-| **Amplitude** | Product analytics | Usage events and device/technical data (§3.4) |
+| **OpenAI** | Embeddings, AI text suggestions, content moderation | Game/comment text and images you submit (§5) |
+| **Amplitude** | Product analytics | Usage events and device/technical data (§3.6) |
 | **Railway** | Hosting + managed PostgreSQL database | All data needed to run the service, stored at rest |
+| **Cloudflare (R2)** | Photo and avatar storage | Uploaded image files, in quarantine and public storage (§3.4) |
+| **Resend** | Transactional email | Your email address, for account emails such as password resets |
+| **Expo** | Push notification delivery | Your device push token and notification content (§3.7) |
 
 We do **not** sell your personal data or share it with advertisers.
 
@@ -110,7 +136,7 @@ We do **not** sell your personal data or share it with advertisers.
 
 ## 7. International transfers
 
-Our backend and database are hosted on **Railway**, and our processors (Google, OpenAI, Amplitude) may process data in **Europe**. Where data leaves the UK/EEA, transfers are protected by appropriate safeguards such as Standard Contractual Clauses.
+Our backend and database are hosted on **Railway**, and our processors (Google, OpenAI, Amplitude, Cloudflare, Resend, Expo) may process data in **Europe** or the **United States**. Where data leaves the UK/EEA, transfers are protected by appropriate safeguards such as Standard Contractual Clauses.
 
 ---
 
@@ -119,7 +145,8 @@ Our backend and database are hosted on **Railway**, and our processors (Google, 
 - **Active accounts:** account data and content are kept while your account is active.
 - **Account deletion — Stage 1 (Day 0):** when you request deletion, your account is deactivated immediately and login is blocked. Your data is not yet deleted.
 - **Recovery window (Days 1–30):** you can reactivate your account and restore full access within 30 days of requesting deletion.
-- **Account deletion — Stage 2 (Day 30):** after the 30-day window expires, we permanently erase your personal data (name, email, date of birth, country, avatar, authentication credentials). Private games and their associated content are deleted. Public games you contributed are retained anonymously (attributed to "Deleted user") so the platform catalogue remains useful. Comments you posted are retained anonymously. User reports, favourites, and achievements are deleted.
+- **Account deletion — Stage 2 (Day 30):** after the 30-day window expires, we permanently erase your personal data (name, email, date of birth, country, avatar, authentication credentials). Private games and their associated content (including photos) are deleted. Public games you contributed are retained anonymously (attributed to "Deleted user") so the platform catalogue remains useful. Comments you posted are retained anonymously. User reports, favourites, alias suggestions, achievements, feedback, and push tokens are deleted.
+- **Rejected/quarantined images** that never pass moderation are discarded and not made public.
 - **Analytics data** is retained according to Amplitude's retention settings.
 - **Backups and logs** are kept for a limited period for security and recovery, then deleted.
 
@@ -131,6 +158,7 @@ Depending on your location, you have the right to access, correct, delete, restr
 
 - **Delete your account:** you can request deletion from within the app. Your account is deactivated immediately and permanently erased after 30 days (see §8). You can cancel deletion and reactivate within those 30 days. You can also email us at **whatsthatgameteam@gmail.com** for manual erasure requests.
 - **Access / correction:** update your profile in the app, or contact us.
+- **Push notifications:** you can disable notifications at any time via in-app settings or OS-level controls; this removes your stored device token.
 - **Withdraw analytics consent:** where we rely on consent, you can withdraw it at any time via in-app settings / OS-level controls.
 
 To exercise any right, email **whatsthatgameteam@gmail.com**. You also have the right to complain to your data protection authority (in the UK, the ICO: https://ico.org.uk).
@@ -145,7 +173,7 @@ What's That Game is not directed at children under **13**. You must be at least 
 
 ## 11. Security
 
-Passwords are stored only as bcrypt hashes. Authentication uses signed JWT tokens over HTTPS in HTTP-only cookies. Access to production data is restricted. No system is perfectly secure, but we take reasonable technical and organisational measures to protect your data.
+Passwords are stored only as bcrypt hashes. Authentication uses signed JWT tokens over HTTPS in HTTP-only cookies. Uploaded images pass through a private quarantine area and automated moderation before becoming public. Access to production data is restricted. No system is perfectly secure, but we take reasonable technical and organisational measures to protect your data.
 
 ---
 
