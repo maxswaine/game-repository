@@ -1,8 +1,12 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -16,6 +20,12 @@ from src.db.database import engine, Base, SessionLocal
 from src.services.purge import run_purge
 from src.services.receipts import check_pending_deliveries
 from src.utils.config import QR_HOST
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 _version_file = Path(__file__).parent.parent / "VERSION"
 APP_VERSION = _version_file.read_text().strip() if _version_file.exists() else "unknown"
@@ -54,6 +64,23 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(lifespan=lifespan, version=APP_VERSION)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RequestValidationError)
+async def log_validation_errors(request: Request, exc: RequestValidationError):
+    body = exc.body
+    logger.warning(
+        "422 validation error on %s %s: errors=%s body=%s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+        body,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(exc.errors())},
+    )
+
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=os.environ["SECRET_KEY"])
 Base.metadata.create_all(bind=engine)

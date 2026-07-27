@@ -8,7 +8,7 @@ from src.models.optimisation_models.optimisation_models import OptimisationReque
 from src.models.optimisation_models.brain_dump_models import BrainDumpRequest, BrainDumpResponse
 from src.services.moderation import check_content
 from src.services.optimiser import get_optimiser
-from src.services.brain_dump import get_brain_dump_splitter, MIN_DUMP_LENGTH
+from src.services.brain_dump import get_brain_dump_splitter, MIN_DUMP_LENGTH, FIELDS
 
 router = APIRouter()
 
@@ -77,6 +77,14 @@ async def brain_dump(request: BrainDumpRequest, _current_user: User = auth_requi
         return BrainDumpResponse(
             success=False, data=None, missing_fields=[], error_message=error
         )
+
+    for field_name in FIELDS:
+        raw_value = getattr(result, field_name)
+        if not raw_value:
+            continue
+        optimised = get_optimiser(field_name).optimise(raw_value)
+        if optimised.status == "success":
+            setattr(result, field_name, optimised.optimized)
 
     return BrainDumpResponse(
         success=True, data=result, missing_fields=missing, error_message=None

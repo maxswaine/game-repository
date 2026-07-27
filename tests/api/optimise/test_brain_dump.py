@@ -21,16 +21,31 @@ def test_brain_dump_models_construct():
 
 from unittest.mock import MagicMock, patch  # noqa: E402
 
+from src.models.optimisation_models.optimisation_models import OptimisationResult
+
 
 def _patch_split(result, missing, error):
     mock = MagicMock(return_value=(result, missing, error))
     return patch("src.api.optimisation.get_brain_dump_splitter", return_value=MagicMock(split=mock)), mock
 
 
+def _optimised(text):
+    return OptimisationResult(status="success", original=text, optimized=f"{text} (optimised)")
+
+
+def _patch_optimiser(side_effect=_optimised):
+    mock = MagicMock(side_effect=lambda text: side_effect(text))
+    return patch(
+        "src.api.optimisation.get_optimiser",
+        return_value=MagicMock(optimise=mock),
+    ), mock
+
+
 def test_brain_dump_happy_path(client_with_auth):
     result = BrainDumpResult(objective="Win.", setup="Deal cards.", rules="Take turns.")
-    ctx, split_mock = _patch_split(result, [], None)
-    with patch("src.api.optimisation.check_content", return_value=True), ctx:
+    split_ctx, _ = _patch_split(result, [], None)
+    opt_ctx, opt_mock = _patch_optimiser()
+    with patch("src.api.optimisation.check_content", return_value=True), split_ctx, opt_ctx:
         response = client_with_auth.post(
             "/optimise/brain-dump",
             json={"dump_text": "a nice long description of a card game here"},
@@ -38,20 +53,51 @@ def test_brain_dump_happy_path(client_with_auth):
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert body["data"]["objective"] == "Win."
+    assert body["data"]["objective"] == "Win. (optimised)"
+    assert body["data"]["setup"] == "Deal cards. (optimised)"
+    assert body["data"]["rules"] == "Take turns. (optimised)"
     assert body["missing_fields"] == []
+    assert opt_mock.call_count == 3
 
 
 def test_brain_dump_reports_missing(client_with_auth):
     result = BrainDumpResult(objective="Win.", setup="", rules="Take turns.")
-    ctx, _ = _patch_split(result, ["setup"], None)
-    with patch("src.api.optimisation.check_content", return_value=True), ctx:
+    split_ctx, _ = _patch_split(result, ["setup"], None)
+    opt_ctx, opt_mock = _patch_optimiser()
+    with patch("src.api.optimisation.check_content", return_value=True), split_ctx, opt_ctx:
         response = client_with_auth.post(
             "/optimise/brain-dump",
             json={"dump_text": "a nice long description of a card game here"},
         )
     assert response.status_code == 200
-    assert response.json()["missing_fields"] == ["setup"]
+    body = response.json()
+    assert body["missing_fields"] == ["setup"]
+    assert body["data"]["setup"] == ""
+    # empty field must not be sent for optimisation
+    assert opt_mock.call_count == 2
+
+
+def test_brain_dump_optimise_failure_falls_back_to_raw(client_with_auth):
+    result = BrainDumpResult(objective="Win.", setup="Deal cards.", rules="Take turns.")
+    split_ctx, _ = _patch_split(result, [], None)
+
+    def side_effect(text):
+        if text == "Deal cards.":
+            return OptimisationResult(status="failed", original=text, optimized=text, note="boom")
+        return _optimised(text)
+
+    opt_ctx, _ = _patch_optimiser(side_effect=side_effect)
+    with patch("src.api.optimisation.check_content", return_value=True), split_ctx, opt_ctx:
+        response = client_with_auth.post(
+            "/optimise/brain-dump",
+            json={"dump_text": "a nice long description of a card game here"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["objective"] == "Win. (optimised)"
+    assert body["data"]["setup"] == "Deal cards."
+    assert body["data"]["rules"] == "Take turns. (optimised)"
 
 
 def test_brain_dump_too_short_does_not_call_openai(client_with_auth):
