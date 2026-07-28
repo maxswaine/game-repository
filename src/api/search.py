@@ -4,7 +4,7 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from src.api.games import map_game_to_read, _get_liked_ids
+from src.api.games import map_game_to_read, _get_liked_ids, _user_is_adult
 from src.api.users import get_current_user_optional
 from src.db.database import get_db
 from src.db.tables import Game, User
@@ -110,6 +110,9 @@ def semantic_search(
         .filter(Game.is_public == True, Game.embedding.isnot(None))
         .all()
     )
+
+    if not _user_is_adult(current_user):
+        games = [g for g in games if not g.has_adult_content]
 
     if not games:
         return []
