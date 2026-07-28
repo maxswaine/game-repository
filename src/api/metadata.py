@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from src.models.enums.duration_enum import DurationEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
+from src.models.enums.game_icon_enum import GameIconEnum
 from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.game_metadata import GameMetadata
@@ -40,5 +41,6 @@ def get_metadata():
         game_settings=[gth.value for gth in GameSettingEnum],
         game_equipment=[eq.value for eq in GameEquipmentEnum],
         durations=[d.value for d in DurationEnum],
-        difficulty=[gd.value for gd in GameDifficultyEnum]
+        difficulty=[gd.value for gd in GameDifficultyEnum],
+        game_icons=[gi.value for gi in GameIconEnum]
     )

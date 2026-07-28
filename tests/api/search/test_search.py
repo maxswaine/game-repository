@@ -1,8 +1,8 @@
 import itertools
 from unittest.mock import patch
 
-from tests.utils import valid_public_game_payload
 from src.models.enums.equipment_enum import GameEquipmentEnum
+from tests.utils import valid_public_game_payload
 
 FAKE_VECTOR = [1.0] + [0.0] * 1535
 
@@ -82,6 +82,20 @@ def test_blanket_no_equipment_still_takes_priority(client_with_auth):
     ids = {g["id"] for g in results}
     assert card_game["id"] not in ids
     assert no_equipment_game["id"] in ids
+
+
+def test_dont_have_any_excludes_equipment(client_with_auth):
+    card_game = _create_game(client_with_auth, [GameEquipmentEnum.standard_deck.value])
+    dice_game = _create_game(client_with_auth, [GameEquipmentEnum.six_sided_dice.value])
+
+    results = _search(
+        client_with_auth,
+        "i am in the pub with 4 friends and we don't have any playing cards",
+    )
+
+    ids = {g["id"] for g in results}
+    assert card_game["id"] not in ids
+    assert dice_game["id"] in ids
 
 
 def test_playing_cards_two_word_phrase_resolves(client_with_auth):

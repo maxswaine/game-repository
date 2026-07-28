@@ -23,7 +23,7 @@ _NO_EQUIPMENT_PHRASES = [
 _STOPWORDS = {"a", "an", "of", "the", "and", "to", "for"}
 
 _NEGATION_RE = re.compile(
-    r"(?:no|without|never|don'?t (?:want|need)(?: any)?|not any) ([a-z]+(?: [a-z]+)?)"
+    r"(?:no|without|never|don'?t (?:want|need|have)(?: any)?|not any) ([a-z]+(?: [a-z]+)?)"
 )
 
 
@@ -84,7 +84,8 @@ def _apply_hard_filters(games: list, query: str) -> list:
     return games
 
 
-@router.post("/", response_model=List[GameSearchResult], status_code=200)
+@router.post("/", response_model=List[GameSearchResult], status_code=200,
+             responses={503: {"description": "Embedding service unavailable"}})
 def semantic_search(
         request: GameSearchRequest,
         db: Annotated[Session, Depends(get_db)],
