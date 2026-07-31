@@ -36,6 +36,30 @@ def test_get_games_returns_list(client_with_auth, client_no_auth, db):
     assert game["contributor"]["country_of_origin"] == created_game["contributor"]["country_of_origin"]
 
 
+def test_get_games_count_reflects_approved_public_games(client_with_auth, client_no_auth, db):
+    baseline = client_no_auth.get("/games/count").json()["count"]
+
+    create_public_game(client_with_auth, db)
+    create_public_game(client_with_auth, db)
+
+    response = client_no_auth.get("/games/count")
+    assert response.status_code == 200
+    assert response.json()["count"] == baseline + 2
+
+
+def test_get_games_count_excludes_private_and_unapproved(client_with_auth, client_no_auth, db):
+    baseline = client_no_auth.get("/games/count").json()["count"]
+
+    create_private_game(client_with_auth, db)
+    pending = create_public_game(client_with_auth, db)
+    game = db.query(Game).filter(Game.id == pending["id"]).first()
+    game.status = "pending"
+    db.commit()
+
+    response = client_no_auth.get("/games/count")
+    assert response.json()["count"] == baseline
+
+
 def test_get_games_serializes_pre_existing_long_description(db, test_user, client_no_auth):
     # description max_length was tightened to 150 for input only — rows written before that
     # change (up to 2000 chars) must still serialize fine on read.

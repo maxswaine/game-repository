@@ -21,13 +21,14 @@ from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 from src.models.error_models.error import ErrorDetail
-from src.models.game_models.game import GameCreate, GameRead, GameUpdate
+from src.models.game_models.game import GameCountRead, GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_photo import GamePhotoRead
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
 from src.models.game_models.player_count import PlayerCount
 from src.models.user_models.user import UserPublicRead
+from src.services import notifications
 from src.services.moderation import check_content
 from src.utils.age_filter import detect_adult_content, detect_profanity
 
@@ -203,6 +204,11 @@ def create_new_game(
         grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIRST_SUBMIT)
     if game_count == 5:
         grant_if_not_exists(db, current_user.id, AchievementTypeEnum.FIVE_UPLOADS)
+
+    if db_new_game.status == "pending":
+        notifications.notify_admins_new_pending_game(
+            db, db_new_game.id, db_new_game.name, current_user.username
+        )
     db.commit()
 
     try:
@@ -435,6 +441,14 @@ def get_my_games(
     return [map_game_to_read(game, liked_ids) for game in games]
 
 
+@public_router.get("/count", response_model=GameCountRead, status_code=200)
+def get_game_count(db: Annotated[Session, Depends(get_db)]):
+    count = db.query(func.count(Game.id)).filter(
+        Game.is_public == True, Game.status == "approved"
+    ).scalar()
+    return GameCountRead(count=count)
+
+
 @public_router.get("/{game_id}", response_model=GameRead, status_code=200,
                    responses={404: {"description": "Game not found"}, 401: {"description": "Authentication required"}})
 def get_game_by_id(
@@ -478,6 +492,7 @@ def update_game(
     if db_game.contributor_id != current_user.id:
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
+    was_rejected = db_game.status == "rejected"
 
     if _MODERATED_TEXT_FIELDS & update_data.keys():
         existing_settings = [s.setting_name for s in db_game.setting_items]
@@ -555,8 +570,20 @@ def update_game(
                 reviewed_at=now,
             ))
 
+    if was_rejected and update_data:
+        db_game.status = "pending" if GAME_REVIEW_GATE_ENABLED else "approved"
+        db_game.rejection_reason_code = None
+        db_game.rejection_reason = None
+        db_game.reviewed_by = None
+        db_game.reviewed_at = None
+
     db.commit()
     db.refresh(db_game)
+
+    if was_rejected and update_data and db_game.status == "pending":
+        notifications.notify_admins_new_pending_game(
+            db, db_game.id, db_game.name, current_user.username
+        )
 
     settings_after = [s.setting_name for s in db_game.setting_items]
     content_text = " ".join(filter(None, [

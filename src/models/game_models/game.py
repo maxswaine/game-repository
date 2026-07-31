@@ -53,6 +53,10 @@ class GameRead(GameBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GameCountRead(BaseModel):
+    count: int
+
+
 class GameUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=150)

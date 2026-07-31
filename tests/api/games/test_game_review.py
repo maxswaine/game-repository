@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from src.api.users import get_current_active_user, get_current_user_optional
 from src.db.database import get_db
-from src.db.tables import Game, GameReport
+from src.db.tables import Game, GameReport, Notification
 from src.main import app
 from tests.api.games.helper import get_user_token
 from tests.utils import valid_public_game_payload
@@ -115,6 +115,12 @@ class TestAdminReviewQueue:
         listed = client_no_auth.get("/games/").json()
         assert game.id in {g["id"] for g in listed}
 
+        note = db.query(Notification).filter_by(
+            user_id=test_user.id, type="game_status_change"
+        ).first()
+        assert note is not None
+        assert "approved" in note.title.lower()
+
     def test_reject_sets_reason_and_keeps_game_hidden(self, db, test_user, client_as_admin, client_no_auth):
         game = Game(
             id="game-reject-1",
@@ -149,6 +155,153 @@ class TestAdminReviewQueue:
 
         listed = client_no_auth.get("/games/").json()
         assert game.id not in {g["id"] for g in listed}
+
+        note = db.query(Notification).filter_by(
+            user_id=test_user.id, type="game_status_change"
+        ).first()
+        assert note is not None
+        assert "Duplicate Submission" in note.body
+
+    def test_editing_rejected_game_resubmits_for_review(self, db, test_user, admin_user):
+        game = Game(
+            id="game-reject-resubmit-1",
+            name="Reject Me",
+            description="desc",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="rules",
+            is_public=True,
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        _client_as(db, admin_user).patch(
+            f"/admin/games/{game.id}/review",
+            json={
+                "status": "rejected",
+                "rejection_reason_code": "Low Quality / Unclear Rules",
+                "rejection_reason": "Rules need more detail",
+            },
+        )
+        db.refresh(game)
+        assert game.status == "rejected"
+
+        with patch("src.api.games.GAME_REVIEW_GATE_ENABLED", True):
+            response = _client_as(db, test_user).patch(
+                f"/games/{game.id}", json={"rules": "Much clearer rules now"}
+            )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "pending"
+        assert body["rejection_reason_code"] is None
+        assert body["rejection_reason"] is None
+
+        note = db.query(Notification).filter(
+            Notification.type == "admin_pending_review",
+            Notification.data.contains(game.id),
+        ).first()
+        assert note is not None
+
+    def test_editing_rejected_game_returns_to_approved_when_gate_off(self, db, test_user, admin_user):
+        game = Game(
+            id="game-reject-resubmit-2",
+            name="Reject Me Too",
+            description="desc",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="rules",
+            is_public=True,
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        _client_as(db, admin_user).patch(
+            f"/admin/games/{game.id}/review",
+            json={"status": "rejected", "rejection_reason_code": "Spam"},
+        )
+
+        response = _client_as(db, test_user).patch(
+            f"/games/{game.id}", json={"description": "a fixed description"}
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "approved"
+
+    def test_editing_approved_game_does_not_change_status(self, db, test_user):
+        game = Game(
+            id="game-approved-edit-1",
+            name="Fine Game",
+            description="desc",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="rules",
+            is_public=True,
+            status="approved",
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        response = _client_as(db, test_user).patch(
+            f"/games/{game.id}", json={"description": "still fine"}
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "approved"
+
+    def test_editing_pending_game_stays_pending_and_admin_queue_sees_latest_edit(self, db, test_user, admin_user):
+        game = Game(
+            id="game-pending-edit-1",
+            name="Still Cooking",
+            description="desc",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="original rules",
+            is_public=True,
+            status="pending",
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+
+        response = _client_as(db, test_user).patch(
+            f"/games/{game.id}", json={"rules": "updated rules"}
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "pending"
+
+        queue = _client_as(db, admin_user).get("/admin/games/pending").json()
+        queued = next(g for g in queue if g["id"] == game.id)
+        assert queued["rules"] == "updated rules"
+
+    def test_admin_notified_when_game_submitted_under_gate(self, db, client_with_auth, admin_user):
+        with patch("src.api.games.GAME_REVIEW_GATE_ENABLED", True):
+            response = client_with_auth.post("/games/", json=valid_public_game_payload())
+        assert response.status_code == 201
+        game_id = response.json()["id"]
+
+        note = db.query(Notification).filter_by(
+            user_id=admin_user.id, type="admin_pending_review"
+        ).first()
+        assert note is not None
+        assert note.data is not None
+        assert game_id in note.data
 
     def test_reject_without_reason_returns_422(self, client_with_auth, client_as_admin):
         game = _submit_pending_game(client_with_auth)

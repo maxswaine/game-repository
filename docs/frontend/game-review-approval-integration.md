@@ -55,7 +55,7 @@ This endpoint is **not** filtered by status — owners always see all their own 
 
 ### 3. Rejected game detail
 
-If `status === "rejected"`, show `rejection_reason` (free text, may be `null`) and optionally map `rejection_reason_code` to a friendlier label (table below). Let the owner edit and the game stays `rejected` until an admin re-reviews it — there's currently no auto-resubmit-to-pending on edit, so surface a "contact support" or similar path if you want re-review; flag to backend if you want edit-triggers-resubmit added.
+If `status === "rejected"`, show `rejection_reason` (free text, may be `null`) and optionally map `rejection_reason_code` to a friendlier label (table below). Let the owner edit — any `PATCH /games/{id}` on a rejected game automatically resubmits it: `status` flips back to `"pending"` (or straight to `"approved"` if the review gate is off), `rejection_reason_code`/`rejection_reason` are cleared, and admins get a fresh `admin_pending_review` notification. Update the UI copy accordingly — after a successful edit of a rejected game, show the same "in review" state as a first-time submission rather than "rejected" or "contact support."
 
 ### 4. Public surfaces (`GET /games/`, `GET /games/{id}`, search)
 
@@ -146,6 +146,27 @@ Content-Type: application/json
 }
 ```
 → report marked `actioned`, game set to `status: "rejected"` and immediately pulled from public listings/search. `rejection_reason_code` is required on `"reject"` — 422 if missing.
+
+### Push notifications on status change / new submissions
+
+No new endpoints — these ride the existing push-notification pipeline (same `Notification` records `GET /notifications` etc. already surface, if that exists in-app). Two new notification `type` values to handle in the notification-tap deep-link logic:
+
+**Contributor gets notified when their game is approved or rejected** (fires on both `PATCH /admin/games/{id}/review` and report-rejection via `PATCH /admin/games/reports/{id}`):
+```json
+{ "type": "game_status_change", "title": "Game approved!", "body": "\"Shithead\" is now live.", "data": { "game_id": "...", "status": "approved" } }
+```
+```json
+{ "type": "game_status_change", "title": "Game not approved", "body": "\"Fuck the Bus\" wasn't approved: Adult Content Not Flagged", "data": { "game_id": "...", "status": "rejected" } }
+```
+Tap → navigate to `/games/{data.game_id}` (owner can always view their own game regardless of status).
+
+**Admins get notified when a new game needs review** (only fires when `GAME_REVIEW_GATE_ENABLED` is on and a submission lands as `pending`):
+```json
+{ "type": "admin_pending_review", "title": "New game pending review", "body": "\"Charades\" was submitted by maxswaine and needs review.", "data": { "game_id": "..." } }
+```
+Tap → navigate to the admin review screen for that game (`GET /games/{id}` now works for admins regardless of status, see above).
+
+Both go out to every registered push token for the relevant user(s) — no opt-out/preference setting yet, flag to backend if that's needed.
 
 ### List user feedback
 ```
