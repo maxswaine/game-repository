@@ -1,8 +1,23 @@
 from unittest.mock import patch
 
+from src.api.users import get_current_active_user, get_current_user_optional
+from src.db.database import get_db
 from src.db.tables import Game, GameReport
+from src.main import app
 from tests.api.games.helper import get_user_token
 from tests.utils import valid_public_game_payload
+
+
+def _client_as(db, user):
+    from fastapi.testclient import TestClient
+
+    def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user_optional] = lambda: user
+    app.dependency_overrides[get_current_active_user] = lambda: user
+    return TestClient(app)
 
 
 def _submit_pending_game(client_with_auth):
@@ -44,6 +59,21 @@ class TestPendingGate:
 
         mine = client_with_auth.get("/games/mine").json()
         assert game["id"] in {g["id"] for g in mine}
+
+    def test_admin_can_view_any_pending_game_directly(self, db, client_with_auth, admin_user):
+        game = _submit_pending_game(client_with_auth)
+        try:
+            admin_client = _client_as(db, admin_user)
+            response = admin_client.get(f"/games/{game['id']}")
+            assert response.status_code == 200
+            assert response.json()["id"] == game["id"]
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_non_admin_still_403_on_others_pending_game(self, db, client_with_auth, client_as_second_user):
+        game = _submit_pending_game(client_with_auth)
+        response = client_as_second_user.get(f"/games/{game['id']}")
+        assert response.status_code == 403
 
 
 class TestAdminReviewQueue:

@@ -19,6 +19,7 @@ from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSettin
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_type_enum import GameTypeEnum
+from src.models.enums.role_enum import Role
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_photo import GamePhotoRead
@@ -445,13 +446,16 @@ def get_game_by_id(
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    publicly_visible = game.is_public and game.status == "approved"
-    if not publicly_visible:
-        if not current_user or game.contributor_id != current_user.id:
-            raise FORBIDDEN_EXCEPTION
+    is_admin = current_user is not None and current_user.role == Role.admin
 
-    if not _user_is_adult(current_user) and game.has_adult_content:
-        raise FORBIDDEN_EXCEPTION
+    if not is_admin:
+        publicly_visible = game.is_public and game.status == "approved"
+        if not publicly_visible:
+            if not current_user or game.contributor_id != current_user.id:
+                raise FORBIDDEN_EXCEPTION
+
+        if not _user_is_adult(current_user) and game.has_adult_content:
+            raise FORBIDDEN_EXCEPTION
 
     liked_ids = _get_liked_ids(db, current_user.id) if current_user else None
     return map_game_to_read(game, liked_ids)
