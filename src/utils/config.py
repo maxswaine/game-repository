@@ -18,6 +18,9 @@ GAME_REVIEW_GATE_ENABLED: bool = os.getenv("GAME_REVIEW_GATE_ENABLED", "false").
 # Host that serves short links at root (e.g. qr.example/instagram -> /qr/instagram)
 QR_HOST: str = os.getenv("QR_HOST", "qr.whatsthatgame.co.uk")
 
+# Resend audience for the public mailing list
+RESEND_AUDIENCE_ID: str = os.getenv("RESEND_AUDIENCE_ID", "")
+
 # Cloudflare R2 photo storage
 R2_ACCOUNT_ID: str = os.getenv("R2_ACCOUNT_ID", "")
 R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "")
