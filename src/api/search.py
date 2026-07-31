@@ -107,7 +107,7 @@ def semantic_search(
             joinedload(Game.alias_objects),
             joinedload(Game.photos),
         )
-        .filter(Game.is_public == True, Game.embedding.isnot(None))
+        .filter(Game.is_public == True, Game.status == "approved", Game.embedding.isnot(None))
         .all()
     )
 

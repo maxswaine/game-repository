@@ -19,6 +19,7 @@ def _make_game(db, test_user, *, name, upvotes=0, verified=False, created_at=Non
         setup="setup",
         rules="rules",
         is_public=True,
+        status="approved",
         upvotes=upvotes,
         is_whats_that_game_verified=verified,
         contributor_id=test_user.id,

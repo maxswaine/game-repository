@@ -26,8 +26,8 @@ def _seed_game_owned_by(db, contributor_id: str) -> Game:
 
 
 class TestVerifyGame:
-    def test_requires_admin(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_requires_admin(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         response = client_with_auth.post(f"/games/{game['id']}/verify")
         assert response.status_code == 403
 

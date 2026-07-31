@@ -30,7 +30,7 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     token_version = Column(Integer, nullable=True, default=0)
 
-    games = relationship("Game", back_populates="contributor")
+    games = relationship("Game", back_populates="contributor", foreign_keys="Game.contributor_id")
     favourites = relationship("UserFavourites", back_populates="user")
     achievements = relationship("UserAchievement", back_populates="user")
 
@@ -69,13 +69,19 @@ class Game(Base):
     embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
     has_adult_content = Column(Boolean, nullable=False, default=False)
 
+    status = Column(String, nullable=False, default="pending")  # pending | approved | rejected
+    rejection_reason_code = Column(String, nullable=True)  # GameRejectionReasonEnum value
+    rejection_reason = Column(String, nullable=True)  # optional free-text detail from the admin
+    reviewed_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+
     contributor_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # relationships
     equipment_items = relationship("GameEquipment", cascade="all, delete-orphan")
     setting_items = relationship("GameSetting", cascade="all, delete-orphan")
-    contributor = relationship("User", back_populates="games")
+    contributor = relationship("User", back_populates="games", foreign_keys=[contributor_id])
     favourited_by = relationship(
         "UserFavourites", back_populates="game", lazy="noload", cascade="all, delete-orphan"
     )
@@ -105,6 +111,8 @@ class GameReport(Base):
     reason = Column(String, nullable=False)
     status = Column(String, nullable=False, default="pending")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    game = relationship("Game")
 
     __table_args__ = (
         __import__("sqlalchemy").UniqueConstraint("game_id", "reporter_id", name="uq_game_report_per_user"),

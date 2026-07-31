@@ -40,35 +40,35 @@ class TestGetAchievements:
     def test_requires_auth(self, client_no_auth):
         assert client_no_auth.get("/achievements/").status_code == 401
 
-    def test_returns_all_eight_locked_for_new_user(self, client_with_auth):
+    def test_returns_all_eight_locked_for_new_user(self, client_with_auth, db):
         achievements = _get_achievements(client_with_auth)
         assert len(achievements) == 8
         assert all(not a["achieved"] for a in achievements)
         assert all(a["achieved_at"] is None for a in achievements)
 
-    def test_returns_all_expected_types(self, client_with_auth):
+    def test_returns_all_expected_types(self, client_with_auth, db):
         types = {a["achievement_type"] for a in _get_achievements(client_with_auth)}
         assert types == {t.value for t in AchievementTypeEnum}
 
 
 class TestFirstLike:
-    def test_unlocked_by_upvoting_a_game(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_unlocked_by_upvoting_a_game(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         client_with_auth.post(f"/games/{game['id']}/upvote")
 
         first_like = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_LIKE)
         assert first_like["achieved"] is True
         assert first_like["achieved_at"] is not None
 
-    def test_unlocked_by_favouriting_a_game(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_unlocked_by_favouriting_a_game(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         client_with_auth.post(f"/favourites/{game['id']}")
 
         first_like = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_LIKE)
         assert first_like["achieved"] is True
 
-    def test_not_granted_again_when_upvote_removed(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_not_granted_again_when_upvote_removed(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         client_with_auth.post(f"/games/{game['id']}/upvote")  # add
         client_with_auth.post(f"/games/{game['id']}/upvote")  # remove (toggle)
 
@@ -77,8 +77,8 @@ class TestFirstLike:
 
 
 class TestFirstSubmit:
-    def test_unlocked_after_creating_first_game(self, client_with_auth):
-        create_public_game(client_with_auth)
+    def test_unlocked_after_creating_first_game(self, client_with_auth, db):
+        create_public_game(client_with_auth, db)
 
         first_submit = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIRST_SUBMIT)
         assert first_submit["achieved"] is True
@@ -229,7 +229,7 @@ class TestScenarios:
             ))
         db.commit()
 
-        create_public_game(client_with_auth)
+        create_public_game(client_with_auth, db)
 
         five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
         assert five_uploads["achieved"] is True
@@ -237,18 +237,18 @@ class TestScenarios:
     def test_achievements_isolated_between_users(self, db, second_user, client_with_auth):
         """User A's game submissions don't unlock achievements for user B."""
         for _ in range(5):
-            create_public_game(client_with_auth)
+            create_public_game(client_with_auth, db)
 
         second_user_achievements = db.query(UserAchievement).filter_by(
             user_id=second_user.id
         ).all()
         assert len(second_user_achievements) == 0
 
-    def test_five_uploads_achievement_survives_game_deletion(self, client_with_auth):
+    def test_five_uploads_achievement_survives_game_deletion(self, client_with_auth, db):
         """Deleting a game after hitting 5 uploads must not revoke the achievement."""
         game_ids = []
         for i in range(5):
-            game = create_public_game(client_with_auth)
+            game = create_public_game(client_with_auth, db)
             game_ids.append(game["id"])
 
         five_uploads = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.FIVE_UPLOADS)
@@ -294,8 +294,8 @@ class TestScenarios:
 
 
 class TestFavouriteUpvoteSync:
-    def test_favouriting_increments_upvotes(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_favouriting_increments_upvotes(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         assert game["upvotes"] == 0
 
         client_with_auth.post(f"/favourites/{game['id']}")
@@ -303,8 +303,8 @@ class TestFavouriteUpvoteSync:
         updated = client_with_auth.get(f"/games/{game['id']}").json()
         assert updated["upvotes"] == 1
 
-    def test_unfavouriting_decrements_upvotes(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_unfavouriting_decrements_upvotes(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
         client_with_auth.post(f"/favourites/{game['id']}")
         client_with_auth.delete(f"/favourites/{game['id']}")
 

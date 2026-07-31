@@ -125,7 +125,8 @@ def test_minor_cannot_submit_game_with_profanity(db):
     try:
         response = client.post("/games/", json=payload)
         assert response.status_code == 422
-        assert "18" in response.json()["detail"]
+        assert response.json()["detail"]["code"] == "age_restricted_content"
+        assert "18" in response.json()["detail"]["message"]
     finally:
         app.dependency_overrides.clear()
 
@@ -137,7 +138,8 @@ def test_minor_cannot_submit_game_with_leet_profanity(db):
     try:
         response = client.post("/games/", json=payload)
         assert response.status_code == 422
-        assert "18" in response.json()["detail"]
+        assert response.json()["detail"]["code"] == "age_restricted_content"
+        assert "18" in response.json()["detail"]["message"]
     finally:
         app.dependency_overrides.clear()
 
@@ -149,7 +151,8 @@ def test_minor_cannot_submit_game_with_sexual_content(db):
     try:
         response = client.post("/games/", json=payload)
         assert response.status_code == 422
-        assert "18" in response.json()["detail"]
+        assert response.json()["detail"]["code"] == "age_restricted_content"
+        assert "18" in response.json()["detail"]["message"]
     finally:
         app.dependency_overrides.clear()
 
@@ -165,7 +168,29 @@ def test_minor_cannot_patch_game_to_add_profanity(db):
 
         response = client.patch(f"/games/{game_id}", json={"rules": "Losers must say 'what the fuck'"})
         assert response.status_code == 422
-        assert "18" in response.json()["detail"]
+        assert response.json()["detail"]["code"] == "age_restricted_content"
+        assert "18" in response.json()["detail"]["message"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_blocked_patch_does_not_persist_changes(db):
+    minor_user = _make_minor_user(db)
+    client = _client_as(db, minor_user)
+    try:
+        with patch("src.api.games.check_content", return_value=True):
+            create_resp = client.post("/games/", json=valid_public_game_payload(
+                overrides={"rules": "Clean rules text"}
+            ))
+        assert create_resp.status_code == 201
+        game_id = create_resp.json()["id"]
+
+        response = client.patch(f"/games/{game_id}", json={"rules": "Losers must say 'what the fuck'"})
+        assert response.status_code == 422
+
+        from src.db.tables import Game
+        db_game = db.query(Game).filter(Game.id == game_id).first()
+        assert db_game.rules == "Clean rules text"
     finally:
         app.dependency_overrides.clear()
 
@@ -212,7 +237,8 @@ def test_post_game_hate_content_returns_422_for_all_users(client_with_auth):
     with patch("src.api.games.check_content", return_value=False):
         response = client_with_auth.post("/games/", json=valid_public_game_payload())
     assert response.status_code == 422
-    assert "community guidelines" in response.json()["detail"].lower()
+    assert response.json()["detail"]["code"] == "content_policy_violation"
+    assert "community guidelines" in response.json()["detail"]["message"].lower()
 
 
 def test_post_game_clean_content_passes_moderation(client_with_auth):
@@ -233,7 +259,8 @@ def test_patch_game_hate_content_returns_422(client_with_auth):
     with patch("src.api.games.check_content", return_value=False):
         response = client_with_auth.patch(f"/games/{game_id}", json={"description": "flagged content"})
     assert response.status_code == 422
-    assert "community guidelines" in response.json()["detail"].lower()
+    assert response.json()["detail"]["code"] == "content_policy_violation"
+    assert "community guidelines" in response.json()["detail"]["message"].lower()
 
 
 def test_patch_game_non_text_field_skips_moderation(client_with_auth):

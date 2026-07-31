@@ -13,7 +13,10 @@ from src.models.user_models.user import UserPublicRead
 
 class GameBase(BaseModel):
     name: str = Field(max_length=100)
-    description: str = Field(max_length=2000)
+    # No max_length here — GameRead inherits this field too, and existing rows were written
+    # under the old 2000-char limit. The tightened cap is enforced on input only, in
+    # GameCreate/GameUpdate, so serializing an old long description never raises.
+    description: str
     game_type: GameTypeEnum
     player_count: PlayerCount
     duration: str
@@ -30,6 +33,7 @@ class GameBase(BaseModel):
 
 
 class GameCreate(GameBase):
+    description: str = Field(max_length=150)
     aliases: list[str] = []
 
 
@@ -42,13 +46,16 @@ class GameRead(GameBase):
     has_adult_content: bool = False
     liked_by_me: bool = False
     photos: list[GamePhotoRead] = []
+    status: str = "pending"
+    rejection_reason_code: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class GameUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=100)
-    description: Optional[str] = Field(None, max_length=2000)
+    description: Optional[str] = Field(None, max_length=150)
     game_type: Optional[GameTypeEnum] = None
     min_players: Optional[int] = None
     max_players: Optional[int] = None

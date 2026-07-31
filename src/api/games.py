@@ -14,7 +14,7 @@ from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity
-from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD
+from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD, GAME_REVIEW_GATE_ENABLED
 from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
@@ -84,11 +84,17 @@ def create_new_game(
         ) or detect_profanity(submission_text):
             raise HTTPException(
                 status_code=422,
-                detail="You must be 18 or over to submit games containing mature or explicit content.",
+                detail={
+                    "code": "age_restricted_content",
+                    "message": "You must be 18 or over to submit games containing mature or explicit content.",
+                },
             )
 
     if not check_content(submission_text):
-        raise HTTPException(status_code=422, detail="Content violates community guidelines.")
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "content_policy_violation", "message": "Content violates community guidelines."},
+        )
 
     # Exclude game name from adult_flag — a profane name alone doesn't make content adult.
     # Age rating controls age-gating; has_adult_content controls explicit content in rules/desc.
@@ -161,6 +167,7 @@ def create_new_game(
         is_public=new_game.is_public,
         is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         has_adult_content=adult_flag,
+        status="pending" if GAME_REVIEW_GATE_ENABLED else "approved",
         created_at=datetime.now(timezone.utc),
         contributor_id=current_user.id
     )
@@ -332,7 +339,7 @@ def get_all_games(
         joinedload(Game.contributor),
         joinedload(Game.alias_objects),
         joinedload(Game.photos)
-    ).filter(Game.is_public == True)
+    ).filter(Game.is_public == True, Game.status == "approved")
 
     query = _apply_age_content_filter(query, current_user)
 
@@ -438,7 +445,8 @@ def get_game_by_id(
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    if not game.is_public:
+    publicly_visible = game.is_public and game.status == "approved"
+    if not publicly_visible:
         if not current_user or game.contributor_id != current_user.id:
             raise FORBIDDEN_EXCEPTION
 
@@ -466,6 +474,37 @@ def update_game(
     if db_game.contributor_id != current_user.id:
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
+
+    if _MODERATED_TEXT_FIELDS & update_data.keys():
+        existing_settings = [s.setting_name for s in db_game.setting_items]
+        prospective_settings = update_data.get("game_setting", existing_settings)
+        prospective_game_type = update_data.get("game_type", db_game.game_type)
+        prospective_content_text = " ".join(filter(None, [
+            update_data.get("description", db_game.description),
+            update_data.get("objective", db_game.objective),
+            update_data.get("setup", db_game.setup),
+            update_data.get("rules", db_game.rules),
+        ]))
+        prospective_submission_text = " ".join(filter(None, [
+            update_data.get("name", db_game.name), prospective_content_text,
+        ]))
+
+        if not _user_is_adult(current_user):
+            if detect_adult_content(prospective_game_type, prospective_settings, prospective_submission_text) or \
+               detect_profanity(prospective_submission_text):
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "age_restricted_content",
+                        "message": "You must be 18 or over to submit games containing mature or explicit content.",
+                    },
+                )
+        if not check_content(prospective_submission_text):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "content_policy_violation", "message": "Content violates community guidelines."},
+            )
+
     for key, value in update_data.items():
         if key in ["equipment", "game_setting", "aliases"]:
             continue
@@ -519,18 +558,6 @@ def update_game(
     content_text = " ".join(filter(None, [
         db_game.description, db_game.objective, db_game.setup, db_game.rules,
     ]))
-    submission_text = " ".join(filter(None, [db_game.name, content_text]))
-
-    if _MODERATED_TEXT_FIELDS & update_data.keys():
-        if not _user_is_adult(current_user):
-            if detect_adult_content(db_game.game_type, settings_after, submission_text) or \
-               detect_profanity(submission_text):
-                raise HTTPException(
-                    status_code=422,
-                    detail="You must be 18 or over to submit games containing mature or explicit content.",
-                )
-        if not check_content(submission_text):
-            raise HTTPException(status_code=422, detail="Content violates community guidelines.")
 
     db_game.has_adult_content = detect_adult_content(
         db_game.game_type, settings_after, content_text
@@ -606,6 +633,9 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         is_whats_that_game_certified=db_game.is_whats_that_game_verified,
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
+        status=db_game.status,
+        rejection_reason_code=db_game.rejection_reason_code,
+        rejection_reason=db_game.rejection_reason,
         liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,
         photos=[
             GamePhotoRead(id=p.id, public_url=p.public_url, position=p.position)

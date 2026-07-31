@@ -22,8 +22,8 @@ def _check_minimum_age(dob: date) -> None:
 
 
 def _validate_username_format(v: str) -> str:
-    if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', v):
-        raise ValueError('username must be 3-30 characters, letters/numbers/underscore only')
+    if not re.fullmatch(r'[A-Za-z0-9_.]{3,30}', v):
+        raise ValueError('username must be 3-30 characters, letters/numbers/underscore/period only')
     if detect_profanity(v):
         raise ValueError('username is not allowed')
     return v
@@ -35,7 +35,7 @@ class UserBase(BaseModel):
     email: str
     username: str
     hashed_password: str
-    country_of_origin: str
+    country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
     role: str
     is_active: bool
@@ -49,8 +49,13 @@ class UserCreate(BaseModel):
     email: str
     username: str
     password: str
-    country_of_origin: str
+    country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        return _validate_username_format(v)
 
     @field_validator('password')
     @classmethod
@@ -155,7 +160,7 @@ class UserPasswordUpdate(BaseModel):
 class UserCompleteProfile(BaseModel):
     """For OAuth users completing their profile after signup"""
     date_of_birth: str
-    country_of_origin: str
+    country_of_origin: Optional[str] = None
     username: Optional[str] = None
 
     @field_validator('date_of_birth')

@@ -10,6 +10,8 @@ from src.db.database import get_db
 from src.db.tables import Game, GameComment, CommentLike
 from src.models.comment_models.comment import CommentCreate, CommentRead
 from src.models.enums.role_enum import Role
+from src.services.moderation import check_content
+from src.utils.age_filter import detect_profanity
 
 router = APIRouter()
 
@@ -73,6 +75,13 @@ def create_comment(
 ):
     if not db.query(Game).filter(Game.id == game_id).first():
         raise GAME_NOT_FOUND_EXCEPTION
+
+    if detect_profanity(body.body) or not check_content(body.body):
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "content_policy_violation", "message": "Content violates community guidelines."},
+        )
+
     comment = GameComment(
         game_id=game_id,
         user_id=current_user.id,

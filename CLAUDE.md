@@ -23,14 +23,14 @@ Never commit new feature work directly to `master` or to another feature branch.
 # Run the dev server
 uvicorn src.main:app --reload
 
-# Run all tests
-pytest
+# Run all tests (no .env present — SECRET_KEY/DATABASE_URL must be set inline or pytest fails at import)
+SECRET_KEY=test-secret-key DATABASE_URL=sqlite:///./test.db pytest
 
 # Run a single test file
-pytest tests/api/games/test_games_post.py -v
+SECRET_KEY=test-secret-key DATABASE_URL=sqlite:///./test.db pytest tests/api/games/test_games_post.py -v
 
 # Run a single test by name
-pytest tests/api/games/test_games_post.py::TestClassName::test_method_name -v
+SECRET_KEY=test-secret-key DATABASE_URL=sqlite:///./test.db pytest tests/api/games/test_games_post.py::TestClassName::test_method_name -v
 
 # Start the local Postgres database via Docker
 docker-compose up -d

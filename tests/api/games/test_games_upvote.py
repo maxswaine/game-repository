@@ -2,8 +2,8 @@ from tests.api.games.helper import create_public_game, upvote_game
 
 
 class TestUpvoteToggleResponse:
-    def test_upvote_returns_liked_by_me_true(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_upvote_returns_liked_by_me_true(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
 
         response = upvote_game(client_with_auth, game["id"])
 
@@ -13,8 +13,8 @@ class TestUpvoteToggleResponse:
         assert body["upvotes"] == 1
         assert body["liked_by_me"] is True
 
-    def test_second_upvote_toggles_liked_by_me_false(self, client_with_auth):
-        game = create_public_game(client_with_auth)
+    def test_second_upvote_toggles_liked_by_me_false(self, client_with_auth, db):
+        game = create_public_game(client_with_auth, db)
 
         upvote_game(client_with_auth, game["id"])  # like
         response = upvote_game(client_with_auth, game["id"])  # unlike
