@@ -11,6 +11,7 @@ from src.db.database import get_db
 from src.db.tables import Game, GameReport
 from src.models.game_models.game import GameRead
 from src.models.game_models.game_review import GameReportAdminRead, GameReportResolvePatch, GameReviewPatch
+from src.services import notifications
 
 admin_router = APIRouter()
 
@@ -36,6 +37,9 @@ def _set_game_review_status(
     game.rejection_reason = reason_detail if status == "rejected" else None
     game.reviewed_by = admin_id
     game.reviewed_at = datetime.now(timezone.utc)
+    notifications.send_game_status_notification(
+        db, game.contributor_id, game.id, game.name, status, reason_code, reason_detail
+    )
 
 
 @admin_router.get("/games/pending", response_model=List[GameRead])

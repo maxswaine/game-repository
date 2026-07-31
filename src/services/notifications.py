@@ -140,3 +140,58 @@ def send_achievement_notification(db: Session, user_id: str, achievement_type: A
         data={"achievement_type": achievement_type.value},
         achievement_type=achievement_type.value,
     )
+
+
+def send_game_status_notification(
+    db: Session,
+    user_id: str,
+    game_id: str,
+    game_name: str,
+    status: str,
+    rejection_reason_code: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
+) -> None:
+    if status == "approved":
+        title = "Game approved!"
+        body = f'"{game_name}" is now live.'
+    else:
+        reason = rejection_reason_code or "it didn't meet our guidelines"
+        if rejection_reason:
+            reason = f"{reason} — {rejection_reason}"
+        title = "Game not approved"
+        body = f'"{game_name}" wasn\'t approved: {reason}'
+
+    send(
+        db,
+        user_id,
+        title,
+        body,
+        notification_type="game_status_change",
+        data={"game_id": game_id, "status": status},
+    )
+
+
+def notify_admins_new_pending_game(
+    db: Session,
+    game_id: str,
+    game_name: str,
+    contributor_username: str,
+) -> None:
+    from src.db.tables import User
+    from src.models.enums.role_enum import Role
+
+    admin_ids = [
+        row.id for row in
+        db.query(User.id).filter(User.role == Role.admin, User.is_active.is_(True)).all()
+    ]
+    title = "New game pending review"
+    body = f'"{game_name}" was submitted by {contributor_username} and needs review.'
+    for admin_id in admin_ids:
+        send(
+            db,
+            admin_id,
+            title,
+            body,
+            notification_type="admin_pending_review",
+            data={"game_id": game_id},
+        )
