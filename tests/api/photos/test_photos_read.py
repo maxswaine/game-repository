@@ -15,8 +15,8 @@ def _register_ok(client, game_id, name):
         return client.post(f"/games/{game_id}/photos", json={"object_key": key}).json()
 
 
-def test_game_read_lists_photos_in_order(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_game_read_lists_photos_in_order(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     p0 = _register_ok(client_with_auth, game["id"], "a")
     p1 = _register_ok(client_with_auth, game["id"], "b")
 
@@ -25,8 +25,8 @@ def test_game_read_lists_photos_in_order(client_with_auth):
     assert [p["position"] for p in got["photos"]] == [0, 1]
 
 
-def test_games_list_includes_photos(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_games_list_includes_photos(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     _register_ok(client_with_auth, game["id"], "a")
     listed = client_with_auth.get("/games/").json()
     match = next(g for g in listed if g["id"] == game["id"])

@@ -15,8 +15,8 @@ def _create_comment(client, game_id, body="Great game!", comment_type="general")
     )
 
 
-def test_create_comment_returns_201(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_create_comment_returns_201(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     response = _create_comment(client_with_auth, game["id"])
     assert response.status_code == 201
     data = response.json()
@@ -27,20 +27,35 @@ def test_create_comment_returns_201(client_with_auth):
     assert data["user"]["username"] == "testuser"
 
 
-def test_create_comment_rule_variant_type(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_create_comment_rule_variant_type(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     response = _create_comment(client_with_auth, game["id"], comment_type="rule_variant")
     assert response.status_code == 201
     assert response.json()["comment_type"] == "rule_variant"
 
 
-def test_create_comment_body_too_long_returns_422(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_create_comment_body_too_long_returns_422(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     response = _create_comment(client_with_auth, game["id"], body="x" * 1001)
     assert response.status_code == 422
 
 
-def test_create_comment_unauthenticated_returns_401(client_no_auth):
+def test_create_comment_profanity_returns_422(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
+    response = _create_comment(client_with_auth, game["id"], body="this game is fucking shit")
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "content_policy_violation"
+
+
+def test_create_comment_rule_variant_profanity_returns_422(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
+    response = _create_comment(
+        client_with_auth, game["id"], body="rule: everyone is a bitch", comment_type="rule_variant"
+    )
+    assert response.status_code == 422
+
+
+def test_create_comment_unauthenticated_returns_401(client_no_auth, db):
     response = client_no_auth.post(
         "/games/any-id/comments",
         json={"body": "Hi"},
@@ -48,8 +63,8 @@ def test_create_comment_unauthenticated_returns_401(client_no_auth):
     assert response.status_code == 401
 
 
-def test_get_comments_returns_list(client_with_auth, client_no_auth):
-    game = create_public_game(client_with_auth)
+def test_get_comments_returns_list(client_with_auth, client_no_auth, db):
+    game = create_public_game(client_with_auth, db)
     _create_comment(client_with_auth, game["id"], "First")
     _create_comment(client_with_auth, game["id"], "Second")
 
@@ -58,8 +73,8 @@ def test_get_comments_returns_list(client_with_auth, client_no_auth):
     assert len(response.json()) == 2
 
 
-def test_get_comments_sorted_by_likes(client_with_auth, client_as_second_user):
-    game = create_public_game(client_with_auth)
+def test_get_comments_sorted_by_likes(client_with_auth, client_as_second_user, db):
+    game = create_public_game(client_with_auth, db)
     c1 = _create_comment(client_with_auth, game["id"], "Less liked").json()
     c2 = _create_comment(client_with_auth, game["id"], "More liked").json()
 
@@ -72,8 +87,8 @@ def test_get_comments_sorted_by_likes(client_with_auth, client_as_second_user):
     assert comments[0]["id"] == c2["id"]
 
 
-def test_like_comment_increments_likes(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_like_comment_increments_likes(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     comment = _create_comment(client_with_auth, game["id"]).json()
 
     response = client_with_auth.post(
@@ -84,8 +99,8 @@ def test_like_comment_increments_likes(client_with_auth):
     assert response.json()["liked_by_me"] is True
 
 
-def test_like_comment_toggle_removes_like(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_like_comment_toggle_removes_like(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     comment = _create_comment(client_with_auth, game["id"]).json()
 
     client_with_auth.post(f"/games/{game['id']}/comments/{comment['id']}/like")
@@ -96,8 +111,8 @@ def test_like_comment_toggle_removes_like(client_with_auth):
     assert response.json()["liked_by_me"] is False
 
 
-def test_liked_by_me_false_for_unauthenticated(client_with_auth, client_no_auth):
-    game = create_public_game(client_with_auth)
+def test_liked_by_me_false_for_unauthenticated(client_with_auth, client_no_auth, db):
+    game = create_public_game(client_with_auth, db)
     comment = _create_comment(client_with_auth, game["id"]).json()
     client_with_auth.post(f"/games/{game['id']}/comments/{comment['id']}/like")
 
@@ -105,8 +120,8 @@ def test_liked_by_me_false_for_unauthenticated(client_with_auth, client_no_auth)
     assert response.json()[0]["liked_by_me"] is False
 
 
-def test_delete_own_comment_returns_204(client_with_auth):
-    game = create_public_game(client_with_auth)
+def test_delete_own_comment_returns_204(client_with_auth, db):
+    game = create_public_game(client_with_auth, db)
     comment = _create_comment(client_with_auth, game["id"]).json()
 
     response = client_with_auth.delete(
@@ -116,7 +131,7 @@ def test_delete_own_comment_returns_204(client_with_auth):
 
 
 def test_delete_other_users_comment_returns_403(client_with_auth, db, second_user):
-    game = create_public_game(client_with_auth)
+    game = create_public_game(client_with_auth, db)
     comment = _create_comment(client_with_auth, game["id"]).json()
 
     app.dependency_overrides.clear()

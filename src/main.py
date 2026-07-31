@@ -13,7 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments, feedback, short_links, photos, push_tokens, admin_notifications, avatar
+from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments, feedback, short_links, photos, push_tokens, admin_notifications, avatar, game_review
 from src.core.limiter import limiter
 from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
@@ -122,7 +122,9 @@ app.include_router(photos.router, prefix="/games", tags=["photos"])
 app.include_router(avatar.router, prefix="/users", tags=["avatar"])
 app.include_router(push_tokens.router, prefix="/push-tokens", tags=["push-tokens"])
 app.include_router(admin_notifications.router, prefix="/admin", tags=["admin"])
+app.include_router(game_review.admin_router, prefix="/admin", tags=["admin"])
 app.include_router(feedback.router, prefix="", tags=["feedback"])
+app.include_router(feedback.admin_router, prefix="/admin", tags=["admin"])
 app.include_router(short_links.public_router, prefix="", tags=["short_links"])
 app.include_router(short_links.admin_router, prefix="/admin", tags=["short_links"])
 app.add_middleware(short_links.QRHostRewrite, qr_host=QR_HOST)

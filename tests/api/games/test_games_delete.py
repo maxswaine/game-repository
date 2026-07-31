@@ -7,15 +7,15 @@ from src.models import GameRead
 from tests.api.games.helper import create_public_game, upvote_game
 
 
-def test_delete_game_success(client_with_auth):
-    created_game: GameRead = create_public_game(client_with_auth)
+def test_delete_game_success(client_with_auth, db):
+    created_game: GameRead = create_public_game(client_with_auth, db)
     game_id = created_game["id"]
     resp = client_with_auth.delete(f"/games/{game_id}")
     assert resp.status_code == 204
 
 
-def test_delete_game_with_alias_and_upvote(client_with_auth):
-    created_game: GameRead = create_public_game(client_with_auth)
+def test_delete_game_with_alias_and_upvote(client_with_auth, db):
+    created_game: GameRead = create_public_game(client_with_auth, db)
     game_id = created_game["id"]
 
     alias_resp = client_with_auth.post(f"/games/{game_id}/aliases", json={"alias": "Alt Name"})
@@ -29,7 +29,7 @@ def test_delete_game_with_alias_and_upvote(client_with_auth):
 
 
 def test_delete_game_unauthorized(client_with_auth, db):
-    created_game = create_public_game(client_with_auth)
+    created_game = create_public_game(client_with_auth, db)
     game_id = created_game["id"]
 
     def override_get_db():
@@ -45,7 +45,7 @@ def test_delete_game_unauthorized(client_with_auth, db):
 
 
 def test_delete_game_not_users(client_with_auth, db):
-    created_game = create_public_game(client_with_auth)
+    created_game = create_public_game(client_with_auth, db)
     game_id = created_game["id"]
 
     def override_get_db():
@@ -61,7 +61,7 @@ def test_delete_game_not_users(client_with_auth, db):
 
 
 def test_delete_game_not_owner(client_with_auth, db, second_user):
-    created_game = create_public_game(client_with_auth)
+    created_game = create_public_game(client_with_auth, db)
     game_id = created_game["id"]
 
     app.dependency_overrides.clear()

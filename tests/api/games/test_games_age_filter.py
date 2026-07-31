@@ -66,6 +66,7 @@ def _make_game(db, contributor, game_type="Card", has_adult_content=False, setti
         setup="Set up",
         rules="Play",
         is_public=True,
+        status="approved",
         is_whats_that_game_verified=False,
         has_adult_content=has_adult_content,
         upvotes=0,

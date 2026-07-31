@@ -9,8 +9,9 @@ _ADULT_SETTINGS = {"Adults Only", "Drinking Required", "Drinking Optional", "Spi
 _ADULT_KEYWORDS = [
     "take a drink", "takes a drink", "everyone drinks", "drinking game",
     "take a shot", "takes a shot", "down a shot", "shotgun",
-    "drink if", "drink when", "sip if", "sip when",
-    "strip", "vodka", "tequila", "rum",
+    "drink if", "drink when", "sip if", "sip when", "sip",
+    "strip", "vodka", "tequila", "rum", "beer", "wine", "alcohol",
+    "booze", "chug", "keg", "pub crawl", "bar crawl",
     "naked", "nude", "sexual", "erotic",
 ]
 
@@ -35,6 +36,7 @@ _PROFANITY_PATTERNS = [
 ]
 
 _COMPILED_PROFANITY = [re.compile(p, re.IGNORECASE) for p in _PROFANITY_PATTERNS]
+_COMPILED_ADULT_KEYWORDS = [re.compile(r"\b" + re.escape(kw) + r"\b") for kw in _ADULT_KEYWORDS]
 
 
 def _normalize(text: str) -> str:
@@ -52,6 +54,6 @@ def detect_adult_content(game_type: str, settings: list[str], text: str) -> bool
     if any(s in _ADULT_SETTINGS for s in settings):
         return True
     lowered = _normalize(text)
-    return any(kw in lowered for kw in _ADULT_KEYWORDS)
+    return any(p.search(lowered) for p in _COMPILED_ADULT_KEYWORDS)
 
 

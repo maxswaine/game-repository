@@ -9,6 +9,12 @@ DUPLICATE_SIMILARITY_THRESHOLD: float = float(
     os.getenv("DUPLICATE_SIMILARITY_THRESHOLD", "0.85")
 )
 DELETED_USER_ID: str = "00000000-0000-0000-0000-000000000001"
+
+# TEMPORARY: gates the game review/approval flow (pending-by-default submissions).
+# Off by default so existing users see no behavior change until the FE ships "pending review"
+# messaging. Flip to "true" once ready, then delete this flag entirely once the app is live
+# on the App Store and every client build has the messaging.
+GAME_REVIEW_GATE_ENABLED: bool = os.getenv("GAME_REVIEW_GATE_ENABLED", "false").lower() == "true"
 # Host that serves short links at root (e.g. qr.example/instagram -> /qr/instagram)
 QR_HOST: str = os.getenv("QR_HOST", "qr.whatsthatgame.co.uk")
 

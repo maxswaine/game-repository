@@ -11,8 +11,8 @@ from tests.api.games.helper import create_public_game, create_private_game, get_
 from tests.conftest import client_with_auth, client_no_auth
 
 
-def test_get_games_returns_list(client_with_auth, client_no_auth):
-    created_game = create_public_game(client_with_auth)
+def test_get_games_returns_list(client_with_auth, client_no_auth, db):
+    created_game = create_public_game(client_with_auth, db)
 
     get_response = client_no_auth.get("/games/")
     assert get_response.status_code == 200
@@ -36,8 +36,43 @@ def test_get_games_returns_list(client_with_auth, client_no_auth):
     assert game["contributor"]["country_of_origin"] == created_game["contributor"]["country_of_origin"]
 
 
+def test_get_games_serializes_pre_existing_long_description(db, test_user, client_no_auth):
+    # description max_length was tightened to 150 for input only — rows written before that
+    # change (up to 2000 chars) must still serialize fine on read.
+    game = Game(
+        id=str(uuid.uuid4()),
+        name="Old Long Description Game",
+        description="x" * 500,
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 mins",
+        objective="Win",
+        setup="Setup the game",
+        rules="Play by the rules",
+        is_public=True,
+        status="approved",
+        is_whats_that_game_verified=False,
+        upvotes=0,
+        contributor_id=test_user.id,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(game)
+    db.flush()
+    db.add(GameEquipment(game_id=game.id, equipment_name="No Equipment"))
+    db.commit()
+
+    list_response = client_no_auth.get("/games/")
+    assert list_response.status_code == 200
+    assert any(g["id"] == game.id for g in list_response.json())
+
+    detail_response = client_no_auth.get(f"/games/{game.id}")
+    assert detail_response.status_code == 200
+    assert len(detail_response.json()["description"]) == 500
+
+
 def test_get_private_game_valid(client_with_auth, db, test_user):
-    created_game = create_private_game(client_with_auth)
+    created_game = create_private_game(client_with_auth, db)
     game_id = created_game["id"]
 
     user_login = {"username": "testuser", "password": "password"}
@@ -78,6 +113,7 @@ def test_get_games_does_not_crash_for_oauth_contributor(db, client_no_auth):
         setup="Setup the game",
         rules="Play by the rules",
         is_public=True,
+        status="approved",
         is_whats_that_game_verified=False,
         upvotes=0,
         contributor_id=oauth_user.id,
@@ -93,7 +129,7 @@ def test_get_games_does_not_crash_for_oauth_contributor(db, client_no_auth):
 
 
 def test_get_private_game_forbidden(client_with_auth, db, second_user):
-    created_game = create_private_game(client_with_auth)
+    created_game = create_private_game(client_with_auth, db)
     game_id = created_game["id"]
 
     app.dependency_overrides.clear()

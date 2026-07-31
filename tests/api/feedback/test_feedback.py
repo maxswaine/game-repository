@@ -1,6 +1,6 @@
 import pytest
 
-from tests.conftest import client_with_auth, client_no_auth
+from tests.conftest import client_with_auth, client_no_auth, client_as_admin
 
 
 def _post_feedback(client, feedback_type="Bug Report", message="Something broke"):
@@ -42,3 +42,26 @@ def test_create_feedback_message_too_long_returns_422(client_with_auth):
 def test_create_feedback_invalid_type_returns_422(client_with_auth):
     response = _post_feedback(client_with_auth, feedback_type="Not A Real Type")
     assert response.status_code == 422
+
+
+def test_non_admin_cannot_list_feedback(client_with_auth):
+    _post_feedback(client_with_auth)
+    response = client_with_auth.get("/admin/feedback")
+    assert response.status_code == 403
+
+
+def test_unauthenticated_cannot_list_feedback(client_no_auth):
+    response = client_no_auth.get("/admin/feedback")
+    assert response.status_code == 401
+
+
+def test_admin_can_list_feedback(client_with_auth, client_as_admin):
+    _post_feedback(client_with_auth, feedback_type="Bug Report", message="First")
+    _post_feedback(client_with_auth, feedback_type="Other", message="Second")
+
+    response = client_as_admin.get("/admin/feedback")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert {item["message"] for item in data} == {"First", "Second"}
+    assert all("user_id" in item and "status" in item for item in data)

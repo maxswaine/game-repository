@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class FeedbackType(str, Enum):
@@ -28,3 +28,14 @@ class FeedbackCreate(BaseModel):
 class FeedbackResponse(BaseModel):
     id: str
     created_at: datetime
+
+
+class FeedbackAdminRead(BaseModel):
+    id: str
+    user_id: str
+    type: str
+    message: str
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
