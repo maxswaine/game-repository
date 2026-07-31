@@ -2,6 +2,16 @@ import os
 
 import resend
 
+from src.utils.config import RESEND_AUDIENCE_ID
+
+
+def subscribe_to_mailing_list(email: str) -> None:
+    resend.api_key = os.environ["RESEND_API_KEY"]
+    resend.Contacts.create({
+        "audience_id": RESEND_AUDIENCE_ID,
+        "email": email,
+    })
+
 
 def send_password_reset_email(to_email: str, reset_url: str) -> None:
     resend.api_key = os.environ["RESEND_API_KEY"]
