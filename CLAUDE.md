@@ -177,6 +177,20 @@ game/user payload builders live in `tests/utils.py`. `tests/api/games/helper.py`
 `create_public_game()`, `create_private_game()`, `create_user()`, `get_user_token()`, `upvote_game()`) for use inside
 tests.
 
+## Change Management
+
+Bugs and feature requests are tracked as **GitHub Issues** on this repo and the frontend repo (`whats-that-game-app`), sharing one Project board ("WTG App Roadmap", `github.com/users/maxswaine/projects/1`) so both sides are visible in one place.
+
+- **New bug/feature:** `gh issue create` with a `bug` or `enhancement` label. If it's driven by (or drives) a frontend change, note the paired issue as `maxswaine/whats-that-game-app#N` in the body — cross-repo references need the full `owner/repo#N` form to link.
+- **PRs reference issues:** `Closes #N` in the PR body/commit — auto-closes the issue on merge into `master`.
+
+**Deploy-order / backward compatibility** — the app is live in app stores, and App Store/Play Store review can take days. That means a released app version and this backend are never perfectly in sync: old app builds keep calling this API until every user updates, and a build already submitted for review can't be pulled back to match a backend change.
+
+- **Always deploy backend changes before the app version that depends on them goes live** — never the reverse. The app can wait on review; this API can't wait on users updating.
+- **Don't remove or rename a field/endpoint** an in-flight or recently-shipped app build still depends on. Additive changes (new optional field, new endpoint) are always safe; changing the shape or meaning of an existing one is not.
+- Check `COMPATIBILITY.md` in `whats-that-game-app` (frontend repo) before a breaking change — it tracks app-version ↔ min-backend-version pairs for exactly this. Add a row there (via the frontend repo) if a change here breaks an old app build or requires a specific new one.
+- Since there's no Alembic migration layer here (`create_all` on startup, see § Production above), a schema change is inherently additive-only in practice — you can't safely drop/rename a column without a manual migration step, which is one more reason breaking backend changes are rare and worth flagging in `COMPATIBILITY.md` when they happen.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
