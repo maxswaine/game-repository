@@ -48,7 +48,7 @@ class TestVerifyGame:
         game = _seed_game_owned_by(db, test_user.id)
         response = client_as_admin.post(f"/games/{game.id}/verify")
         assert response.status_code == 200
-        assert response.json()["is_whats_that_game_certified"] is True
+        assert response.json()["is_verified"] is True
 
     def test_grants_hall_of_fame_to_contributor(self, client_as_admin, db, test_user):
         game = _seed_game_owned_by(db, test_user.id)

@@ -28,7 +28,7 @@ class GameBase(BaseModel):
     image_url: Optional[str] = None
     icon: Optional[GameIconEnum] = None
     is_public: bool
-    is_whats_that_game_certified: bool = False
+    is_verified: bool = False
     game_setting: Optional[List[str]] = None
 
 
