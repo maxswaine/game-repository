@@ -22,6 +22,7 @@ from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCountRead, GameCreate, GameRead, GameUpdate
+from src.models.game_models.game_adult_content import GameAdultContent
 from src.models.game_models.game_photo import GamePhotoRead
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_visibility import GameVisibility
@@ -312,6 +313,26 @@ def verify_game(
 
     db_game.is_whats_that_game_verified = True
     grant_if_not_exists(db, db_game.contributor_id, AchievementTypeEnum.HALL_OF_FAME)
+    db.commit()
+    db.refresh(db_game)
+
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
+
+
+@protected_router.patch("/{game_id}/adult-content", response_model=GameRead, status_code=200,
+                        responses={403: {"description": "Admin only"}, 404: {"description": "Game not found"}})
+def set_game_adult_content(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        game_adult_content: GameAdultContent,
+        current_user: User = Depends(require_admin),
+):
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+
+    db_game.has_adult_content = game_adult_content.has_adult_content
     db.commit()
     db.refresh(db_game)
 
