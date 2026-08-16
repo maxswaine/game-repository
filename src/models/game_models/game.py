@@ -28,7 +28,7 @@ class GameBase(BaseModel):
     image_url: Optional[str] = None
     icon: Optional[GameIconEnum] = None
     is_public: bool
-    is_verified: bool = False
+    is_whats_that_game_certified: bool = False
     game_setting: Optional[List[str]] = None
 
 
@@ -49,6 +49,10 @@ class GameRead(GameBase):
     status: str = "pending"
     rejection_reason_code: Optional[str] = None
     rejection_reason: Optional[str] = None
+    # Deprecated alias for is_whats_that_game_certified — 2c3999b briefly renamed this to
+    # is_verified; reverted since old app builds never migrated and the rename bought nothing.
+    # Keep both populated indefinitely; is_verified is dead weight but cheap to carry.
+    is_verified: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
