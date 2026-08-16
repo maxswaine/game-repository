@@ -168,7 +168,7 @@ def create_new_game(
         image_url=new_game.image_url,
         icon=new_game.icon,
         is_public=new_game.is_public,
-        is_whats_that_game_verified=new_game.is_verified,
+        is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         has_adult_content=adult_flag,
         status="pending" if GAME_REVIEW_GATE_ENABLED else "approved",
         created_at=datetime.now(timezone.utc),
@@ -313,6 +313,25 @@ def verify_game(
 
     db_game.is_whats_that_game_verified = True
     grant_if_not_exists(db, db_game.contributor_id, AchievementTypeEnum.HALL_OF_FAME)
+    db.commit()
+    db.refresh(db_game)
+
+    liked_ids = _get_liked_ids(db, current_user.id)
+    return map_game_to_read(db_game, liked_ids)
+
+
+@protected_router.post("/{game_id}/unverify", response_model=GameRead, status_code=200,
+                       responses={403: {"description": "Admin only"}, 404: {"description": "Game not found"}})
+def unverify_game(
+        db: Annotated[Session, Depends(get_db)],
+        game_id: str,
+        current_user: User = Depends(require_admin),
+):
+    db_game = db.query(Game).filter(Game.id == game_id).first()
+    if not db_game:
+        raise GAME_NOT_FOUND_EXCEPTION
+
+    db_game.is_whats_that_game_verified = False
     db.commit()
     db.refresh(db_game)
 
@@ -682,6 +701,7 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
             country_of_origin=db_game.contributor.country_of_origin,
         ),
         created_at=db_game.created_at,
+        is_whats_that_game_certified=db_game.is_whats_that_game_verified,
         is_verified=db_game.is_whats_that_game_verified,
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,

@@ -24,7 +24,7 @@ def valid_public_game_payload(overrides: dict | None = None):
         "rules": "Some rules",
         "image_url": None,
         "is_public": True,
-        "is_verified": False,
+        "is_whats_that_game_certified": False,
         "game_setting": [
             GameSettingEnum.game_night.value, GameSettingEnum.competitive.value
         ]}
@@ -52,7 +52,7 @@ def valid_private_game_payload(overrides: dict | None = None):
         "rules": "Some rules",
         "image_url": None,
         "is_public": False,
-        "is_verified": False,
+        "is_whats_that_game_certified": False,
         "game_setting": ["Pub / Bar"]
     }
 
