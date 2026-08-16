@@ -36,7 +36,7 @@ _PROFANITY_PATTERNS = [
 ]
 
 _COMPILED_PROFANITY = [re.compile(p, re.IGNORECASE) for p in _PROFANITY_PATTERNS]
-_COMPILED_ADULT_KEYWORDS = [re.compile(r"\b" + re.escape(kw) + r"\b") for kw in _ADULT_KEYWORDS]
+_COMPILED_ADULT_KEYWORDS = [re.compile(r"\b" + re.escape(kw) + r"\w*\b") for kw in _ADULT_KEYWORDS]
 
 
 def _normalize(text: str) -> str:
