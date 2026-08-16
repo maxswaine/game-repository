@@ -143,6 +143,13 @@ def test_detect_adult_content_strip_keyword_in_rules():
     assert detect_adult_content("Card", [], "Loser must strip an item of clothing") is True
 
 
+def test_detect_adult_content_matches_keyword_suffix():
+    # Regression: keywords were compiled with strict \b...\b, so a suffixed form
+    # like "sips" never matched the bare keyword "sip".
+    from src.utils.age_filter import detect_adult_content
+    assert detect_adult_content("Card", [], "Player sips from their cup.") is True
+
+
 def test_detect_adult_content_clean_family_game():
     from src.utils.age_filter import detect_adult_content
     assert detect_adult_content("Card", ["Family Friendly"], "Match the pairs as fast as you can") is False
