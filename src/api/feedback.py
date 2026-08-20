@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from src.api.users import get_current_active_user, require_admin
 from src.db.database import get_db
@@ -34,8 +34,21 @@ def list_feedback(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
-    return (
+    items = (
         db.query(Feedback)
+        .options(joinedload(Feedback.user))
         .order_by(Feedback.created_at.desc())
         .all()
     )
+    return [
+        FeedbackAdminRead(
+            id=f.id,
+            user_id=f.user_id,
+            username=f.user.username if f.user else "",
+            type=f.type,
+            message=f.message,
+            status=f.status,
+            created_at=f.created_at,
+        )
+        for f in items
+    ]

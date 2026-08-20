@@ -65,3 +65,17 @@ def test_admin_can_list_feedback(client_with_auth, client_as_admin):
     assert len(data) == 2
     assert {item["message"] for item in data} == {"First", "Second"}
     assert all("user_id" in item and "status" in item for item in data)
+
+
+def test_admin_list_feedback_includes_username(db, test_user, client_as_admin):
+    from src.db.tables import Feedback
+
+    db.add(Feedback(user_id=test_user.id, type="Bug Report", message="Needs a username"))
+    db.commit()
+
+    response = client_as_admin.get("/admin/feedback")
+    assert response.status_code == 200
+    data = response.json()
+    item = next(i for i in data if i["message"] == "Needs a username")
+    assert item["user_id"] == test_user.id
+    assert item["username"] == test_user.username

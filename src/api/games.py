@@ -442,8 +442,7 @@ def get_all_games(
             )
         )
     elif sort_by == SortByEnum.recommended:
-        query = query.order_by(
-            Game.is_whats_that_game_verified.desc(),
+        query = query.filter(Game.is_whats_that_game_verified.is_(True)).order_by(
             Game.upvotes.desc(),
             Game.created_at.desc()
         )

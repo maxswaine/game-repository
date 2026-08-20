@@ -33,6 +33,7 @@ class FeedbackResponse(BaseModel):
 class FeedbackAdminRead(BaseModel):
     id: str
     user_id: str
+    username: str
     type: str
     message: str
     status: str

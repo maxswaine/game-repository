@@ -141,7 +141,7 @@ class TestSortTrending:
 
 
 class TestSortRecommended:
-    def test_verified_game_ranks_above_unverified(self, db, test_user, client_no_auth):
+    def test_excludes_unverified_games(self, db, test_user, client_no_auth):
         _make_game(db, test_user, name="Unverified Popular", upvotes=100, verified=False)
         _make_game(db, test_user, name="WTG Verified", upvotes=1, verified=True)
         db.commit()
@@ -149,11 +149,11 @@ class TestSortRecommended:
         response = client_no_auth.get("/games/?sort_by=recommended")
         assert response.status_code == 200
         names = [g["name"] for g in response.json()]
-        assert names.index("WTG Verified") < names.index("Unverified Popular")
+        assert names == ["WTG Verified"]
 
-    def test_tiebreak_by_upvotes_when_neither_verified(self, db, test_user, client_no_auth):
-        _make_game(db, test_user, name="Low Votes", upvotes=2)
-        _make_game(db, test_user, name="High Votes", upvotes=50)
+    def test_tiebreak_by_upvotes_when_both_verified(self, db, test_user, client_no_auth):
+        _make_game(db, test_user, name="Low Votes", upvotes=2, verified=True)
+        _make_game(db, test_user, name="High Votes", upvotes=50, verified=True)
         db.commit()
 
         response = client_no_auth.get("/games/?sort_by=recommended")
