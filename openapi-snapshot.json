@@ -1,0 +1,6120 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/users/register": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create New User",
+        "operationId": "create_new_user_users_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublicRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Username taken or Email already in use"
+          },
+          "422": {
+            "description": "Validation error: Invalid input data"
+          },
+          "500": {
+            "description": "Internal Database error occurred"
+          }
+        }
+      }
+    },
+    "/users/me/complete-profile": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Complete Profile",
+        "operationId": "complete_profile_users_me_complete_profile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCompleteProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivateRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "400": {
+            "description": "Username taken"
+          },
+          "422": {
+            "description": "Profile already complete"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Me",
+        "operationId": "get_me_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivateRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete Account",
+        "operationId": "delete_account_users_me_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update My Profile",
+        "operationId": "update_my_profile_users_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivateRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email already in use, or Username taken"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/users/me/password": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update My Password",
+        "operationId": "update_my_password_users_me_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPasswordUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to change current password"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/games/": {
+      "post": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Create New Game",
+        "operationId": "create_new_game_games__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get All Games",
+        "operationId": "get_all_games_games__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          {
+            "name": "game_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GameTypeEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Game Type"
+            }
+          },
+          {
+            "name": "min_players",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Players"
+            }
+          },
+          {
+            "name": "max_players",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Players"
+            }
+          },
+          {
+            "name": "duration",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Duration"
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GameDifficultyEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Difficulty"
+            }
+          },
+          {
+            "name": "setting",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Setting"
+            }
+          },
+          {
+            "name": "equipment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equipment"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SortByEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "trending_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 7,
+              "title": "Trending Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameRead"
+                  },
+                  "title": "Response Get All Games Games  Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required for non-public access"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/upvote": {
+      "post": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Upvote Game",
+        "operationId": "upvote_game_games__game_id__upvote_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameVoteRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/report": {
+      "post": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Report Game",
+        "operationId": "report_game_games__game_id__report_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Already reported or own game"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/verify": {
+      "post": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Verify Game",
+        "operationId": "verify_game_games__game_id__verify_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin only"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/unverify": {
+      "post": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Unverify Game",
+        "operationId": "unverify_game_games__game_id__unverify_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin only"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/adult-content": {
+      "patch": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Set Game Adult Content",
+        "operationId": "set_game_adult_content_games__game_id__adult_content_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameAdultContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin only"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/mine": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get My Games",
+        "operationId": "get_my_games_games_mine_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameRead"
+                  },
+                  "title": "Response Get My Games Games Mine Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}": {
+      "patch": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Update Game",
+        "operationId": "update_game_games__game_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Delete Game",
+        "operationId": "delete_game_games__game_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get Game By Id",
+        "operationId": "get_game_by_id_games__game_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/visibility": {
+      "patch": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Change Game Visibility",
+        "operationId": "change_game_visibility_games__game_id__visibility_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameVisibility"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/count": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get Game Count",
+        "operationId": "get_game_count_games_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCountRead"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/token": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Login For Access Token",
+        "operationId": "login_for_access_token_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_for_access_token_auth_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Refresh Token",
+        "operationId": "refresh_token_auth_refresh_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "No access token found or invalid/expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify": {
+      "get": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Verify Token Endpoint",
+        "operationId": "verify_token_endpoint_auth_verify_get",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "No access token found or invalid/expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/google": {
+      "get": {
+        "tags": [
+          "auth",
+          "oauth",
+          "oauth"
+        ],
+        "summary": "Google Login",
+        "operationId": "google_login_auth_oauth_google_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/google/callback": {
+      "get": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Google Callback",
+        "operationId": "google_callback_auth_oauth_google_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Google token exchange failed, email not verified, or missing user data."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/exchange": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Exchange Code",
+        "operationId": "exchange_code_auth_exchange_post",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired exchange code"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Forgot Password",
+        "operationId": "forgot_password_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Reset Password",
+        "operationId": "reset_password_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired reset token"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/google/token": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth",
+          "oauth"
+        ],
+        "summary": "Google Token Exchange",
+        "operationId": "google_token_exchange_auth_oauth_google_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Google ID token, audience mismatch, unverified email, or missing account data."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/apple/token": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth",
+          "oauth"
+        ],
+        "summary": "Apple Token Exchange",
+        "operationId": "apple_token_exchange_auth_oauth_apple_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppleTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid identity token, audience mismatch, or email conflict."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_auth_logout_post",
+        "parameters": [
+          {
+            "name": "access_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logged out successfully",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout/redirect": {
+      "get": {
+        "tags": [
+          "auth",
+          "oauth"
+        ],
+        "summary": "Logout Redirect",
+        "operationId": "logout_redirect_auth_logout_redirect_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favourites/": {
+      "get": {
+        "tags": [
+          "favourites"
+        ],
+        "summary": "Get All Favourites",
+        "operationId": "get_all_favourites_favourites__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameRead"
+                  },
+                  "title": "Response Get All Favourites Favourites  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favourites/{game_id}": {
+      "post": {
+        "tags": [
+          "favourites"
+        ],
+        "summary": "Add Favourite",
+        "operationId": "add_favourite_favourites__game_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserFavouriteBase"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found"
+          },
+          "400": {
+            "description": "Game is already favourited by this user"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "favourites"
+        ],
+        "summary": "Remove Favourite",
+        "operationId": "remove_favourite_favourites__game_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Favourite not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metadata/countries": {
+      "get": {
+        "tags": [
+          "metadata"
+        ],
+        "summary": "Get Countries",
+        "operationId": "get_countries_metadata_countries_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountriesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metadata/metadata": {
+      "get": {
+        "tags": [
+          "metadata"
+        ],
+        "summary": "Get Metadata",
+        "operationId": "get_metadata_metadata_metadata_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/optimise/": {
+      "post": {
+        "tags": [
+          "optimisation"
+        ],
+        "summary": "Optimise Text",
+        "operationId": "optimise_text_optimise__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimisationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptimisationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/optimise/brain-dump": {
+      "post": {
+        "tags": [
+          "optimisation"
+        ],
+        "summary": "Brain Dump",
+        "operationId": "brain_dump_optimise_brain_dump_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrainDumpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrainDumpResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/games/search/": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Semantic Search",
+        "operationId": "semantic_search_games_search__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GameSearchResult"
+                  },
+                  "type": "array",
+                  "title": "Response Semantic Search Games Search  Post"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Embedding service unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/achievements/": {
+      "get": {
+        "tags": [
+          "achievements"
+        ],
+        "summary": "Get Achievements",
+        "operationId": "get_achievements_achievements__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AchievementRead"
+                  },
+                  "type": "array",
+                  "title": "Response Get Achievements Achievements  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/achievements/signal": {
+      "post": {
+        "tags": [
+          "achievements"
+        ],
+        "summary": "Signal Achievement",
+        "operationId": "signal_achievement_achievements_signal_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AchievementSignalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/games/{game_id}/aliases": {
+      "post": {
+        "tags": [
+          "aliases"
+        ],
+        "summary": "Suggest Alias",
+        "operationId": "suggest_alias_games__game_id__aliases_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AliasCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AliasRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "aliases"
+        ],
+        "summary": "Get Game Aliases",
+        "operationId": "get_game_aliases_games__game_id__aliases_get",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AliasRead"
+                  },
+                  "title": "Response Get Game Aliases Games  Game Id  Aliases Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/aliases": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Pending Aliases",
+        "operationId": "list_pending_aliases_admin_aliases_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AliasRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Pending Aliases Admin Aliases Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/aliases/{alias_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Review Alias",
+        "operationId": "review_alias_admin_aliases__alias_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alias_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alias Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AliasPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AliasRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/comments": {
+      "get": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Get Comments",
+        "operationId": "get_comments_games__game_id__comments_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CommentRead"
+                  },
+                  "title": "Response Get Comments Games  Game Id  Comments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Create Comment",
+        "operationId": "create_comment_games__game_id__comments_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/comments/{comment_id}": {
+      "delete": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Delete Comment",
+        "operationId": "delete_comment_games__game_id__comments__comment_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/comments/{comment_id}/like": {
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Toggle Like",
+        "operationId": "toggle_like_games__game_id__comments__comment_id__like_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/photos/upload-url": {
+      "post": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Create Upload Url",
+        "operationId": "create_upload_url_games__game_id__photos_upload_url_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoUploadUrlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoUploadUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/photos": {
+      "post": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Register Photo",
+        "operationId": "register_photo_games__game_id__photos_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamePhotoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/photos/{photo_id}": {
+      "delete": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Delete Photo",
+        "operationId": "delete_photo_games__game_id__photos__photo_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          },
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{game_id}/photos/order": {
+      "patch": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Reorder Photos",
+        "operationId": "reorder_photos_games__game_id__photos_order_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoReorderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GamePhotoRead"
+                  },
+                  "title": "Response Reorder Photos Games  Game Id  Photos Order Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/avatar/upload-url": {
+      "post": {
+        "tags": [
+          "avatar"
+        ],
+        "summary": "Create Avatar Upload Url",
+        "operationId": "create_avatar_upload_url_users_me_avatar_upload_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUploadUrlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUploadUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/users/me/avatar": {
+      "post": {
+        "tags": [
+          "avatar"
+        ],
+        "summary": "Register Avatar",
+        "operationId": "register_avatar_users_me_avatar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "avatar"
+        ],
+        "summary": "Remove Avatar",
+        "operationId": "remove_avatar_users_me_avatar_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivateRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/push-tokens/": {
+      "post": {
+        "tags": [
+          "push-tokens"
+        ],
+        "summary": "Register Push Token",
+        "operationId": "register_push_token_push_tokens__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "push-tokens"
+        ],
+        "summary": "Delete Push Token",
+        "operationId": "delete_push_token_push_tokens__delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/notifications": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Send Admin Notification",
+        "operationId": "send_admin_notification_admin_notifications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminNotificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/games/pending": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Pending Games",
+        "operationId": "list_pending_games_admin_games_pending_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GameRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Pending Games Admin Games Pending Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/games/{game_id}/review": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Review Game",
+        "operationId": "review_game_admin_games__game_id__review_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameReviewPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/games/reports": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Pending Reports",
+        "operationId": "list_pending_reports_admin_games_reports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GameReportAdminRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Pending Reports Admin Games Reports Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/games/reports/{report_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Report",
+        "operationId": "resolve_report_admin_games_reports__report_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameReportResolvePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameReportAdminRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Create Feedback",
+        "operationId": "create_feedback_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/feedback": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Feedback",
+        "operationId": "list_feedback_admin_feedback_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackAdminRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Feedback Admin Feedback Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/qr/{code}": {
+      "get": {
+        "tags": [
+          "short_links"
+        ],
+        "summary": "Redirect Short Link",
+        "operationId": "redirect_short_link_qr__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/links": {
+      "get": {
+        "tags": [
+          "short_links"
+        ],
+        "summary": "List Short Links",
+        "operationId": "list_short_links_admin_links_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShortLinkRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Short Links Admin Links Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "short_links"
+        ],
+        "summary": "Create Short Link",
+        "operationId": "create_short_link_admin_links_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortLinkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/links/{code}": {
+      "patch": {
+        "tags": [
+          "short_links"
+        ],
+        "summary": "Update Short Link",
+        "operationId": "update_short_link_admin_links__code__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortLinkPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "short_links"
+        ],
+        "summary": "Delete Short Link",
+        "operationId": "delete_short_link_admin_links__code__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mailing-list/subscribe": {
+      "post": {
+        "tags": [
+          "mailing-list"
+        ],
+        "summary": "Subscribe",
+        "operationId": "subscribe_mailing_list_subscribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailingListSubscribe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailingListSubscribeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Read Root",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Version",
+        "operationId": "get_version_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AchievementRead": {
+        "properties": {
+          "achievement_type": {
+            "$ref": "#/components/schemas/AchievementTypeEnum"
+          },
+          "achieved": {
+            "type": "boolean",
+            "title": "Achieved"
+          },
+          "achieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Achieved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "achievement_type",
+          "achieved"
+        ],
+        "title": "AchievementRead"
+      },
+      "AchievementSignalRequest": {
+        "properties": {
+          "achievement_type": {
+            "$ref": "#/components/schemas/AchievementTypeEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "achievement_type"
+        ],
+        "title": "AchievementSignalRequest"
+      },
+      "AchievementTypeEnum": {
+        "type": "string",
+        "enum": [
+          "first_like",
+          "first_submit",
+          "share_game",
+          "five_uploads",
+          "ten_likes_on_upload",
+          "give_feedback",
+          "complete_tutorial",
+          "hall_of_fame"
+        ],
+        "title": "AchievementTypeEnum"
+      },
+      "AdminNotificationRequest": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "user",
+              "broadcast"
+            ],
+            "title": "Target"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target",
+          "title",
+          "body"
+        ],
+        "title": "AdminNotificationRequest"
+      },
+      "AliasCreate": {
+        "properties": {
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alias"
+        ],
+        "title": "AliasCreate"
+      },
+      "AliasPatch": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AliasPatch"
+      },
+      "AliasRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "game_id": {
+            "type": "string",
+            "title": "Game Id"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          },
+          "suggested_by": {
+            "type": "string",
+            "title": "Suggested By"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game_id",
+          "alias",
+          "suggested_by",
+          "status",
+          "created_at"
+        ],
+        "title": "AliasRead"
+      },
+      "AppleTokenRequest": {
+        "properties": {
+          "identity_token": {
+            "type": "string",
+            "title": "Identity Token"
+          },
+          "firstname": {
+            "type": "string",
+            "title": "Firstname",
+            "default": ""
+          },
+          "lastname": {
+            "type": "string",
+            "title": "Lastname",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "identity_token"
+        ],
+        "title": "AppleTokenRequest"
+      },
+      "AvatarRegisterRequest": {
+        "properties": {
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "object_key"
+        ],
+        "title": "AvatarRegisterRequest"
+      },
+      "AvatarUploadUrlRequest": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type"
+        ],
+        "title": "AvatarUploadUrlRequest"
+      },
+      "AvatarUploadUrlResponse": {
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_url",
+          "object_key"
+        ],
+        "title": "AvatarUploadUrlResponse"
+      },
+      "Body_login_for_access_token_auth_token_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_for_access_token_auth_token_post"
+      },
+      "BrainDumpRequest": {
+        "properties": {
+          "dump_text": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Dump Text",
+            "description": "Freeform text describing the game, to be split into fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dump_text"
+        ],
+        "title": "BrainDumpRequest"
+      },
+      "BrainDumpResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the split succeeded"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrainDumpResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The three split fields if successful"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Fields",
+            "description": "Which of objective/setup/rules came back empty"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Reason when success is false"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "BrainDumpResponse"
+      },
+      "BrainDumpResult": {
+        "properties": {
+          "objective": {
+            "type": "string",
+            "title": "Objective",
+            "description": "Extracted objective, empty if absent",
+            "default": ""
+          },
+          "setup": {
+            "type": "string",
+            "title": "Setup",
+            "description": "Extracted setup, empty if absent",
+            "default": ""
+          },
+          "rules": {
+            "type": "string",
+            "title": "Rules",
+            "description": "Extracted rules, empty if absent",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "BrainDumpResult"
+      },
+      "CommentCreate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Body"
+          },
+          "comment_type": {
+            "$ref": "#/components/schemas/CommentTypeEnum",
+            "default": "general"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "CommentCreate"
+      },
+      "CommentRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "game_id": {
+            "type": "string",
+            "title": "Game Id"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserPublicRead"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "comment_type": {
+            "$ref": "#/components/schemas/CommentTypeEnum"
+          },
+          "likes": {
+            "type": "integer",
+            "title": "Likes"
+          },
+          "liked_by_me": {
+            "type": "boolean",
+            "title": "Liked By Me"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game_id",
+          "user",
+          "body",
+          "comment_type",
+          "likes",
+          "liked_by_me",
+          "created_at"
+        ],
+        "title": "CommentRead"
+      },
+      "CommentTypeEnum": {
+        "type": "string",
+        "enum": [
+          "general",
+          "rule_variant"
+        ],
+        "title": "CommentTypeEnum"
+      },
+      "CountriesResponse": {
+        "properties": {
+          "countries": {
+            "items": {
+              "$ref": "#/components/schemas/Country"
+            },
+            "type": "array",
+            "title": "Countries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "countries"
+        ],
+        "title": "CountriesResponse"
+      },
+      "Country": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "Country"
+      },
+      "DurationEnum": {
+        "type": "string",
+        "enum": [
+          "Under 5 minutes",
+          "5-10 minutes",
+          "10-15 minutes",
+          "15-30 minutes",
+          "30-45 minutes",
+          "45-60 minutes",
+          "1-2 hours",
+          "2-3 hours",
+          "Over 3 hours"
+        ],
+        "title": "DurationEnum"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Error message"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Additional error details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "detail"
+        ],
+        "title": "ErrorDetail"
+      },
+      "FeedbackAdminRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "type",
+          "message",
+          "status",
+          "created_at"
+        ],
+        "title": "FeedbackAdminRead"
+      },
+      "FeedbackCreate": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/FeedbackType"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "message"
+        ],
+        "title": "FeedbackCreate"
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "FeedbackResponse"
+      },
+      "FeedbackType": {
+        "type": "string",
+        "enum": [
+          "Bug Report",
+          "Feature Request",
+          "General Feedback",
+          "Other"
+        ],
+        "title": "FeedbackType"
+      },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest"
+      },
+      "GameAdultContent": {
+        "properties": {
+          "has_adult_content": {
+            "type": "boolean",
+            "title": "Has Adult Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "has_adult_content"
+        ],
+        "title": "GameAdultContent"
+      },
+      "GameCountRead": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "GameCountRead"
+      },
+      "GameCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Description"
+          },
+          "game_type": {
+            "$ref": "#/components/schemas/GameTypeEnum"
+          },
+          "player_count": {
+            "$ref": "#/components/schemas/PlayerCount"
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameDifficultyEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipment": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equipment"
+          },
+          "objective": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Objective"
+          },
+          "setup": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Setup"
+          },
+          "rules": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Rules"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameIconEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_public": {
+            "type": "boolean",
+            "title": "Is Public"
+          },
+          "is_whats_that_game_certified": {
+            "type": "boolean",
+            "title": "Is Whats That Game Certified",
+            "default": false
+          },
+          "game_setting": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Setting"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "game_type",
+          "player_count",
+          "duration",
+          "equipment",
+          "objective",
+          "setup",
+          "rules",
+          "is_public"
+        ],
+        "title": "GameCreate"
+      },
+      "GameDifficultyEnum": {
+        "type": "string",
+        "enum": [
+          "Easy",
+          "Medium",
+          "Hard",
+          "Expert"
+        ],
+        "title": "GameDifficultyEnum"
+      },
+      "GameEquipmentEnum": {
+        "type": "string",
+        "enum": [
+          "None",
+          "Nothing",
+          "Standard Deck of Cards",
+          "Jokers",
+          "Multiple Decks of Cards",
+          "Tarot Deck",
+          "Improvised Cards",
+          "Less Than a Deck of Cards",
+          "UNO Deck",
+          "Six-Sided Dice",
+          "Multiple Dice",
+          "Dice Cup",
+          "Shaker",
+          "Phone Dice App",
+          "Coins",
+          "Bottle Caps",
+          "Tokens",
+          "Buttons",
+          "Beads",
+          "Stones",
+          "Pebbles",
+          "Poker Chips",
+          "Matchsticks",
+          "Toothpicks",
+          "Straws",
+          "Paper",
+          "Pen",
+          "Pencil",
+          "Napkins",
+          "Notebook",
+          "Sticky Notes",
+          "Index Cards",
+          "Whiteboard",
+          "Chalkboard",
+          "Marker",
+          "Chalk",
+          "Phone Timer",
+          "Stopwatch",
+          "Hourglass",
+          "Countdown App",
+          "Random Number Generator",
+          "Random Word Generator",
+          "Spinner",
+          "Cups",
+          "Mugs",
+          "Glasses",
+          "Shot Glasses",
+          "Bowl",
+          "Plate",
+          "Tray",
+          "Coasters",
+          "Table",
+          "Flat Surface",
+          "Floor Space",
+          "Wall Space",
+          "Players' Hands",
+          "Players' Bodies",
+          "Fingers",
+          "Gestures",
+          "Clapping",
+          "Balance",
+          "Reflexes",
+          "Voice",
+          "Memory",
+          "Imagination",
+          "Trivia Knowledge",
+          "Smartphone",
+          "Shared Phone",
+          "Camera",
+          "Flashlight",
+          "Music Player",
+          "Speaker",
+          "App",
+          "Drinks",
+          "Empty Glasses",
+          "Drink Tokens",
+          "Bar Menu",
+          "Towel",
+          "Cloth",
+          "Playing Mat",
+          "Rubber Bands",
+          "String",
+          "Tape",
+          "Phone Flashlight"
+        ],
+        "title": "GameEquipmentEnum"
+      },
+      "GameIconEnum": {
+        "type": "string",
+        "enum": [
+          "casino",
+          "style",
+          "extension",
+          "sports-esports",
+          "psychology",
+          "groups",
+          "theater-comedy",
+          "menu-book",
+          "sports-kabaddi",
+          "record-voice-over",
+          "gesture",
+          "quiz",
+          "sports-bar",
+          "local-bar",
+          "local-fire-department",
+          "bolt",
+          "rocket-launch",
+          "emoji-events",
+          "star",
+          "favorite",
+          "lightbulb",
+          "brush",
+          "music-note",
+          "pets",
+          "sports-soccer",
+          "sports-basketball",
+          "flag",
+          "diamond",
+          "celebration",
+          "auto-awesome",
+          "cake",
+          "people",
+          "public",
+          "nightlife",
+          "attractions",
+          "smart-toy",
+          "science",
+          "palette",
+          "headphones",
+          "sports-mma",
+          "anchor",
+          "eco",
+          "ac-unit",
+          "wb-sunny",
+          "coffee"
+        ],
+        "title": "GameIconEnum",
+        "description": "MaterialIcons glyph names selectable in the icon picker. Must mirror ICON_CHOICES on the frontend."
+      },
+      "GameMetadata": {
+        "properties": {
+          "game_types": {
+            "items": {
+              "$ref": "#/components/schemas/GameTypeEnum"
+            },
+            "type": "array",
+            "title": "Game Types"
+          },
+          "game_equipment": {
+            "items": {
+              "$ref": "#/components/schemas/GameEquipmentEnum"
+            },
+            "type": "array",
+            "title": "Game Equipment"
+          },
+          "game_settings": {
+            "items": {
+              "$ref": "#/components/schemas/GameSettingEnum"
+            },
+            "type": "array",
+            "title": "Game Settings"
+          },
+          "durations": {
+            "items": {
+              "$ref": "#/components/schemas/DurationEnum"
+            },
+            "type": "array",
+            "title": "Durations"
+          },
+          "difficulty": {
+            "items": {
+              "$ref": "#/components/schemas/GameDifficultyEnum"
+            },
+            "type": "array",
+            "title": "Difficulty"
+          },
+          "game_icons": {
+            "items": {
+              "$ref": "#/components/schemas/GameIconEnum"
+            },
+            "type": "array",
+            "title": "Game Icons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_types",
+          "game_equipment",
+          "game_settings",
+          "durations",
+          "difficulty",
+          "game_icons"
+        ],
+        "title": "GameMetadata"
+      },
+      "GamePhotoRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "public_url": {
+            "type": "string",
+            "title": "Public Url"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "public_url",
+          "position"
+        ],
+        "title": "GamePhotoRead"
+      },
+      "GameRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "game_type": {
+            "$ref": "#/components/schemas/GameTypeEnum"
+          },
+          "player_count": {
+            "$ref": "#/components/schemas/PlayerCount"
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameDifficultyEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipment": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equipment"
+          },
+          "objective": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Objective"
+          },
+          "setup": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Setup"
+          },
+          "rules": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Rules"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameIconEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_public": {
+            "type": "boolean",
+            "title": "Is Public"
+          },
+          "is_whats_that_game_certified": {
+            "type": "boolean",
+            "title": "Is Whats That Game Certified",
+            "default": false
+          },
+          "game_setting": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Setting"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "upvotes": {
+            "type": "integer",
+            "title": "Upvotes"
+          },
+          "contributor": {
+            "$ref": "#/components/schemas/UserPublicRead"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
+          },
+          "has_adult_content": {
+            "type": "boolean",
+            "title": "Has Adult Content",
+            "default": false
+          },
+          "liked_by_me": {
+            "type": "boolean",
+            "title": "Liked By Me",
+            "default": false
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/GamePhotoRead"
+            },
+            "type": "array",
+            "title": "Photos",
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "pending"
+          },
+          "rejection_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason Code"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "is_verified": {
+            "type": "boolean",
+            "title": "Is Verified",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "game_type",
+          "player_count",
+          "duration",
+          "equipment",
+          "objective",
+          "setup",
+          "rules",
+          "is_public",
+          "id",
+          "upvotes",
+          "contributor",
+          "created_at"
+        ],
+        "title": "GameRead"
+      },
+      "GameRejectionReasonEnum": {
+        "type": "string",
+        "enum": [
+          "Profanity",
+          "Inappropriate Content",
+          "Adult Content Not Flagged",
+          "Duplicate Submission",
+          "Low Quality / Unclear Rules",
+          "Spam",
+          "Other"
+        ],
+        "title": "GameRejectionReasonEnum"
+      },
+      "GameReportAdminRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "game_id": {
+            "type": "string",
+            "title": "Game Id"
+          },
+          "game_name": {
+            "type": "string",
+            "title": "Game Name"
+          },
+          "reporter_id": {
+            "type": "string",
+            "title": "Reporter Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game_id",
+          "game_name",
+          "reporter_id",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "GameReportAdminRead"
+      },
+      "GameReportReasonEnum": {
+        "type": "string",
+        "enum": [
+          "Inappropriate Content",
+          "Adult Content",
+          "Spam",
+          "Inaccurate",
+          "Other"
+        ],
+        "title": "GameReportReasonEnum"
+      },
+      "GameReportRequest": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/GameReportReasonEnum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "GameReportRequest"
+      },
+      "GameReportResolvePatch": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "rejection_reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameRejectionReasonEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "GameReportResolvePatch"
+      },
+      "GameReportResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "GameReportResponse"
+      },
+      "GameReviewPatch": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "rejection_reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameRejectionReasonEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "GameReviewPatch"
+      },
+      "GameSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Query",
+            "description": "Natural language description of the game you're looking for"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "GameSearchRequest"
+      },
+      "GameSearchResult": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "game_type": {
+            "$ref": "#/components/schemas/GameTypeEnum"
+          },
+          "player_count": {
+            "$ref": "#/components/schemas/PlayerCount"
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameDifficultyEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipment": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equipment"
+          },
+          "objective": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Objective"
+          },
+          "setup": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Setup"
+          },
+          "rules": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Rules"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameIconEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_public": {
+            "type": "boolean",
+            "title": "Is Public"
+          },
+          "is_whats_that_game_certified": {
+            "type": "boolean",
+            "title": "Is Whats That Game Certified",
+            "default": false
+          },
+          "game_setting": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Setting"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "upvotes": {
+            "type": "integer",
+            "title": "Upvotes"
+          },
+          "contributor": {
+            "$ref": "#/components/schemas/UserPublicRead"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
+          },
+          "has_adult_content": {
+            "type": "boolean",
+            "title": "Has Adult Content",
+            "default": false
+          },
+          "liked_by_me": {
+            "type": "boolean",
+            "title": "Liked By Me",
+            "default": false
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/GamePhotoRead"
+            },
+            "type": "array",
+            "title": "Photos",
+            "default": []
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "pending"
+          },
+          "rejection_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason Code"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "is_verified": {
+            "type": "boolean",
+            "title": "Is Verified",
+            "default": false
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "Similarity score 0-1, higher is more relevant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "game_type",
+          "player_count",
+          "duration",
+          "equipment",
+          "objective",
+          "setup",
+          "rules",
+          "is_public",
+          "id",
+          "upvotes",
+          "contributor",
+          "created_at",
+          "score"
+        ],
+        "title": "GameSearchResult"
+      },
+      "GameSettingEnum": {
+        "type": "string",
+        "enum": [
+          "Date Night",
+          "First Date",
+          "Party",
+          "House Party",
+          "Dinner Party",
+          "Game Night",
+          "Pub / Bar",
+          "Late Night",
+          "Holiday",
+          "Camping",
+          "Road Trip",
+          "Outdoor",
+          "Classroom",
+          "Icebreaker",
+          "Work Appropriate",
+          "Family Friendly",
+          "Adults Only",
+          "Drinking Optional",
+          "Drinking Required",
+          "Funny",
+          "Silly",
+          "Wholesome",
+          "Romantic",
+          "Spicy",
+          "Awkward",
+          "Dramatic",
+          "Tense",
+          "Argumentative",
+          "Nostalgic",
+          "Daring",
+          "Dark",
+          "Absurd",
+          "Chill",
+          "Casual",
+          "Intense",
+          "Chaotic",
+          "Active",
+          "Friendship Ruiner",
+          "Quick",
+          "Competitive",
+          "Cooperative",
+          "Team",
+          "Solo Friendly",
+          "Two Player",
+          "Large Group",
+          "Mixed Ages",
+          "Creative",
+          "Storytelling",
+          "Conversation",
+          "Roleplay"
+        ],
+        "title": "GameSettingEnum"
+      },
+      "GameTypeEnum": {
+        "type": "string",
+        "enum": [
+          "Card",
+          "Dice",
+          "Drinking",
+          "Trivia",
+          "Word",
+          "Physical",
+          "Strategy",
+          "Guessing",
+          "Acting",
+          "Drawing",
+          "Music",
+          "Other"
+        ],
+        "title": "GameTypeEnum"
+      },
+      "GameUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "game_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameTypeEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_players": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Players"
+          },
+          "max_players": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Players"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameDifficultyEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipment": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameIconEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Public"
+          },
+          "objective": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objective"
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "game_setting": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Setting"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases"
+          }
+        },
+        "type": "object",
+        "title": "GameUpdate"
+      },
+      "GameVisibility": {
+        "properties": {
+          "is_public": {
+            "type": "boolean",
+            "title": "Is Public"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_public"
+        ],
+        "title": "GameVisibility"
+      },
+      "GameVoteRead": {
+        "properties": {
+          "game_id": {
+            "type": "string",
+            "title": "Game Id"
+          },
+          "upvotes": {
+            "type": "integer",
+            "title": "Upvotes"
+          },
+          "liked_by_me": {
+            "type": "boolean",
+            "title": "Liked By Me"
+          }
+        },
+        "type": "object",
+        "required": [
+          "game_id",
+          "upvotes",
+          "liked_by_me"
+        ],
+        "title": "GameVoteRead"
+      },
+      "GoogleTokenRequest": {
+        "properties": {
+          "id_token": {
+            "type": "string",
+            "title": "Id Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_token"
+        ],
+        "title": "GoogleTokenRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MailingListSubscribe": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "MailingListSubscribe"
+      },
+      "MailingListSubscribeResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "MailingListSubscribeResponse"
+      },
+      "OptimisationRequest": {
+        "properties": {
+          "field_type": {
+            "type": "string",
+            "title": "Field Type",
+            "description": "Type of game element (objective, setup, rules)"
+          },
+          "original_text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 10,
+            "title": "Original Text",
+            "description": "The raw text from the user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field_type",
+          "original_text"
+        ],
+        "title": "OptimisationRequest"
+      },
+      "OptimisationResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the optimization succeeded"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptimisationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result object if successful"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message if failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "OptimisationResponse"
+      },
+      "OptimisationResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status of the operation (success/failed)",
+            "default": "success"
+          },
+          "original": {
+            "type": "string",
+            "title": "Original",
+            "description": "The original input text"
+          },
+          "optimized": {
+            "type": "string",
+            "title": "Optimized",
+            "description": "The AI-generated optimized text"
+          },
+          "char_count_saved": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Char Count Saved",
+            "description": "Difference in character count"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Error message or note if optimization was skipped/failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original",
+          "optimized"
+        ],
+        "title": "OptimisationResult"
+      },
+      "PhotoRegisterRequest": {
+        "properties": {
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "object_key"
+        ],
+        "title": "PhotoRegisterRequest"
+      },
+      "PhotoReorderRequest": {
+        "properties": {
+          "photo_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Photo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo_ids"
+        ],
+        "title": "PhotoReorderRequest"
+      },
+      "PhotoUploadUrlRequest": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type"
+        ],
+        "title": "PhotoUploadUrlRequest"
+      },
+      "PhotoUploadUrlResponse": {
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_url",
+          "object_key"
+        ],
+        "title": "PhotoUploadUrlResponse"
+      },
+      "PlayerCount": {
+        "properties": {
+          "min_players": {
+            "type": "integer",
+            "exclusiveMinimum": 1.0,
+            "title": "Min Players"
+          },
+          "max_players": {
+            "type": "integer",
+            "exclusiveMaximum": 100.0,
+            "exclusiveMinimum": 1.0,
+            "title": "Max Players"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_players",
+          "max_players"
+        ],
+        "title": "PlayerCount"
+      },
+      "PushTokenCreate": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "platform"
+        ],
+        "title": "PushTokenCreate"
+      },
+      "PushTokenDelete": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "PushTokenDelete"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "ResetPasswordRequest"
+      },
+      "ShortLinkCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "target_url": {
+            "type": "string",
+            "title": "Target Url"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "target_url"
+        ],
+        "title": "ShortLinkCreate"
+      },
+      "ShortLinkPatch": {
+        "properties": {
+          "target_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Url"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "ShortLinkPatch"
+      },
+      "ShortLinkRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "target_url": {
+            "type": "string",
+            "title": "Target Url"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "scan_count": {
+            "type": "integer",
+            "title": "Scan Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "target_url",
+          "is_active",
+          "scan_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ShortLinkRead"
+      },
+      "SortByEnum": {
+        "type": "string",
+        "enum": [
+          "recent",
+          "trending",
+          "recommended"
+        ],
+        "title": "SortByEnum"
+      },
+      "UserCompleteProfile": {
+        "properties": {
+          "date_of_birth": {
+            "type": "string",
+            "title": "Date Of Birth"
+          },
+          "country_of_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Of Origin"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date_of_birth"
+        ],
+        "title": "UserCompleteProfile",
+        "description": "For OAuth users completing their profile after signup"
+      },
+      "UserCreate": {
+        "properties": {
+          "firstname": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastname": {
+            "type": "string",
+            "title": "Lastname"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "country_of_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Of Origin"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstname",
+          "lastname",
+          "email",
+          "username",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserFavouriteBase": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "game_id": {
+            "type": "string",
+            "title": "Game Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "game_id",
+          "created_at"
+        ],
+        "title": "UserFavouriteBase"
+      },
+      "UserPasswordUpdate": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "UserPasswordUpdate"
+      },
+      "UserPrivateRead": {
+        "properties": {
+          "firstname": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastname": {
+            "type": "string",
+            "title": "Lastname"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "country_of_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Of Origin"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "access_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstname",
+          "lastname",
+          "email",
+          "username",
+          "role"
+        ],
+        "title": "UserPrivateRead"
+      },
+      "UserPublicRead": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "country_of_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Of Origin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "UserPublicRead"
+      },
+      "UserUpdate": {
+        "properties": {
+          "firstname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstname"
+          },
+          "lastname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "country_of_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Of Origin"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/auth/token"
+          }
+        }
+      }
+    }
+  }
+}

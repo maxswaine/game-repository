@@ -31,3 +31,38 @@ jobs:
 
       - name: Check version file exists
         run: test -f VERSION && echo "Version $(cat VERSION)"
+
+  api-compat:
+    name: API backward-compatibility check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate current OpenAPI schema
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-test-secret-key-not-used-in-production' }}
+          DATABASE_URL: sqlite:///./ci_openapi.db
+          PYTHONPATH: .
+        run: python scripts/export_openapi.py openapi-current.json
+
+      - name: Install oasdiff
+        run: |
+          tag=$(curl -fsSL https://api.github.com/repos/oasdiff/oasdiff/releases/latest | grep -m1 '"tag_name"' | cut -d '"' -f4)
+          version=${tag#v}
+          curl -fsSL "https://github.com/oasdiff/oasdiff/releases/download/${tag}/oasdiff_${version}_linux_amd64.tar.gz" | tar -xz
+          sudo mv oasdiff /usr/local/bin/oasdiff
+
+      - name: Check for breaking changes vs. committed baseline
+        run: |
+          oasdiff breaking openapi-snapshot.json openapi-current.json --fail-on ERR -f githubactions
