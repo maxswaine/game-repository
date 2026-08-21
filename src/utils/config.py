@@ -10,6 +10,10 @@ DUPLICATE_SIMILARITY_THRESHOLD: float = float(
 )
 DELETED_USER_ID: str = "00000000-0000-0000-0000-000000000001"
 
+# Lowest app semver still allowed to call the API without a client-side "please update" prompt.
+# Empty string means no minimum is enforced (default — don't block anyone until this is set deliberately).
+MIN_SUPPORTED_APP_VERSION: str = os.getenv("MIN_SUPPORTED_APP_VERSION", "")
+
 # TEMPORARY: gates the game review/approval flow (pending-by-default submissions).
 # Off by default so existing users see no behavior change until the FE ships "pending review"
 # messaging. Flip to "true" once ready, then delete this flag entirely once the app is live

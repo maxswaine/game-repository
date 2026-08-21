@@ -17,6 +17,7 @@ class GameReportAdminRead(BaseModel):
     game_id: str
     game_name: str
     reporter_id: str
+    reporter_username: str
     reason: str
     status: str
     created_at: datetime

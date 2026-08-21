@@ -19,7 +19,7 @@ from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
 from src.services.purge import run_purge
 from src.services.receipts import check_pending_deliveries
-from src.utils.config import QR_HOST
+from src.utils.config import MIN_SUPPORTED_APP_VERSION, QR_HOST
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -106,6 +106,15 @@ async def add_security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
+
+@app.middleware("http")
+async def log_app_version(request, call_next):
+    app_version = request.headers.get("x-app-version", "unknown")
+    logger.info(
+        "app_version=%s method=%s path=%s", app_version, request.method, request.url.path
+    )
+    return await call_next(request)
+
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(games.protected_router, prefix="/games", tags=["games"])
 app.include_router(games.public_router, prefix="/games", tags=["games"])
@@ -138,4 +147,4 @@ def read_root():
 
 @app.get("/version", tags=["meta"])
 def get_version():
-    return {"version": APP_VERSION}
+    return {"version": APP_VERSION, "min_supported_app_version": MIN_SUPPORTED_APP_VERSION}

@@ -329,6 +329,34 @@ class TestReportResolution:
         response = client_with_auth.get("/admin/games/reports")
         assert response.status_code == 403
 
+    def test_list_reports_includes_reporter_username(
+        self, db, test_user, second_user, client_as_admin
+    ):
+        game = Game(
+            name="Reported Game",
+            description="desc",
+            game_type="Card",
+            min_players=2,
+            max_players=6,
+            duration="30-45 minutes",
+            objective="win",
+            setup="setup",
+            rules="rules",
+            is_public=True,
+            status="approved",
+            contributor_id=test_user.id,
+        )
+        db.add(game)
+        db.commit()
+        db.refresh(game)
+        _report_game(db, game.id, second_user.id)
+
+        response = client_as_admin.get("/admin/games/reports")
+        assert response.status_code == 200
+        report = next(r for r in response.json() if r["game_id"] == game.id)
+        assert report["reporter_id"] == second_user.id
+        assert report["reporter_username"] == second_user.username
+
     def test_missing_report_returns_404(self, client_as_admin):
         response = client_as_admin.patch(
             "/admin/games/reports/does-not-exist", json={"action": "dismiss"}

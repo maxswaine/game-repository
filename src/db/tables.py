@@ -113,6 +113,7 @@ class GameReport(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     game = relationship("Game")
+    reporter = relationship("User", foreign_keys=[reporter_id])
 
     __table_args__ = (
         __import__("sqlalchemy").UniqueConstraint("game_id", "reporter_id", name="uq_game_report_per_user"),
@@ -222,6 +223,8 @@ class Feedback(Base):
     message = Column(String, nullable=False)
     status = Column(String, nullable=False, default="open")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
 
 
 class ShortLink(Base):

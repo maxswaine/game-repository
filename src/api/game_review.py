@@ -92,7 +92,7 @@ def list_pending_reports(
 ):
     reports = (
         db.query(GameReport)
-        .options(joinedload(GameReport.game))
+        .options(joinedload(GameReport.game), joinedload(GameReport.reporter))
         .filter(GameReport.status == "pending")
         .order_by(GameReport.created_at.asc())
         .all()
@@ -103,6 +103,7 @@ def list_pending_reports(
             game_id=r.game_id,
             game_name=r.game.name if r.game else "",
             reporter_id=r.reporter_id,
+            reporter_username=r.reporter.username if r.reporter else "",
             reason=r.reason,
             status=r.status,
             created_at=r.created_at,
@@ -125,7 +126,7 @@ def resolve_report(
 
     report = (
         db.query(GameReport)
-        .options(joinedload(GameReport.game))
+        .options(joinedload(GameReport.game), joinedload(GameReport.reporter))
         .filter(GameReport.id == report_id)
         .first()
     )
@@ -151,6 +152,7 @@ def resolve_report(
         game_id=report.game_id,
         game_name=report.game.name if report.game else "",
         reporter_id=report.reporter_id,
+        reporter_username=report.reporter.username if report.reporter else "",
         reason=report.reason,
         status=report.status,
         created_at=report.created_at,
