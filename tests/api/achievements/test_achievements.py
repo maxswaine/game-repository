@@ -200,6 +200,26 @@ class TestSignalAchievements:
         assert response.status_code == 401
 
 
+class TestFeedbackGrantsAchievement:
+    def test_submitting_feedback_grants_give_feedback_achievement(self, client_with_auth):
+        response = client_with_auth.post(
+            "/feedback", json={"type": "Bug Report", "message": "Something broke"}
+        )
+        assert response.status_code == 201
+
+        achievement = _by_type(_get_achievements(client_with_auth), AchievementTypeEnum.GIVE_FEEDBACK)
+        assert achievement["achieved"] is True
+        assert achievement["achieved_at"] is not None
+
+    def test_second_feedback_submission_does_not_error(self, client_with_auth):
+        client_with_auth.post("/feedback", json={"type": "Bug Report", "message": "First"})
+        response = client_with_auth.post("/feedback", json={"type": "Other", "message": "Second"})
+        assert response.status_code == 201
+
+        achievements = _get_achievements(client_with_auth)
+        assert len([a for a in achievements if a["achievement_type"] == "give_feedback" and a["achieved"]]) == 1
+
+
 class TestScenarios:
     def test_five_game_journey_unlocks_first_submit_and_five_uploads(self, client_with_auth):
         """Creating 5 games should unlock FIRST_SUBMIT on game 1 and FIVE_UPLOADS on game 5."""

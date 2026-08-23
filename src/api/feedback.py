@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 from src.api.users import get_current_active_user, require_admin
 from src.db.database import get_db
 from src.db.tables import Feedback
+from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.feedback_models.feedback import FeedbackAdminRead, FeedbackCreate, FeedbackResponse
+from src.services.achievements import grant_if_not_exists
 
 router = APIRouter()
 admin_router = APIRouter()
@@ -24,6 +26,7 @@ def create_feedback(
         message=body.message,
     )
     db.add(feedback)
+    grant_if_not_exists(db, current_user.id, AchievementTypeEnum.GIVE_FEEDBACK)
     db.commit()
     db.refresh(feedback)
     return FeedbackResponse(id=feedback.id, created_at=feedback.created_at)
