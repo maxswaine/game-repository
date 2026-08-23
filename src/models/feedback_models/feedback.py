@@ -40,3 +40,7 @@ class FeedbackAdminRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FeedbackResolvePatch(BaseModel):
+    action: str  # "acknowledge" | "needs_work"

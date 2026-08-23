@@ -1,14 +1,24 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.users import get_current_active_user, require_admin
 from src.db.database import get_db
 from src.db.tables import Feedback
 from src.models.enums.achievement_enum import AchievementTypeEnum
-from src.models.feedback_models.feedback import FeedbackAdminRead, FeedbackCreate, FeedbackResponse
+from src.models.feedback_models.feedback import (
+    FeedbackAdminRead,
+    FeedbackCreate,
+    FeedbackResolvePatch,
+    FeedbackResponse,
+)
 from src.services.achievements import grant_if_not_exists
+
+_FEEDBACK_ACTION_TO_STATUS = {
+    "acknowledge": "acknowledged",
+    "needs_work": "needs_work",
+}
 
 router = APIRouter()
 admin_router = APIRouter()
@@ -40,6 +50,7 @@ def list_feedback(
     items = (
         db.query(Feedback)
         .options(joinedload(Feedback.user))
+        .filter(Feedback.status == "pending")
         .order_by(Feedback.created_at.desc())
         .all()
     )
@@ -55,3 +66,37 @@ def list_feedback(
         )
         for f in items
     ]
+
+
+@admin_router.patch("/feedback/{feedback_id}", response_model=FeedbackAdminRead)
+def resolve_feedback(
+    feedback_id: str,
+    body: FeedbackResolvePatch,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    if body.action not in _FEEDBACK_ACTION_TO_STATUS:
+        raise HTTPException(status_code=422, detail="action must be 'acknowledge' or 'needs_work'")
+
+    feedback = (
+        db.query(Feedback)
+        .options(joinedload(Feedback.user))
+        .filter(Feedback.id == feedback_id)
+        .first()
+    )
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+
+    feedback.status = _FEEDBACK_ACTION_TO_STATUS[body.action]
+    db.commit()
+    db.refresh(feedback)
+
+    return FeedbackAdminRead(
+        id=feedback.id,
+        user_id=feedback.user_id,
+        username=feedback.user.username if feedback.user else "",
+        type=feedback.type,
+        message=feedback.message,
+        status=feedback.status,
+        created_at=feedback.created_at,
+    )
