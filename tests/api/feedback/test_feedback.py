@@ -79,3 +79,71 @@ def test_admin_list_feedback_includes_username(db, test_user, client_as_admin):
     item = next(i for i in data if i["message"] == "Needs a username")
     assert item["user_id"] == test_user.id
     assert item["username"] == test_user.username
+
+
+def test_new_feedback_defaults_to_pending(client_with_auth, client_as_admin):
+    _post_feedback(client_with_auth, message="Fresh feedback")
+    data = client_as_admin.get("/admin/feedback").json()
+    item = next(i for i in data if i["message"] == "Fresh feedback")
+    assert item["status"] == "pending"
+
+
+class TestResolveFeedback:
+    def _create(self, db, test_user, message="Needs review"):
+        from src.db.tables import Feedback
+
+        feedback = Feedback(user_id=test_user.id, type="Bug Report", message=message)
+        db.add(feedback)
+        db.commit()
+        db.refresh(feedback)
+        return feedback
+
+    def test_acknowledge_sets_status(self, db, test_user, client_as_admin):
+        feedback = self._create(db, test_user)
+        response = client_as_admin.patch(
+            f"/admin/feedback/{feedback.id}", json={"action": "acknowledge"}
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "acknowledged"
+
+    def test_needs_work_sets_status(self, db, test_user, client_as_admin):
+        feedback = self._create(db, test_user)
+        response = client_as_admin.patch(
+            f"/admin/feedback/{feedback.id}", json={"action": "needs_work"}
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "needs_work"
+
+    def test_invalid_action_returns_422(self, db, test_user, client_as_admin):
+        feedback = self._create(db, test_user)
+        response = client_as_admin.patch(
+            f"/admin/feedback/{feedback.id}", json={"action": "banana"}
+        )
+        assert response.status_code == 422
+
+    def test_missing_feedback_returns_404(self, client_as_admin):
+        response = client_as_admin.patch(
+            "/admin/feedback/does-not-exist", json={"action": "acknowledge"}
+        )
+        assert response.status_code == 404
+
+    def test_non_admin_cannot_resolve(self, db, test_user, client_with_auth):
+        feedback = self._create(db, test_user)
+        response = client_with_auth.patch(
+            f"/admin/feedback/{feedback.id}", json={"action": "acknowledge"}
+        )
+        assert response.status_code == 403
+
+    def test_unauthenticated_cannot_resolve(self, db, test_user, client_no_auth):
+        feedback = self._create(db, test_user)
+        response = client_no_auth.patch(
+            f"/admin/feedback/{feedback.id}", json={"action": "acknowledge"}
+        )
+        assert response.status_code == 401
+
+    def test_resolved_feedback_drops_out_of_pending_list(self, db, test_user, client_as_admin):
+        feedback = self._create(db, test_user, message="Will be acknowledged")
+        client_as_admin.patch(f"/admin/feedback/{feedback.id}", json={"action": "acknowledge"})
+
+        data = client_as_admin.get("/admin/feedback").json()
+        assert not any(i["id"] == feedback.id for i in data)

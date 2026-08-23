@@ -221,7 +221,7 @@ class Feedback(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     type = Column(String, nullable=False)
     message = Column(String, nullable=False)
-    status = Column(String, nullable=False, default="open")
+    status = Column(String, nullable=False, default="pending")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     user = relationship("User", foreign_keys=[user_id])

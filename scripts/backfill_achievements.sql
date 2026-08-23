@@ -28,3 +28,11 @@ SELECT DISTINCT contributor_id, 'ten_likes_on_upload', NOW()
 FROM games
 WHERE upvotes >= 10
 ON CONFLICT DO NOTHING;
+
+-- give_feedback: has submitted at least 1 feedback entry (backfill for the
+-- signal-only bug fixed in fix/feedback-achievement-not-granted -- feedback
+-- submitted before that fix never granted the achievement)
+INSERT INTO user_achievements (user_id, achievement_type, achieved_at)
+SELECT DISTINCT user_id, 'give_feedback', NOW()
+FROM feedback
+ON CONFLICT DO NOTHING;
