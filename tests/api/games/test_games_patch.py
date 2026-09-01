@@ -1,5 +1,28 @@
+import uuid
+
 from src.db.tables import Game, GameEquipment, GameSetting
 from tests.utils import valid_public_game_payload
+
+
+def _seed_game_owned_by(db, contributor_id: str) -> Game:
+    game = Game(
+        id=str(uuid.uuid4()),
+        name="Contributor's Game",
+        description="desc",
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 minutes",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        is_public=True,
+        status="approved",
+        contributor_id=contributor_id,
+    )
+    db.add(game)
+    db.commit()
+    return game
 
 
 def test_patch_game_success(client_with_auth, db):
@@ -78,3 +101,22 @@ def test_patch_game_no_changes(client_with_auth, db):
     updated_game = patch_resp.json()
 
     assert updated_game == created_game
+
+
+def test_patch_game_rejects_non_owner(client_as_second_user, db, test_user):
+    game = _seed_game_owned_by(db, test_user.id)
+
+    patch_resp = client_as_second_user.patch(f"/games/{game.id}", json={"name": "Hijacked"})
+    assert patch_resp.status_code == 401
+
+
+def test_patch_game_allows_admin_for_any_game(client_as_admin, db, test_user):
+    game = _seed_game_owned_by(db, test_user.id)
+
+    patch_resp = client_as_admin.patch(f"/games/{game.id}", json={"rules": "Cleaned-up rules text"})
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["rules"] == "Cleaned-up rules text"
+
+    db_game = db.query(Game).filter(Game.id == game.id).first()
+    assert db_game.rules == "Cleaned-up rules text"
+    assert db_game.contributor_id == test_user.id

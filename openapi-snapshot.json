@@ -1841,6 +1841,25 @@
         }
       }
     },
+    "/metadata/existing-tags": {
+      "get": {
+        "tags": [
+          "metadata"
+        ],
+        "summary": "Get Existing Tags",
+        "operationId": "get_existing_tags_metadata_existing_tags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/optimise/": {
       "post": {
         "tags": [
@@ -3196,6 +3215,63 @@
         ]
       }
     },
+    "/admin/feedback/{feedback_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Feedback",
+        "operationId": "resolve_feedback_admin_feedback__feedback_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Feedback Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackResolvePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackAdminRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/qr/{code}": {
       "get": {
         "tags": [
@@ -4015,6 +4091,10 @@
             "type": "string",
             "title": "User Id"
           },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
           "type": {
             "type": "string",
             "title": "Type"
@@ -4037,6 +4117,7 @@
         "required": [
           "id",
           "user_id",
+          "username",
           "type",
           "message",
           "status",
@@ -4060,6 +4141,19 @@
           "message"
         ],
         "title": "FeedbackCreate"
+      },
+      "FeedbackResolvePatch": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "FeedbackResolvePatch"
       },
       "FeedbackResponse": {
         "properties": {
@@ -4264,9 +4358,8 @@
       "GameEquipmentEnum": {
         "type": "string",
         "enum": [
-          "None",
-          "Nothing",
-          "Standard Deck of Cards",
+          "No Equipment",
+          "Deck of Cards",
           "Jokers",
           "Multiple Decks of Cards",
           "Tarot Deck",
@@ -4704,6 +4797,10 @@
             "type": "string",
             "title": "Reporter Id"
           },
+          "reporter_username": {
+            "type": "string",
+            "title": "Reporter Username"
+          },
           "reason": {
             "type": "string",
             "title": "Reason"
@@ -4724,6 +4821,7 @@
           "game_id",
           "game_name",
           "reporter_id",
+          "reporter_username",
           "reason",
           "status",
           "created_at"
@@ -4849,6 +4947,20 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 5
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count",
+            "description": "Explicit player count (e.g. from a UI control). Overrides any count detected in the query text."
           }
         },
         "type": "object",

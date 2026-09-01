@@ -10,6 +10,7 @@ from src.db.database import get_db
 from src.db.tables import Game, GameComment, CommentLike
 from src.models.comment_models.comment import CommentCreate, CommentRead
 from src.models.enums.role_enum import Role
+from src.services import notifications
 from src.services.moderation import check_content
 from src.utils.age_filter import detect_profanity
 
@@ -73,7 +74,8 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    if not db.query(Game).filter(Game.id == game_id).first():
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
         raise GAME_NOT_FOUND_EXCEPTION
 
     if detect_profanity(body.body) or not check_content(body.body):
@@ -91,6 +93,13 @@ def create_comment(
     )
     db.add(comment)
     db.commit()
+
+    if game.contributor_id != current_user.id:
+        notifications.send_new_comment_notification(
+            db, game.contributor_id, game.id, game.name, current_user.username,
+            body.comment_type.value, body.body,
+        )
+        db.commit()
     return _map_comment(_load_comment(db, comment.id), current_user.id)
 
 
