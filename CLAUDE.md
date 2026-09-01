@@ -191,6 +191,12 @@ Bugs and feature requests are tracked as **GitHub Issues** on this repo and the 
 - Check `COMPATIBILITY.md` in `whats-that-game-app` (frontend repo) before a breaking change — it tracks app-version ↔ min-backend-version pairs for exactly this. Add a row there (via the frontend repo) if a change here breaks an old app build or requires a specific new one.
 - Since there's no Alembic migration layer here (`create_all` on startup, see § Production above), a schema change is inherently additive-only in practice — you can't safely drop/rename a column without a manual migration step, which is one more reason breaking backend changes are rare and worth flagging in `COMPATIBILITY.md` when they happen.
 
+**API schema snapshot (`openapi-snapshot.json`)** — CI (`api-compat` job in `.github/workflows/ci.yml`) runs `oasdiff breaking` against every PR to catch exactly the kind of change described above automatically, so you don't have to remember to check by hand. Full detail in `docs/api-compatibility.md`; read it before touching this, don't just follow the summary below.
+
+- **Additive changes (new endpoint, new optional field) never need the snapshot touched.** The check won't flag them and updating the snapshot for them is actively wrong — it narrows what "the oldest shape we still promise" means for no reason.
+- **If CI fails with a real breaking change** (removed/renamed field, changed type, newly-required field, or — as happened once — a response enum's value set changing): don't just regenerate and commit the snapshot to make CI pass. Follow `docs/api-compatibility.md`'s process — confirm via `log_app_version` Railway logs (see `docs/app-backend-version-signal.md`) that no live app traffic depends on the old shape, then pair the snapshot update with raising `MIN_SUPPORTED_APP_VERSION` if it's a genuine break.
+- **Exception:** if you can show the flagged change isn't actually a compatibility risk in practice (e.g. the field was never validated client-side against a closed set, only used for free-text display/autocomplete), it's fine to update the snapshot without bumping `MIN_SUPPORTED_APP_VERSION` — but write that reasoning in the PR description. Don't silently overwrite the snapshot to unblock CI without saying why it was safe.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
