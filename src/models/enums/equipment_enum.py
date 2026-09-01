@@ -4,13 +4,12 @@ class GameEquipmentEnum(str, Enum):
     # --------------------
     # None / Minimal
     # --------------------
-    none = "None"
-    nothing = "Nothing"
+    none = "No Equipment"
 
     # --------------------
     # Cards
     # --------------------
-    standard_deck = "Standard Deck of Cards"
+    standard_deck = "Deck of Cards"
     jokers = "Jokers"
     multiple_decks = "Multiple Decks of Cards"
     tarot_deck = "Tarot Deck"

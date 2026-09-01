@@ -26,6 +26,18 @@ _NEGATION_RE = re.compile(
     r"(?:no|without|never|don'?t (?:want|need|have)(?: any)?|not any) ([a-z]+(?: [a-z]+)?)"
 )
 
+_NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+    "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20,
+}
+_NUMBER_TOKEN = r"(?:\d{1,3}|" + "|".join(_NUMBER_WORDS) + r")"
+_PLAYER_COUNT_RE = re.compile(
+    rf"\b({_NUMBER_TOKEN})\s+(?:players?|people|person|friends|guests)\b"
+)
+_OF_US_RE = re.compile(rf"\b({_NUMBER_TOKEN})\s+of\s+us\b")
+
 
 def _fold_plural(word: str) -> str:
     return word[:-1] if word.endswith("s") and len(word) > 3 else word
@@ -65,22 +77,42 @@ def _excluded_equipment_from_negations(query: str) -> set:
     return excluded
 
 
-def _apply_hard_filters(games: list, query: str) -> list:
+def _extract_player_count(query: str) -> int | None:
+    """Pull an explicit headcount ('6 people', '4 of us') out of free-text search queries."""
+    q = query.lower()
+    for pattern in (_PLAYER_COUNT_RE, _OF_US_RE):
+        match = pattern.search(q)
+        if match:
+            token = match.group(1)
+            count = _NUMBER_WORDS.get(token, None)
+            if count is None:
+                count = int(token)
+            if 1 <= count <= 100:
+                return count
+    return None
+
+
+def _apply_hard_filters(games: list, query: str, player_count: int | None = None) -> list:
     """Remove games that cannot satisfy explicit constraints in the query."""
     if _wants_no_equipment(query):
-        no_equipment_values = {GameEquipmentEnum.none.value, GameEquipmentEnum.nothing.value}
-        return [
+        no_equipment_values = {GameEquipmentEnum.none.value}
+        games = [
             g for g in games
             if all(e.equipment_name in no_equipment_values for e in g.equipment_items)
         ]
+    else:
+        excluded = _excluded_equipment_from_negations(query)
+        if excluded:
+            excluded_values = {e.value for e in excluded}
+            games = [
+                g for g in games
+                if not any(e.equipment_name in excluded_values for e in g.equipment_items)
+            ]
 
-    excluded = _excluded_equipment_from_negations(query)
-    if excluded:
-        excluded_values = {e.value for e in excluded}
-        games = [
-            g for g in games
-            if not any(e.equipment_name in excluded_values for e in g.equipment_items)
-        ]
+    count = player_count if player_count is not None else _extract_player_count(query)
+    if count is not None:
+        games = [g for g in games if g.min_players <= count <= g.max_players]
+
     return games
 
 
@@ -117,7 +149,7 @@ def semantic_search(
     if not games:
         return []
 
-    games = _apply_hard_filters(games, request.query)
+    games = _apply_hard_filters(games, request.query, request.player_count)
 
     if not games:
         return []

@@ -171,6 +171,37 @@ def send_game_status_notification(
     )
 
 
+_COMMENT_SNIPPET_LIMIT = 120
+
+
+def send_new_comment_notification(
+    db: Session,
+    user_id: str,
+    game_id: str,
+    game_name: str,
+    commenter_username: str,
+    comment_type: str,
+    comment_body: str,
+) -> None:
+    if comment_type == "rule_variant":
+        title = "New rule variant"
+        body = f'{commenter_username} added a rule variant to "{game_name}".'
+    else:
+        title = "New comment"
+        snippet = comment_body if len(comment_body) <= _COMMENT_SNIPPET_LIMIT \
+            else comment_body[:_COMMENT_SNIPPET_LIMIT - 3] + "..."
+        body = f'{commenter_username} on "{game_name}": {snippet}'
+
+    send(
+        db,
+        user_id,
+        title,
+        body,
+        notification_type="new_comment",
+        data={"game_id": game_id},
+    )
+
+
 def notify_admins_new_pending_game(
     db: Session,
     game_id: str,

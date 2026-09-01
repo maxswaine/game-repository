@@ -17,7 +17,9 @@ from src.services.embedder import build_game_text, embed_text, embedding_to_json
 from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD, GAME_REVIEW_GATE_ENABLED
 from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
+from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.enums.game_difficulty_enum import GameDifficultyEnum
+from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.enums.role_enum import Role
 from src.models.error_models.error import ErrorDetail
@@ -38,6 +40,17 @@ public_router = APIRouter()
 
 NO_EQUIPMENT = "No Equipment"
 _MODERATED_TEXT_FIELDS = {"name", "description", "objective", "setup", "rules"}
+
+
+def _normalize_tags(values: list[str], db: Session, table_column, enum_values: list[str]) -> list[str]:
+    """Fold new tag text onto existing casing (enum value or already-stored value) when it matches case-insensitively."""
+    fold_map: dict[str, str] = {}
+    for v in enum_values:
+        fold_map.setdefault(v.strip().lower(), v.strip())
+    for (existing,) in db.query(table_column).distinct().all():
+        if existing:
+            fold_map.setdefault(existing.strip().lower(), existing.strip())
+    return [fold_map.get(v.strip().lower(), v.strip()) for v in values if v and v.strip()]
 
 
 def _parse_dob(user) -> date_type | None:
@@ -178,11 +191,12 @@ def create_new_game(
     db.commit()
     db.refresh(db_new_game)
 
-    equipment_list = new_game.equipment or [NO_EQUIPMENT]
+    equipment_list = _normalize_tags(new_game.equipment or [NO_EQUIPMENT], db, GameEquipment.equipment_name, [e.value for e in GameEquipmentEnum])
     for eq in equipment_list:
         db.add(GameEquipment(game_id=db_new_game.id, equipment_name=str(eq)))
 
-    for s in (new_game.game_setting or []):
+    setting_list = _normalize_tags(new_game.game_setting or [], db, GameSetting.setting_name, [s.value for s in GameSettingEnum])
+    for s in setting_list:
         db.add(GameSetting(game_id=db_new_game.id, setting_name=s))
 
     now = datetime.now(timezone.utc)
@@ -528,7 +542,8 @@ def update_game(
     if not db_game:
         raise GAME_NOT_FOUND_EXCEPTION
 
-    if db_game.contributor_id != current_user.id:
+    is_admin = current_user.role == Role.admin
+    if db_game.contributor_id != current_user.id and not is_admin:
         raise UNAUTHORIZED_EXCEPTION
     update_data = updates.model_dump(exclude_unset=True)
     was_rejected = db_game.status == "rejected"
@@ -575,7 +590,8 @@ def update_game(
             GameEquipment.game_id == db_game.id
         ).delete()
 
-        for eq in (updates.equipment or [NO_EQUIPMENT]):
+        equipment_list = _normalize_tags(updates.equipment or [NO_EQUIPMENT], db, GameEquipment.equipment_name, [e.value for e in GameEquipmentEnum])
+        for eq in equipment_list:
             db.add(GameEquipment(
                 game_id=db_game.id,
                 equipment_name=eq
@@ -586,7 +602,8 @@ def update_game(
             GameSetting.game_id == db_game.id
         ).delete()
 
-        for s in updates.game_setting or []:
+        setting_list = _normalize_tags(updates.game_setting or [], db, GameSetting.setting_name, [s.value for s in GameSettingEnum])
+        for s in setting_list:
             db.add(GameSetting(
                 game_id=db_game.id,
                 setting_name=s

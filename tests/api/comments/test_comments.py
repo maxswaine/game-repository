@@ -3,6 +3,7 @@ from starlette.testclient import TestClient
 
 from src.api.users import get_current_active_user
 from src.db.database import get_db
+from src.db.tables import Notification
 from src.main import app
 from tests.api.games.helper import create_public_game
 from tests.conftest import client_with_auth, client_no_auth, client_as_second_user
@@ -25,6 +26,82 @@ def test_create_comment_returns_201(client_with_auth, db):
     assert data["likes"] == 0
     assert data["liked_by_me"] is False
     assert data["user"]["username"] == "testuser"
+
+
+def test_create_comment_notifies_contributor(client_as_second_user, db, test_user):
+    # Only ONE client fixture per test — mixing client_with_auth + client_as_second_user
+    # collapses both onto the later fixture's auth override. Seed the game directly
+    # owned by test_user instead of creating it via a second client (see test_games_verify.py).
+    import uuid as _uuid
+    from src.db.tables import Game
+
+    game = Game(
+        id=str(_uuid.uuid4()),
+        name="Contributor's Game",
+        description="desc",
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 minutes",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        is_public=True,
+        status="approved",
+        contributor_id=test_user.id,
+    )
+    db.add(game)
+    db.commit()
+
+    response = _create_comment(client_as_second_user, game.id, body="Nice one!")
+    assert response.status_code == 201
+
+    note = db.query(Notification).filter_by(user_id=test_user.id, type="new_comment").first()
+    assert note is not None
+    assert note.title == "New comment"
+    assert game.name in note.body
+    assert "Nice one!" in note.body
+
+
+def test_create_comment_rule_variant_notifies_with_variant_copy(client_as_second_user, db, test_user):
+    import uuid as _uuid
+    from src.db.tables import Game
+
+    game = Game(
+        id=str(_uuid.uuid4()),
+        name="Contributor's Game",
+        description="desc",
+        game_type="Card",
+        min_players=2,
+        max_players=6,
+        duration="30-45 minutes",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        is_public=True,
+        status="approved",
+        contributor_id=test_user.id,
+    )
+    db.add(game)
+    db.commit()
+
+    response = _create_comment(client_as_second_user, game.id, comment_type="rule_variant")
+    assert response.status_code == 201
+
+    note = db.query(Notification).filter_by(user_id=test_user.id, type="new_comment").first()
+    assert note is not None
+    assert note.title == "New rule variant"
+    assert "added a rule variant to" in note.body
+    assert game.name in note.body
+
+
+def test_create_comment_on_own_game_does_not_notify_self(client_with_auth, db, test_user):
+    game = create_public_game(client_with_auth, db)
+    response = _create_comment(client_with_auth, game["id"])
+    assert response.status_code == 201
+
+    note = db.query(Notification).filter_by(user_id=test_user.id, type="new_comment").first()
+    assert note is None
 
 
 def test_create_comment_rule_variant_type(client_with_auth, db):
