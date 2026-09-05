@@ -1,4 +1,19 @@
+import re
+
+from src.api.auth import generate_random_username
 from src.core.security import create_password_reset_token
+
+_RANDOM_USERNAME_RE = re.compile(r"^[A-Z][a-zA-Z]+\d{1,2}$")
+
+
+def test_generate_random_username_matches_expected_format():
+    username = generate_random_username()
+    assert _RANDOM_USERNAME_RE.match(username), username
+
+
+def test_generate_random_username_varies_across_calls():
+    usernames = {generate_random_username() for _ in range(20)}
+    assert len(usernames) > 1
 
 
 def test_reset_password_double_submit_is_idempotent(client_no_auth, test_user):
