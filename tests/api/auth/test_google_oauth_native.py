@@ -1,4 +1,5 @@
 import os
+import re
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from fastapi.testclient import TestClient
@@ -95,6 +96,19 @@ def test_google_token_new_user_created_in_db(db):
         assert user.email == "testuser@gmail.com"
         assert user.oauth_provider == "google"
         assert user.avatar_url is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_google_token_new_user_username_is_not_email_prefix(db):
+    client = _client(db)
+    try:
+        with patch("src.api.auth.httpx.AsyncClient", _async_client_mock(VALID_TOKENINFO)), \
+             patch.dict(os.environ, {"GOOGLE_CLIENT_ID": FAKE_CLIENT_ID}):
+            client.post("/auth/oauth/google/token", json={"id_token": "fake-id-token"})
+        user = db.query(User).filter(User.oauth_id == "google-sub-12345").first()
+        assert user.username != "testuser"
+        assert re.match(r"^[A-Z][a-zA-Z]+\d{1,2}$", user.username), user.username
     finally:
         app.dependency_overrides.clear()
 

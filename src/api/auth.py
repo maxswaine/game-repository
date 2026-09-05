@@ -7,6 +7,7 @@ from typing import Optional, Annotated
 
 import httpx
 import jwt
+import randomname
 from jwt.algorithms import RSAAlgorithm
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
@@ -103,6 +104,17 @@ def _consume_exchange_code(code: str) -> str | None:
     if datetime.now(timezone.utc) > expires_at:
         return None
     return jwt_token
+
+
+_USERNAME_ADJECTIVE_CATEGORIES = ("character", "appearance", "colors", "emotions", "size", "speed", "taste")
+_USERNAME_NOUN_CATEGORIES = ("apex_predators", "birds", "cats", "dogs", "fish", "gaming", "fruit")
+
+
+def generate_random_username() -> str:
+    name = randomname.get_name(adj=_USERNAME_ADJECTIVE_CATEGORIES, noun=_USERNAME_NOUN_CATEGORIES)
+    words = name.split("-")
+    number = secrets.randbelow(100)
+    return "".join(word.capitalize() for word in words) + str(number)
 
 
 def generate_unique_username(db, base: str) -> str:
@@ -348,7 +360,7 @@ async def google_callback(
         is_new_user = True
         user = User(
             email=email,
-            username=generate_unique_username(db, email.split("@")[0]),
+            username=generate_unique_username(db, generate_random_username()),
             firstname=userinfo.get("given_name") or "",
             lastname=userinfo.get("family_name") or "",
             created_at=datetime.now(timezone.utc),
@@ -540,7 +552,7 @@ async def google_token_exchange(
 
         user = User(
             email=email,
-            username=generate_unique_username(db, email.split("@")[0]),
+            username=generate_unique_username(db, generate_random_username()),
             firstname=claims.get("given_name") or "",
             lastname=claims.get("family_name") or "",
             created_at=datetime.now(timezone.utc),
@@ -610,7 +622,7 @@ async def apple_token_exchange(
 
         user = User(
             email=email,
-            username=generate_unique_username(db, email.split("@")[0]),
+            username=generate_unique_username(db, generate_random_username()),
             firstname=payload.firstname,
             lastname=payload.lastname,
             created_at=datetime.now(timezone.utc),
