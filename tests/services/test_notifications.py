@@ -82,7 +82,10 @@ class TestSendSuccess:
         mock_client.publish_multiple.assert_called_once()
         note = db.query(Notification).filter_by(user_id=test_user.id).first()
         assert note.status == "sent"
-        assert note.data == '{"game_id": "g1"}'
+        assert note.data == '{"game_id": "g1"}'  # stored log excludes notification_id
+
+        sent_messages = mock_client.publish_multiple.call_args[0][0]
+        assert sent_messages[0].data == {"game_id": "g1", "notification_id": note.id}
 
         ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).first()
         assert ticket_row.token == "ExponentPushToken[abc]"
