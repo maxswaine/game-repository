@@ -58,12 +58,13 @@ def send(
         _log(db, user_id, title, body, notification_type, data, achievement_type, status="failed")
         return
 
+    note = _log(db, user_id, title, body, notification_type, data, achievement_type, status="failed")
+
+    payload_data = {**(data or {}), "notification_id": note.id}
     messages = [
-        PushMessage(to=t.token, title=title, body=body, data=data or {})
+        PushMessage(to=t.token, title=title, body=body, data=payload_data)
         for t in valid_tokens
     ]
-
-    note = _log(db, user_id, title, body, notification_type, data, achievement_type, status="failed")
 
     try:
         tickets = _get_push_client().publish_multiple(messages)

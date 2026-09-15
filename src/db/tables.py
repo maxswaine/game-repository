@@ -201,6 +201,7 @@ class Notification(Base):
     achievement_type = Column(String, nullable=True)
     status = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    opened_at = Column(DateTime, nullable=True)
 
 
 class PushDeliveryTicket(Base):

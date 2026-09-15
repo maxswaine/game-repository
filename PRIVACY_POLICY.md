@@ -1,13 +1,13 @@
 # Privacy Policy — What's That Game
 
-**Last updated:** 25 July 2026
+**Last updated:** 16 August 2026
 **Applies to:** the "What's That Game" mobile app (iOS and Android) and its backend API.
 
 ## 1. Who we are
 
 What's That Game ("we", "us", "our") is an independent project run by its founding team. We are **not yet incorporated as a legal entity** — the project is currently operated privately by its founders. If and when we incorporate, this policy will be updated with the company details.
 
-For any privacy question or request, contact us at **whatsthatgameteam@gmail.com**.
+For any privacy question or request, contact us at **hello@whatsthatgame.info**.
 
 The project founders act as joint data controllers for the purposes of the UK GDPR / EU GDPR.
 
@@ -15,7 +15,9 @@ The project founders act as joint data controllers for the purposes of the UK GD
 
 ## 2. Summary
 
-What's That Game lets you create, store, search and discover party/board games. To do that we store an account for you, the games you contribute (including photos), and your activity — favourites, comments, aliases suggestions, and achievements. We use a small number of third-party providers (Google, OpenAI, Amplitude, Railway, Cloudflare, Resend, Expo) to sign you in, power semantic search and AI text suggestions, moderate uploaded content, measure how the app is used, host the service, store photos, send account emails, and deliver push notifications. We do **not** sell your personal data.
+What's That Game lets you create, store, search and discover party and board games. To do that we hold an account for you, the games you contribute (including photos), and your activity — favourites, comments, alias suggestions, and achievements.
+
+We rely on a handful of third-party providers to run the service: Google (sign-in), OpenAI (semantic search, AI text suggestions, content moderation), Amplitude (usage analytics), Railway (hosting and database), Cloudflare (photo storage), Resend (account emails), and Expo (push notifications). We do **not** sell your personal data.
 
 ---
 
@@ -156,12 +158,12 @@ Our backend and database are hosted on **Railway**, and our processors (Google, 
 
 Depending on your location, you have the right to access, correct, delete, restrict, or object to processing of your personal data, and to data portability.
 
-- **Delete your account:** you can request deletion from within the app. Your account is deactivated immediately and permanently erased after 30 days (see §8). You can cancel deletion and reactivate within those 30 days. You can also email us at **whatsthatgameteam@gmail.com** for manual erasure requests.
+- **Delete your account:** you can request deletion from within the app. Your account is deactivated immediately and permanently erased after 30 days (see §8). You can cancel deletion and reactivate within those 30 days. You can also email us at **hello@whatsthatgame.info** for manual erasure requests.
 - **Access / correction:** update your profile in the app, or contact us.
 - **Push notifications:** you can disable notifications at any time via in-app settings or OS-level controls; this removes your stored device token.
 - **Withdraw analytics consent:** where we rely on consent, you can withdraw it at any time via in-app settings / OS-level controls.
 
-To exercise any right, email **whatsthatgameteam@gmail.com**. You also have the right to complain to your data protection authority (in the UK, the ICO: https://ico.org.uk).
+To exercise any right, email **hello@whatsthatgame.info**. You also have the right to complain to your data protection authority (in the UK, the ICO: https://ico.org.uk).
 
 ---
 
@@ -186,4 +188,4 @@ We may update this policy. We will post the new version with an updated "Last up
 ## 13. Contact
 
 **What's That Game** (founding team)
-Email: **whatsthatgameteam@gmail.com**
+Email: **hello@whatsthatgame.info**

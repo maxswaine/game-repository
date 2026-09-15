@@ -6,6 +6,21 @@
 (see [`docs/superpowers/specs/2026-07-16-photo-upload-system-design.md`](superpowers/specs/2026-07-16-photo-upload-system-design.md)),
 plus platform running costs (hosting, analytics, email, domain).
 
+## Cost trajectory at a glance
+
+Which lines increase in price as the app grows, and at what point.
+
+| Cost | Increases with scale? | Trigger threshold | Notes |
+|---|---|---|---|
+| **Railway** (hosting) | **Yes** | Scales continuously with CPU/RAM load, not a hard step | ~$8/mo early → ~$20/mo at 10k MAU → ~$35–80/mo past 25k MAU |
+| **Amplitude** (analytics) | **Yes** | ~12,500 MAU (~2M events/mo, @160 events/user assumption) | $0 → flat $49/mo (Plus) up to ~150k MAU, then custom Growth pricing |
+| **Resend** (email) | **Yes** | ~3,000 password-reset emails/month | $0 → $20/mo (50k emails) |
+| OpenAI (optimiser + embeddings) | No, not materially | Sub-cent per game regardless of volume; 10k games/mo ≈ $3.50–$6 total | Rounding error against the above |
+| Cloudflare R2 (photo storage) | No, not materially | Free tier: 10GB storage / 1M writes / 10M reads per month | Would need >10GB of photos or many millions of reads/month to cross — not expected pre-launch |
+| Domain | No | Fixed ~$1/mo | — |
+
+**Bottom line for the increases:** Railway and Amplitude are the two lines that go up as usage grows — Railway rises gradually with traffic, Amplitude jumps at a fixed MAU threshold. R2 and OpenAI would only increase past scale this app isn't projected to reach for a long time.
+
 ## Context for the finance report
 
 **What the app is:** *What's That Game* is a platform for storing and discovering games

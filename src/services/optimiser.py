@@ -1,11 +1,15 @@
 # src/services/optimiser.py
+import logging
 import os
 
 from openai import OpenAI
 
 from src.models.optimisation_models.optimisation_models import \
     OptimisationResult  # Keep the model, just don't return it directly yet
-from src.utils.prompts import PROMPT_TEMPLATES
+from src.utils.prompts import PROMPT_TEMPLATES, REJECTION_SENTINEL
+
+logger = logging.getLogger(__name__)
+
 
 def _get_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
@@ -38,7 +42,7 @@ class TextOptimiser:
 
         messages = [
             {"role": "system", "content": self.system_instruction},
-            {"role": "user", "content": f"Input: {user_text}"}
+            {"role": "user", "content": f"<user_submitted_text>\n{user_text}\n</user_submitted_text>"}
         ]
 
         try:
@@ -49,6 +53,19 @@ class TextOptimiser:
             )
 
             optimized_text = response.output_text
+
+            if optimized_text.strip() == REJECTION_SENTINEL:
+                logger.warning(
+                    "Optimiser rejected non-game input (field=%s): %r",
+                    self.field_type, user_text[:200],
+                )
+                return OptimisationResult(
+                    status="failed",
+                    original=user_text,
+                    optimized=user_text,
+                    note="This text doesn't look like game content and couldn't be processed. "
+                         "Please describe your game in plain language.",
+                )
 
             return OptimisationResult(
                 status="success",
