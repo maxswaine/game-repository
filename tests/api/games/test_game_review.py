@@ -160,7 +160,8 @@ class TestAdminReviewQueue:
             user_id=test_user.id, type="game_status_change"
         ).first()
         assert note is not None
-        assert "Duplicate Submission" in note.body
+        assert "Reject Me" in note.body
+        assert "Duplicate Submission" not in note.body
 
     def test_editing_rejected_game_resubmits_for_review(self, db, test_user, admin_user):
         game = Game(
