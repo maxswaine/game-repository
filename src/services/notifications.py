@@ -156,11 +156,8 @@ def send_game_status_notification(
         title = "Game approved!"
         body = f'"{game_name}" is now live.'
     else:
-        reason = rejection_reason_code or "it didn't meet our guidelines"
-        if rejection_reason:
-            reason = f"{reason} — {rejection_reason}"
-        title = "Game not approved"
-        body = f'"{game_name}" wasn\'t approved: {reason}'
+        title = "Your game needs a few changes"
+        body = f'"{game_name}" needs a few tweaks before it goes live. Check out our comments on the app, edit and resubmit!'
 
     send(
         db,
