@@ -156,8 +156,8 @@ def send_game_status_notification(
         title = "Game approved!"
         body = f'"{game_name}" is now live.'
     else:
-        title = "Your game needs a few changes"
-        body = f'"{game_name}" needs a few tweaks before it goes live. Check out our comments on the app, edit and resubmit!'
+        title = "Nearly there!"
+        body = f'Your game "{game_name}" needs a few tweaks before it goes live. Check out our comments on the app, edit and resubmit!'
 
     send(
         db,
