@@ -294,6 +294,35 @@ def update_my_password(
     return {"message": "Password updated successfully"}
 
 
+@router.post("/me/logout-other-devices", status_code=200)
+def logout_other_devices(
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: Annotated[Session, Depends(get_db)],
+):
+    current_user.token_version = (current_user.token_version or 0) + 1
+    db.commit()
+    db.refresh(current_user)
+
+    new_access_token = create_access_token(
+        data={"sub": current_user.username, "ver": current_user.token_version}
+    )
+
+    response = JSONResponse(content={
+        "message": "Logged out of all other devices",
+        "access_token": new_access_token,
+        "token_type": "bearer",
+    })
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
+        max_age=TOKEN_EXPIRES_MINUTES * 60,
+    )
+    return response
+
+
 # DELETE
 @router.delete("/me", status_code=200)
 def delete_account(
