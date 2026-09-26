@@ -131,3 +131,34 @@ def test_new_token_from_username_change_works(client_no_auth, test_user):
     )
     assert new_token_response.status_code == 200
     assert new_token_response.json()["username"] == "renamed_user"
+
+
+def test_logout_other_devices_revokes_old_tokens_but_not_new_one(client_no_auth, test_user):
+    old_token = _make_token(test_user.username, ver=test_user.token_version or 0)
+
+    response = client_no_auth.post(
+        "/users/me/logout-other-devices",
+        headers={"Authorization": f"Bearer {old_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    new_token = data["access_token"]
+    assert new_token is not None
+    assert new_token != old_token
+    assert "access_token" in response.cookies
+
+    old_token_response = client_no_auth.get(
+        "/users/me", headers={"Authorization": f"Bearer {old_token}"}
+    )
+    assert old_token_response.status_code == 401
+
+    new_token_response = client_no_auth.get(
+        "/users/me", headers={"Authorization": f"Bearer {new_token}"}
+    )
+    assert new_token_response.status_code == 200
+    assert new_token_response.json()["username"] == test_user.username
+
+
+def test_logout_other_devices_requires_auth(client_no_auth):
+    response = client_no_auth.post("/users/me/logout-other-devices")
+    assert response.status_code == 401

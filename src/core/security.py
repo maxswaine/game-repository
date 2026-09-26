@@ -14,7 +14,7 @@ from src.models.oauth_models.token import TokenData
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "129600"))
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 if not SECRET_KEY:
