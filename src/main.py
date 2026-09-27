@@ -13,7 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments, feedback, short_links, photos, push_tokens, admin_notifications, notifications, avatar, game_review, mailing_list
+from src.api import users, games, auth, favourites, metadata, optimisation, search, achievements, aliases, comments, feedback, short_links, photos, videos, push_tokens, admin_notifications, notifications, avatar, game_review, mailing_list
 from src.core.limiter import limiter
 from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
@@ -130,6 +130,7 @@ app.include_router(aliases.public_router, prefix="/games", tags=["aliases"])
 app.include_router(aliases.admin_router, prefix="/admin", tags=["admin"])
 app.include_router(comments.router, prefix="/games", tags=["comments"])
 app.include_router(photos.router, prefix="/games", tags=["photos"])
+app.include_router(videos.router, prefix="/admin", tags=["admin", "videos"])
 app.include_router(avatar.router, prefix="/users", tags=["avatar"])
 app.include_router(push_tokens.router, prefix="/push-tokens", tags=["push-tokens"])
 app.include_router(admin_notifications.router, prefix="/admin", tags=["admin"])

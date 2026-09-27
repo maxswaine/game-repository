@@ -14,7 +14,13 @@ from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
 from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity
-from src.utils.config import DUPLICATE_SIMILARITY_THRESHOLD, GAME_REVIEW_GATE_ENABLED
+from src.services.duplicate_judge import judge_potential_duplicate
+from src.utils.config import (
+    DUPLICATE_SIMILARITY_THRESHOLD,
+    DUPLICATE_CANDIDATE_THRESHOLD,
+    DUPLICATE_LLM_CANDIDATE_LIMIT,
+    GAME_REVIEW_GATE_ENABLED,
+)
 from src.db.tables import Game, GameAlias, GameEquipment, GameReport, GameSetting, User, UserFavourites
 from src.models.enums.achievement_enum import AchievementTypeEnum
 from src.models.enums.equipment_enum import GameEquipmentEnum
@@ -26,6 +32,7 @@ from src.models.error_models.error import ErrorDetail
 from src.models.game_models.game import GameCountRead, GameCreate, GameRead, GameUpdate
 from src.models.game_models.game_adult_content import GameAdultContent
 from src.models.game_models.game_photo import GamePhotoRead
+from src.models.game_models.game_video import GameVideoRead
 from src.models.game_models.game_report import GameReportRequest, GameReportResponse
 from src.models.game_models.game_visibility import GameVisibility
 from src.models.game_models.game_vote import GameVoteRead
@@ -128,27 +135,52 @@ def create_new_game(
                 .filter(Game.embedding.isnot(None))
                 .all()
             )
-            similar_ids: list[tuple] = []
+            scored: list[tuple] = []
             for row in slim:
                 try:
                     score = cosine_similarity(candidate_embedding, json_to_embedding(row.embedding))
-                    if score >= DUPLICATE_SIMILARITY_THRESHOLD:
-                        similar_ids.append((row.id, round(score, 4)))
+                    if score >= DUPLICATE_CANDIDATE_THRESHOLD:
+                        scored.append((row.id, round(score, 4)))
                 except Exception:
                     continue
-            similar_ids.sort(key=lambda x: x[1], reverse=True)
+            scored.sort(key=lambda x: x[1], reverse=True)
 
-            if similar_ids:
-                id_to_score = {id_: score for id_, score in similar_ids}
+            id_to_score = {id_: score for id_, score in scored}
+            confirmed_ids = {id_ for id_, score in scored if score >= DUPLICATE_SIMILARITY_THRESHOLD}
+
+            # Below the auto-flag bar but still similar enough to be worth a second look — different
+            # write-ups of the same game often score here on cosine alone. Only spend the LLM call
+            # when nothing has already auto-flagged, and cap how many candidates we judge.
+            gray_zone_ids = [id_ for id_, score in scored if score < DUPLICATE_SIMILARITY_THRESHOLD]
+            if gray_zone_ids and not confirmed_ids:
+                submission_text = build_game_text_from_create(new_game)
+                gray_zone_games = (
+                    db.query(Game)
+                    .filter(Game.id.in_(gray_zone_ids[:DUPLICATE_LLM_CANDIDATE_LIMIT]))
+                    .options(
+                        joinedload(Game.equipment_items),
+                        joinedload(Game.setting_items),
+                    )
+                    .all()
+                )
+                for existing_game in gray_zone_games:
+                    try:
+                        if judge_potential_duplicate(submission_text, build_game_text(existing_game)):
+                            confirmed_ids.add(existing_game.id)
+                    except Exception:
+                        continue  # best-effort — a failed judge call just skips that candidate
+
+            if confirmed_ids:
                 similar_games = (
                     db.query(Game)
-                    .filter(Game.id.in_(id_to_score.keys()))
+                    .filter(Game.id.in_(confirmed_ids))
                     .options(
                         joinedload(Game.equipment_items),
                         joinedload(Game.setting_items),
                         joinedload(Game.contributor),
                         joinedload(Game.alias_objects),
                         joinedload(Game.photos),
+                        joinedload(Game.videos),
                     )
                     .all()
                 )
@@ -399,7 +431,8 @@ def get_all_games(
         joinedload(Game.setting_items),
         joinedload(Game.contributor),
         joinedload(Game.alias_objects),
-        joinedload(Game.photos)
+        joinedload(Game.photos),
+        joinedload(Game.videos),
     ).filter(Game.is_public == True, Game.status == "approved")
 
     query = _apply_age_content_filter(query, current_user)
@@ -485,6 +518,7 @@ def get_my_games(
         joinedload(Game.contributor),
         joinedload(Game.alias_objects),
         joinedload(Game.photos),
+        joinedload(Game.videos),
     ).filter(Game.contributor_id == current_user.id)
              .limit(limit)
              .offset(offset)
@@ -728,6 +762,9 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         photos=[
             GamePhotoRead(id=p.id, public_url=p.public_url, position=p.position)
             for p in sorted(db_game.photos, key=lambda p: p.position)
+        ],
+        videos=[
+            GameVideoRead(id=v.id, public_url=v.public_url) for v in db_game.videos
         ],
     )
 

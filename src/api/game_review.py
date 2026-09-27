@@ -21,6 +21,7 @@ _GAME_JOINEDLOADS = (
     joinedload(Game.contributor),
     joinedload(Game.alias_objects),
     joinedload(Game.photos),
+    joinedload(Game.videos),
 )
 
 
