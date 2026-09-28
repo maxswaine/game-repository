@@ -43,6 +43,7 @@ class GameRead(GameBase):
     upvotes: int
     contributor: UserPublicRead
     created_at: datetime
+    reviewed_at: Optional[datetime] = None
     aliases: list[str] = []
     has_adult_content: bool = False
     liked_by_me: bool = False

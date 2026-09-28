@@ -12,6 +12,12 @@ def test_version_min_supported_defaults_to_empty_string(client_no_auth):
     assert response.json()["min_supported_app_version"] == ""
 
 
+def test_version_latest_app_version_defaults_to_empty_string(client_no_auth):
+    response = client_no_auth.get("/version")
+    assert response.status_code == 200
+    assert response.json()["latest_app_version"] == ""
+
+
 def test_request_without_app_version_header_still_succeeds(client_no_auth):
     response = client_no_auth.get("/version")
     assert response.status_code == 200
