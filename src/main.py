@@ -19,7 +19,7 @@ from src.core.scheduler import scheduler
 from src.db.database import engine, Base, SessionLocal
 from src.services.purge import run_purge
 from src.services.receipts import check_pending_deliveries
-from src.utils.config import MIN_SUPPORTED_APP_VERSION, QR_HOST
+from src.utils.config import LATEST_APP_VERSION, MIN_SUPPORTED_APP_VERSION, QR_HOST
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -151,4 +151,8 @@ def read_root():
 
 @app.get("/version", tags=["meta"])
 def get_version():
-    return {"version": APP_VERSION, "min_supported_app_version": MIN_SUPPORTED_APP_VERSION}
+    return {
+        "version": APP_VERSION,
+        "min_supported_app_version": MIN_SUPPORTED_APP_VERSION,
+        "latest_app_version": LATEST_APP_VERSION,
+    }

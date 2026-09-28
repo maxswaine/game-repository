@@ -25,6 +25,10 @@ DELETED_USER_ID: str = "00000000-0000-0000-0000-000000000001"
 # Empty string means no minimum is enforced (default — don't block anyone until this is set deliberately).
 MIN_SUPPORTED_APP_VERSION: str = os.getenv("MIN_SUPPORTED_APP_VERSION", "")
 
+# Newest app semver published to the stores, for a soft "update available" nudge (non-blocking).
+# Empty string means no nudge is shown — same "don't set behavior until deliberate" default as above.
+LATEST_APP_VERSION: str = os.getenv("LATEST_APP_VERSION", "")
+
 # TEMPORARY: gates the game review/approval flow (pending-by-default submissions).
 # Off by default so existing users see no behavior change until the FE ships "pending review"
 # messaging. Flip to "true" once ready, then delete this flag entirely once the app is live

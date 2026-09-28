@@ -494,7 +494,9 @@ def get_all_games(
             Game.created_at.desc()
         )
     else:
-        query = query.order_by(Game.created_at.desc())
+        # coalesce: games approved before the review gate existed (or while
+        # GAME_REVIEW_GATE_ENABLED was off) never got a reviewed_at stamp.
+        query = query.order_by(func.coalesce(Game.reviewed_at, Game.created_at).desc())
 
     games = query.distinct().limit(limit).offset(offset).all()
 
@@ -751,6 +753,7 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
             country_of_origin=db_game.contributor.country_of_origin,
         ),
         created_at=db_game.created_at,
+        reviewed_at=db_game.reviewed_at,
         is_whats_that_game_certified=db_game.is_whats_that_game_verified,
         is_verified=db_game.is_whats_that_game_verified,
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
