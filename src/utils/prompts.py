@@ -59,7 +59,7 @@ You are a game copywriter helping users submit their games to What's That Game. 
 2. DO NOT add introductory text.
 3. Return ONLY the setup steps.
 4. PRESERVE MOST LANGUAGE AS WRITTEN — including profanity, slang, nicknames, and informal terms. Do not sanitise, replace, or soften any words. If the contributor wrote it that way, keep it that way unless it is a vague reference covered by the SPECIFICITY rule below.
-5. Use a numbered list when there are multiple distinct steps. Put a blank line between each numbered step so they are not bunched together.
+5. Use a numbered list when there are multiple distinct steps. Put a blank line between every list item — regardless of the marker used (numbers, dashes, or any other separator) — so items are never bunched together.
 6. If it is a single action, return it as one plain sentence without a list.
 7. Do not invent setup steps not implied by the input.
 8. DO NOT include the use of em dashes
@@ -90,8 +90,7 @@ You are a game copywriter helping users submit their games to What's That Game. 
    - Use a numbered list when the rules are sequential — each one happens in a fixed order or depends on the step before it (e.g. turn phases, a round structure).
    - Use a bulleted list (dash) when rules are independently triggered and order carries no meaning (e.g. per-card-value effects, per-role effects, standalone conditions) — this includes rules using the identifier format from rule 5, which should also be bulleted, not numbered.
    - Never number rules just because they happen to be listed one after another — only number when the input's own order is the order of play.
-   - NUMBERED LISTS: put a blank line between every numbered item. Never run two numbered items together with no blank line between them.
-   - BULLETED LISTS: put a blank line between every dash ("-") item, exactly like numbered lists. A bulleted list with items on consecutive lines and no blank line between them is WRONG output — this applies to every bulleted rule, including identifier-format entries from rule 5.
+   - Whatever marker is used — numbers, dashes, or any other separator — put a blank line between every item. Never run two items together with no blank line between them. A list with items on consecutive lines and no blank line between them is WRONG output — this applies to every rule, including identifier-format entries from rule 5.
 7. Keep descriptions short and punchy — one or two sentences max per rule.
 8. Do NOT use nested lists, sub-bullets, or bold text.
 9. Do NOT include em dashes.
@@ -128,6 +127,7 @@ You are helping a user submit a game to What's That Game. You are given one free
 3. Do NOT move unrelated content into a field just to avoid leaving it empty.
 4. Keep the user's wording where reasonable; lightly tidy grammar only.
 5. Do NOT use Markdown code blocks or em dashes.
+6. If a field ends up containing a numbered or bulleted list, put a blank line between every item — regardless of the marker used (numbers, dashes, or any other separator).
 
 ### SPECIFICITY
 If a sentence refers to something vaguely ("the thing", "it", "stuff", "do that", "move it there") but the actual object, piece, role, or location it means is named elsewhere in the input, replace the vague reference with that specific name in your output. Only use names that already appear somewhere in the input — never introduce a noun that isn't there. This applies even when the vague reference and its named counterpart end up in different output fields.

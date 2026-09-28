@@ -8,6 +8,7 @@ from src.models.enums.game_icon_enum import GameIconEnum
 from src.models.enums.game_type_enum import GameTypeEnum
 from src.models.game_models.player_count import PlayerCount
 from src.models.game_models.game_photo import GamePhotoRead
+from src.models.game_models.game_video import GameVideoRead
 from src.models.user_models.user import UserPublicRead
 
 
@@ -46,6 +47,7 @@ class GameRead(GameBase):
     has_adult_content: bool = False
     liked_by_me: bool = False
     photos: list[GamePhotoRead] = []
+    videos: list[GameVideoRead] = []
     status: str = "pending"
     rejection_reason_code: Optional[str] = None
     rejection_reason: Optional[str] = None

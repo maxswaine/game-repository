@@ -91,6 +91,11 @@ class Game(Base):
         cascade="all, delete-orphan",
         order_by="GamePhoto.position",
     )
+    videos = relationship(
+        "GameVideo",
+        cascade="all, delete-orphan",
+        order_by="GameVideo.created_at",
+    )
 
 
 class UserAchievement(Base):
@@ -141,6 +146,15 @@ class GamePhoto(Base):
     object_key = Column(String, nullable=False)
     public_url = Column(String, nullable=False)
     position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class GameVideo(Base):
+    __tablename__ = "game_videos"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_id = Column(String, ForeignKey(GAMES_ID_FK, ondelete="CASCADE"), nullable=False, index=True)
+    object_key = Column(String, nullable=False)
+    public_url = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
