@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 
 from src.db.database import Base
 from src.models.enums.role_enum import Role
+from src.models.enums.user_segment_enum import UserSegmentEnum
 
 GAMES_ID_FK: str = "games.id"
 
@@ -29,6 +30,8 @@ class User(Base):
     oauth_id = Column(String, nullable=True, unique=True)
     avatar_url = Column(String, nullable=True)
     token_version = Column(Integer, nullable=True, default=0)
+    user_segment = Column(Enum(UserSegmentEnum), nullable=True)
+    user_segment_other = Column(String, nullable=True)
 
     games = relationship("Game", back_populates="contributor", foreign_keys="Game.contributor_id")
     favourites = relationship("UserFavourites", back_populates="user")

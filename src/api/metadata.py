@@ -13,6 +13,7 @@ from src.models.enums.game_difficulty_enum import GameDifficultyEnum
 from src.models.enums.game_icon_enum import GameIconEnum
 from src.models.enums.game_setting_enum import GameSettingEnum
 from src.models.enums.game_type_enum import GameTypeEnum
+from src.models.enums.user_segment_enum import UserSegmentEnum
 from src.models.game_models.game_metadata import GameMetadata
 
 router = APIRouter()
@@ -45,7 +46,8 @@ def get_metadata():
         game_equipment=[eq.value for eq in GameEquipmentEnum],
         durations=[d.value for d in DurationEnum],
         difficulty=[gd.value for gd in GameDifficultyEnum],
-        game_icons=[gi.value for gi in GameIconEnum]
+        game_icons=[gi.value for gi in GameIconEnum],
+        user_segments=[us.value for us in UserSegmentEnum]
     )
 
 

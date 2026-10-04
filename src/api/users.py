@@ -122,7 +122,9 @@ def create_new_user(
             username=new_user.username,
             hashed_password=hashed_password,
             date_of_birth=new_user.date_of_birth,
-            country_of_origin=new_user.country_of_origin
+            country_of_origin=new_user.country_of_origin,
+            user_segment=new_user.user_segment,
+            user_segment_other=new_user.user_segment_other
         )
         db.add(db_new_user)
         db.commit()
