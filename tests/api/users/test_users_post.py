@@ -68,6 +68,59 @@ def test_create_user_success(client_no_auth, db):
     assert verify_password(payload["password"], db_user.hashed_password) is True
 
 
+def test_register_with_user_segment_success(client_no_auth, db):
+    payload = valid_user_payload(overrides={"user_segment": "Student / Full-time Education"})
+    data = create_user(client_no_auth, payload)
+
+    assert data["username"] == payload["username"]
+
+    db_user: User = db.query(User).filter(User.username == payload["username"]).first()
+    assert db_user.user_segment == "Student / Full-time Education"
+    assert db_user.user_segment_other is None
+
+
+def test_register_with_user_segment_other_without_text_succeeds(client_no_auth, db):
+    payload = valid_user_payload(overrides={"user_segment": "Other"})
+    data = create_user(client_no_auth, payload)
+
+    assert data["username"] == payload["username"]
+
+    db_user: User = db.query(User).filter(User.username == payload["username"]).first()
+    assert db_user.user_segment == "Other"
+    assert db_user.user_segment_other is None
+
+
+def test_register_with_user_segment_other_text_success(client_no_auth, db):
+    payload = valid_user_payload(overrides={"user_segment": "Other", "user_segment_other": "Board game cafe owner"})
+    data = create_user(client_no_auth, payload)
+
+    assert data["username"] == payload["username"]
+
+    db_user: User = db.query(User).filter(User.username == payload["username"]).first()
+    assert db_user.user_segment == "Other"
+    assert db_user.user_segment_other == "Board game cafe owner"
+
+
+def test_register_with_user_segment_other_text_cleared_when_segment_not_other(client_no_auth, db):
+    payload = valid_user_payload(overrides={"user_segment": "Traveller", "user_segment_other": "ignored text"})
+    data = create_user(client_no_auth, payload)
+
+    assert data["username"] == payload["username"]
+
+    db_user: User = db.query(User).filter(User.username == payload["username"]).first()
+    assert db_user.user_segment == "Traveller"
+    assert db_user.user_segment_other is None
+
+
+def test_register_without_user_segment_defaults_to_none(client_no_auth, db):
+    payload = valid_user_payload()
+    create_user(client_no_auth, payload)
+
+    db_user: User = db.query(User).filter(User.username == payload["username"]).first()
+    assert db_user.user_segment is None
+    assert db_user.user_segment_other is None
+
+
 def test_duplicate_email_violates_db_constraint(db):
     from sqlalchemy.exc import IntegrityError
 

@@ -162,3 +162,56 @@ def test_logout_other_devices_revokes_old_tokens_but_not_new_one(client_no_auth,
 def test_logout_other_devices_requires_auth(client_no_auth):
     response = client_no_auth.post("/users/me/logout-other-devices")
     assert response.status_code == 401
+
+
+def test_patch_user_segment_success(client_with_auth, test_user, db):
+    response = client_with_auth.patch("/users/me", json={"user_segment": "Traveller"})
+
+    assert response.status_code == 200
+    assert response.json()["user_segment"] == "Traveller"
+
+    db.refresh(test_user)
+    assert test_user.user_segment == "Traveller"
+
+
+def test_patch_user_segment_other_with_text_success(client_with_auth, test_user, db):
+    response = client_with_auth.patch(
+        "/users/me", json={"user_segment": "Other", "user_segment_other": "Board game cafe owner"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user_segment"] == "Other"
+    assert data["user_segment_other"] == "Board game cafe owner"
+
+    db.refresh(test_user)
+    assert test_user.user_segment == "Other"
+    assert test_user.user_segment_other == "Board game cafe owner"
+
+
+def test_patch_user_segment_other_without_text_succeeds(client_with_auth, test_user, db):
+    response = client_with_auth.patch("/users/me", json={"user_segment": "Other"})
+
+    assert response.status_code == 200
+    db.refresh(test_user)
+    assert test_user.user_segment == "Other"
+    assert test_user.user_segment_other is None
+
+
+def test_patch_user_segment_change_clears_stale_other_text(client_with_auth, test_user, db):
+    client_with_auth.patch(
+        "/users/me", json={"user_segment": "Other", "user_segment_other": "Board game cafe owner"}
+    )
+    db.refresh(test_user)
+    assert test_user.user_segment_other == "Board game cafe owner"
+
+    response = client_with_auth.patch("/users/me", json={"user_segment": "Traveller"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user_segment"] == "Traveller"
+    assert data["user_segment_other"] is None
+
+    db.refresh(test_user)
+    assert test_user.user_segment == "Traveller"
+    assert test_user.user_segment_other is None

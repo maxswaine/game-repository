@@ -5,9 +5,10 @@ from datetime import date, datetime
 from typing import Optional
 
 import pycountry
-from pydantic import ConfigDict, BaseModel, field_validator
+from pydantic import ConfigDict, BaseModel, field_validator, model_validator
 
 from src.core.security import validate_password_length
+from src.models.enums.user_segment_enum import UserSegmentEnum
 from src.utils.age_filter import detect_profanity
 
 date_of_birth_error = 'date_of_birth must be in YYYY-MM-DD format'
@@ -51,11 +52,19 @@ class UserCreate(BaseModel):
     password: str
     country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
+    user_segment: Optional[UserSegmentEnum] = None
+    user_segment_other: Optional[str] = None
 
     @field_validator('username')
     @classmethod
     def validate_username(cls, v):
         return _validate_username_format(v)
+
+    @model_validator(mode='after')
+    def clear_user_segment_other_when_not_other(self):
+        if self.user_segment != UserSegmentEnum.other:
+            self.user_segment_other = None
+        return self
 
     @field_validator('password')
     @classmethod
@@ -106,6 +115,8 @@ class UserPrivateRead(BaseModel):
     date_of_birth: Optional[str] = None
     avatar_url: Optional[str] = None
     access_token: Optional[str] = None
+    user_segment: Optional[UserSegmentEnum] = None
+    user_segment_other: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -127,6 +138,8 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     country_of_origin: Optional[str] = None
     date_of_birth: Optional[str] = None
+    user_segment: Optional[UserSegmentEnum] = None
+    user_segment_other: Optional[str] = None
 
     @field_validator('username')
     @classmethod
@@ -145,6 +158,12 @@ class UserUpdate(BaseModel):
         except ValueError:
             raise ValueError(date_of_birth_error)
         return v
+
+    @model_validator(mode='after')
+    def clear_user_segment_other_when_not_other(self):
+        if self.user_segment is not None and self.user_segment != UserSegmentEnum.other:
+            self.user_segment_other = None
+        return self
 
 
 class UserPasswordUpdate(BaseModel):
