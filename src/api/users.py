@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse
 
 from src.core.exceptions import USER_NOT_FOUND_EXCEPTION, INACTIVE_USER_EXCEPTION, UNAUTHORIZED_EXCEPTION, FORBIDDEN_EXCEPTION
 from src.models.enums.role_enum import Role
+from src.models.enums.user_segment_enum import UserSegmentEnum
 from src.core.security import verify_access_token, hash_password, verify_password, create_access_token, TOKEN_EXPIRES_MINUTES
 from src.db.database import get_db
 from src.db.tables import User
@@ -238,6 +239,9 @@ def update_my_profile(
     for key, value in update_data.items():
         if value is not None:
             setattr(current_user, key, value)
+
+    if "user_segment" in update_data and update_data["user_segment"] != UserSegmentEnum.other.value:
+        current_user.user_segment_other = None
 
     current_user.last_updated = datetime.now(timezone.utc)
 
