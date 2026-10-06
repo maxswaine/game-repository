@@ -68,8 +68,8 @@ class GameUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=150)
     game_type: Optional[GameTypeEnum] = None
-    min_players: Optional[int] = None
-    max_players: Optional[int] = None
+    min_players: Optional[int] = Field(None, gt=0)
+    max_players: Optional[int] = Field(None, gt=0, lt=100)
     duration: Optional[str] = None
     difficulty: Optional[GameDifficultyEnum] = None
     equipment: Optional[List[str]] = None
