@@ -1,7 +1,7 @@
 # src/api/favourites.py
 from typing import List, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.games import map_game_to_read
@@ -24,10 +24,9 @@ def auth_required():
 def get_all_favourites(
         db: Annotated[Session, Depends(get_db)],
         current_user: User = auth_required(),
-        limit: int = 20,
+        limit: Annotated[int, Query(le=200)] = 20,
         offset: int = 0,
 ):
-    limit = min(limit, 100)
     offset = max(offset, 0)
 
     favourite_game_ids = (

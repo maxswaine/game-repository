@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.users import get_current_active_user, get_current_user_optional
@@ -47,7 +47,7 @@ def _map_comment(comment: GameComment, current_user_id: Optional[str]) -> Commen
 @router.get("/{game_id}/comments", response_model=list[CommentRead])
 def get_comments(
     game_id: str,
-    limit: int = 20,
+    limit: Annotated[int, Query(le=200)] = 20,
     offset: int = 0,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user_optional),
@@ -59,7 +59,7 @@ def get_comments(
         .options(joinedload(GameComment.user), joinedload(GameComment.like_records))
         .filter(GameComment.game_id == game_id)
         .order_by(GameComment.likes.desc(), GameComment.created_at.desc())
-        .limit(min(limit, 100))
+        .limit(limit)
         .offset(max(offset, 0))
         .all()
     )

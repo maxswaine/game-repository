@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta, date as date_type
 from typing import Optional, List, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, exists as sql_exists
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
@@ -421,10 +421,9 @@ def get_all_games(
         equipment: Optional[str] = None,
         sort_by: Optional[SortByEnum] = None,
         trending_days: int = 7,
-        limit: int = 20,
+        limit: Annotated[int, Query(le=200)] = 20,
         offset: int = 0,
 ):
-    limit = min(limit, 100)
     offset = max(offset, 0)
     query = db.query(Game).options(
         joinedload(Game.equipment_items),
@@ -509,10 +508,9 @@ def get_all_games(
 def get_my_games(
         db: Annotated[Session, Depends(get_db)],
         current_user: User = auth_required(),
-        limit: int = 20,
+        limit: Annotated[int, Query(le=200)] = 20,
         offset: int = 0,
 ):
-    limit = min(limit, 100)
     offset = max(offset, 0)
     games = (db.query(Game).options(
         joinedload(Game.equipment_items),
