@@ -21,7 +21,7 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Run tests
         env:
@@ -39,6 +39,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Need the PR base commit to diff the baseline against its own
+          # previous version in the "Guard the compatibility baseline" step.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,6 +66,47 @@ jobs:
           version=${tag#v}
           curl -fsSL "https://github.com/oasdiff/oasdiff/releases/download/${tag}/oasdiff_${version}_linux_amd64.tar.gz" | tar -xz
           sudo mv oasdiff /usr/local/bin/oasdiff
+
+      # The baseline is what already-shipped app builds rely on. Regenerating it
+      # is the easy way to silence the check below, so guard the baseline itself:
+      # gaining endpoints/fields is additive and fine, losing them is not.
+      - name: Guard the compatibility baseline
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BUMP_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'api-baseline-bump') }}
+        run: |
+          set -euo pipefail
+
+          if ! git diff --name-only "$BASE_SHA" HEAD -- openapi-snapshot.json | grep -q .; then
+            echo "Baseline unchanged in this PR — nothing to guard."
+            exit 0
+          fi
+
+          if ! git cat-file -e "$BASE_SHA:openapi-snapshot.json" 2>/dev/null; then
+            echo "No baseline at the base commit — treating as the initial snapshot."
+            exit 0
+          fi
+
+          before="${RUNNER_TEMP:-/tmp}/baseline-before.json"
+          git show "$BASE_SHA:openapi-snapshot.json" > "$before"
+          echo "Baseline changed in this PR. Diffing it against its previous version."
+
+          if oasdiff breaking "$before" openapi-snapshot.json \
+               --fail-on ERR -f githubactions; then
+            echo "Baseline only gained surface area — additive, safe for old builds."
+            exit 0
+          fi
+
+          if [ "$BUMP_APPROVED" = "true" ]; then
+            echo "::warning title=API baseline narrowed::The compatibility baseline lost surface area, allowed by the 'api-baseline-bump' label. Confirm MIN_SUPPORTED_APP_VERSION has been raised past every build that relied on it, and that COMPATIBILITY.md in whats-that-game-app has a row for this."
+            exit 0
+          fi
+
+          echo "::error title=API baseline narrowed::This PR removes or narrows part of openapi-snapshot.json. That is the contract already-shipped app builds depend on, so regenerating it hides a real breaking change rather than fixing one."
+          echo ""
+          echo "If an old app build still relies on the removed surface, revert the baseline and keep the change additive."
+          echo "If you are deliberately dropping support for those builds: raise MIN_SUPPORTED_APP_VERSION in Railway, add a row to COMPATIBILITY.md in whats-that-game-app, then add the 'api-baseline-bump' label to this PR."
+          exit 1
 
       - name: Check for breaking changes vs. committed baseline
         run: |
