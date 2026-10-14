@@ -232,6 +232,30 @@
         ]
       }
     },
+    "/users/me/logout-other-devices": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Logout Other Devices",
+        "operationId": "logout_other_devices_users_me_logout_other_devices_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/games/": {
       "post": {
         "tags": [
@@ -461,6 +485,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 200,
               "default": 20,
               "title": "Limit"
             }
@@ -814,6 +839,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 200,
               "default": 20,
               "title": "Limit"
             }
@@ -1662,6 +1688,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 200,
               "default": 20,
               "title": "Limit"
             }
@@ -2297,6 +2324,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 200,
               "default": 20,
               "title": "Limit"
             }
@@ -2724,6 +2752,172 @@
         }
       }
     },
+    "/admin/games/{game_id}/videos/upload-url": {
+      "post": {
+        "tags": [
+          "admin",
+          "videos"
+        ],
+        "summary": "Create Upload Url",
+        "operationId": "create_upload_url_admin_games__game_id__videos_upload_url_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoUploadUrlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoUploadUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/games/{game_id}/videos": {
+      "post": {
+        "tags": [
+          "admin",
+          "videos"
+        ],
+        "summary": "Register Video",
+        "operationId": "register_video_admin_games__game_id__videos_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameVideoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/games/{game_id}/videos/{video_id}": {
+      "delete": {
+        "tags": [
+          "admin",
+          "videos"
+        ],
+        "summary": "Delete Video",
+        "operationId": "delete_video_admin_games__game_id__videos__video_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Game Id"
+            }
+          },
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me/avatar/upload-url": {
       "post": {
         "tags": [
@@ -2963,6 +3157,54 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/notifications/{notification_id}/opened": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark Notification Opened",
+        "operationId": "mark_notification_opened_notifications__notification_id__opened_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Notification Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Notification not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/admin/games/pending": {
@@ -4539,6 +4781,13 @@
             },
             "type": "array",
             "title": "Game Icons"
+          },
+          "user_segments": {
+            "items": {
+              "$ref": "#/components/schemas/UserSegmentEnum"
+            },
+            "type": "array",
+            "title": "User Segments"
           }
         },
         "type": "object",
@@ -4548,7 +4797,8 @@
           "game_settings",
           "durations",
           "difficulty",
-          "game_icons"
+          "game_icons",
+          "user_segments"
         ],
         "title": "GameMetadata"
       },
@@ -4688,6 +4938,18 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
           "aliases": {
             "items": {
               "type": "string"
@@ -4712,6 +4974,14 @@
             },
             "type": "array",
             "title": "Photos",
+            "default": []
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/GameVideoRead"
+            },
+            "type": "array",
+            "title": "Videos",
             "default": []
           },
           "status": {
@@ -5082,6 +5352,18 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
           "aliases": {
             "items": {
               "type": "string"
@@ -5106,6 +5388,14 @@
             },
             "type": "array",
             "title": "Photos",
+            "default": []
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/GameVideoRead"
+            },
+            "type": "array",
+            "title": "Videos",
             "default": []
           },
           "status": {
@@ -5279,7 +5569,8 @@
           "min_players": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "null"
@@ -5290,7 +5581,9 @@
           "max_players": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "exclusiveMaximum": 100.0,
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "null"
@@ -5421,6 +5714,24 @@
         },
         "type": "object",
         "title": "GameUpdate"
+      },
+      "GameVideoRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "public_url": {
+            "type": "string",
+            "title": "Public Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "public_url"
+        ],
+        "title": "GameVideoRead"
       },
       "GameVisibility": {
         "properties": {
@@ -5683,13 +5994,13 @@
         "properties": {
           "min_players": {
             "type": "integer",
-            "exclusiveMinimum": 1.0,
+            "exclusiveMinimum": 0.0,
             "title": "Min Players"
           },
           "max_players": {
             "type": "integer",
             "exclusiveMaximum": 100.0,
-            "exclusiveMinimum": 1.0,
+            "exclusiveMinimum": 0.0,
             "title": "Max Players"
           }
         },
@@ -5956,6 +6267,27 @@
               }
             ],
             "title": "Date Of Birth"
+          },
+          "user_segment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserSegmentEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_segment_other": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Segment Other"
           }
         },
         "type": "object",
@@ -6075,6 +6407,27 @@
               }
             ],
             "title": "Access Token"
+          },
+          "user_segment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserSegmentEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_segment_other": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Segment Other"
           }
         },
         "type": "object",
@@ -6110,6 +6463,16 @@
           "username"
         ],
         "title": "UserPublicRead"
+      },
+      "UserSegmentEnum": {
+        "type": "string",
+        "enum": [
+          "Student / Full-time Education",
+          "Traveller",
+          "Teacher / Education Worker",
+          "Other"
+        ],
+        "title": "UserSegmentEnum"
       },
       "UserUpdate": {
         "properties": {
@@ -6178,6 +6541,27 @@
               }
             ],
             "title": "Date Of Birth"
+          },
+          "user_segment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserSegmentEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_segment_other": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Segment Other"
           }
         },
         "type": "object",
@@ -6215,6 +6599,50 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VideoRegisterRequest": {
+        "properties": {
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "object_key"
+        ],
+        "title": "VideoRegisterRequest"
+      },
+      "VideoUploadUrlRequest": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type"
+        ],
+        "title": "VideoUploadUrlRequest"
+      },
+      "VideoUploadUrlResponse": {
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "object_key": {
+            "type": "string",
+            "title": "Object Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_url",
+          "object_key"
+        ],
+        "title": "VideoUploadUrlResponse"
       }
     },
     "securitySchemes": {
