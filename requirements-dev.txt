@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Test-only dependencies. Not installed in the Railway production image.
+pytest==9.0.2
