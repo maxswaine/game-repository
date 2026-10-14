@@ -191,6 +191,15 @@ Bugs and feature requests are tracked as **GitHub Issues** on this repo and the 
 - Check `COMPATIBILITY.md` in `whats-that-game-app` (frontend repo) before a breaking change — it tracks app-version ↔ min-backend-version pairs for exactly this. Add a row there (via the frontend repo) if a change here breaks an old app build or requires a specific new one.
 - Since there's no Alembic migration layer here (`create_all` on startup, see § Production above), a schema change is inherently additive-only in practice — you can't safely drop/rename a column without a manual migration step, which is one more reason breaking backend changes are rare and worth flagging in `COMPATIBILITY.md` when they happen.
 
+**CI enforces this** via the `api-compat` job in `.github/workflows/ci.yml`, which runs `oasdiff` twice:
+
+1. **Code vs. baseline** — the live schema is diffed against `openapi-snapshot.json` and any breaking change fails the build.
+2. **Baseline vs. its own previous version** — because regenerating the snapshot is the easy way to silence check 1. Adding endpoints or fields to the baseline is additive and passes silently; removing or narrowing anything fails, since that's the contract already-shipped app builds depend on.
+
+To deliberately drop surface an old build relied on: raise `MIN_SUPPORTED_APP_VERSION` in Railway, add a row to `COMPATIBILITY.md` in `whats-that-game-app`, then put the **`api-baseline-bump`** label on the PR. Without that label, a narrowed baseline is treated as an accident. Note `MIN_SUPPORTED_APP_VERSION` lives only in Railway env vars (`src/utils/config.py`), so CI can't verify you raised it — the label is you asserting that you did.
+
+`LATEST_APP_VERSION` drives the soft-update nag and must be set to the **lowest** version live across the app stores. iOS and Android release numbers drift apart (e.g. 1.1.1 on iOS, 1.1.2 on Android); setting it to the higher one nags every up-to-date user on the other platform to fetch a build that doesn't exist for them.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
