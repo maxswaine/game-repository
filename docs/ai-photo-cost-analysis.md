@@ -2,9 +2,12 @@
 
 **Date:** 2026-07-16
 **Scope:** Per-game cost of existing OpenAI features (optimiser, embeddings), the planned
-"brain dump" field-splitting feature, and the planned R2 photo storage system
-(see [`docs/superpowers/specs/2026-07-16-photo-upload-system-design.md`](superpowers/specs/2026-07-16-photo-upload-system-design.md)),
+"brain dump" field-splitting feature, and the planned R2 photo storage system,
 plus platform running costs (hosting, analytics, email, domain).
+
+> Written 2026-07-16, when brain dump and photos were still planned. Both shipped. Pricing is
+> "as of July 2026" and some of it has moved since — the value here is the **scale thresholds**
+> (when Railway, Amplitude and Resend each start costing money), not the exact figures.
 
 ## Cost trajectory at a glance
 
