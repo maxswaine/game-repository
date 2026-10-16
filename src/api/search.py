@@ -1,16 +1,19 @@
 import re
 from typing import List, Annotated
 
+import numpy as np
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from src.api.games import map_game_to_read, _get_liked_ids, _user_is_adult
+from src.api.games import map_game_to_read, _get_liked_ids, _apply_age_content_filter
 from src.api.users import get_current_user_optional
 from src.db.database import get_db
-from src.db.tables import Game, User
+from src.db.tables import Game, GameEquipment, User
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
-from src.services.embedder import embed_query, cosine_similarity, json_to_embedding
+from src.services.embedder import embed_query, json_to_embedding
 
 router = APIRouter()
 
@@ -92,28 +95,81 @@ def _extract_player_count(query: str) -> int | None:
     return None
 
 
-def _apply_hard_filters(games: list, query: str, player_count: int | None = None) -> list:
-    """Remove games that cannot satisfy explicit constraints in the query."""
-    if _wants_no_equipment(query):
-        no_equipment_values = {GameEquipmentEnum.none.value}
-        games = [
-            g for g in games
-            if all(e.equipment_name in no_equipment_values for e in g.equipment_items)
-        ]
+def _has_equipment_in(values: set[str]):
+    """EXISTS subquery: this game has at least one equipment row in `values`."""
+    return (
+        select(GameEquipment.game_id)
+        .where(
+            GameEquipment.game_id == Game.id,
+            GameEquipment.equipment_name.in_(values),
+        )
+        .exists()
+    )
+
+
+def _apply_hard_filters(query, text: str, player_count: int | None = None):
+    """
+    Drop games that cannot satisfy explicit constraints in the query text.
+
+    Applied in SQL rather than over loaded objects so the ranking step only
+    sees candidates that already qualify, and so a filtered-out game never
+    costs us its embedding over the wire.
+    """
+    if _wants_no_equipment(text):
+        # "no equipment" means every row is the none sentinel, i.e. there is
+        # no row that is anything else.
+        query = query.filter(
+            ~_has_equipment_in({e.value for e in GameEquipmentEnum if e != GameEquipmentEnum.none})
+        )
     else:
-        excluded = _excluded_equipment_from_negations(query)
+        excluded = _excluded_equipment_from_negations(text)
         if excluded:
-            excluded_values = {e.value for e in excluded}
-            games = [
-                g for g in games
-                if not any(e.equipment_name in excluded_values for e in g.equipment_items)
-            ]
+            query = query.filter(~_has_equipment_in({e.value for e in excluded}))
 
-    count = player_count if player_count is not None else _extract_player_count(query)
+    count = player_count if player_count is not None else _extract_player_count(text)
     if count is not None:
-        games = [g for g in games if g.min_players <= count <= g.max_players]
+        query = query.filter(Game.min_players <= count, Game.max_players >= count)
 
-    return games
+    return query
+
+
+def _rank(rows: list[tuple[str, str]], query_vector) -> tuple[list[str], list[float]]:
+    """
+    Score every candidate against the query in one matmul.
+
+    Rows whose stored embedding is unparseable or the wrong width are skipped
+    rather than failing the request, matching the per-game try/except this
+    replaces.
+    """
+    query_v = np.asarray(query_vector, dtype=np.float32)
+
+    ids: list[str] = []
+    vectors: list[list[float]] = []
+    for game_id, raw in rows:
+        try:
+            vector = json_to_embedding(raw)
+        except Exception:
+            continue
+        if len(vector) != query_v.shape[0]:
+            continue
+        ids.append(game_id)
+        vectors.append(vector)
+
+    if not ids:
+        return [], []
+
+    matrix = np.asarray(vectors, dtype=np.float32)
+    # Keep the norms rather than assuming unit vectors: text-embedding-3-small
+    # returns them normalised, but a model swap or a hand-written vector would
+    # silently skew scores. Vectorised, this costs ~nothing.
+    denominator = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_v)
+    scores = np.divide(
+        matrix @ query_v,
+        denominator,
+        out=np.zeros(len(ids), dtype=np.float32),
+        where=denominator > 0,
+    )
+    return ids, scores
 
 
 @router.post("/", response_model=List[GameSearchResult], status_code=200,
@@ -130,8 +186,35 @@ def semantic_search(
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Embedding service unavailable: {str(e)}")
 
-    games = (
-        db.query(Game)
+    # Pass 1: ids and embeddings only. Hydrating the whole catalogue with its
+    # relations to return a handful of rows was the bulk of this endpoint's
+    # cost, so the heavy load is deferred until the winners are known.
+    candidates = _apply_age_content_filter(
+        db.query(Game.id, Game.embedding).filter(
+            Game.is_public == True,
+            Game.status == "approved",
+            Game.embedding.isnot(None),
+        ),
+        current_user,
+    )
+    rows = _apply_hard_filters(candidates, request.query, request.player_count).all()
+
+    if not rows:
+        return []
+
+    ids, scores = _rank(rows, query_vector)
+    if not ids:
+        return []
+
+    # Stable, so games on an identical score keep their relative order the way
+    # the previous list.sort(reverse=True) did.
+    top_indexes = np.argsort(-scores, kind="stable")[:request.limit]
+    top_ids = [ids[i] for i in top_indexes]
+
+    # Pass 2: full objects, for the winners only.
+    games_by_id = {
+        game.id: game
+        for game in db.query(Game)
         .options(
             joinedload(Game.equipment_items),
             joinedload(Game.setting_items),
@@ -139,35 +222,16 @@ def semantic_search(
             joinedload(Game.alias_objects),
             joinedload(Game.photos),
         )
-        .filter(Game.is_public == True, Game.status == "approved", Game.embedding.isnot(None))
+        .filter(Game.id.in_(top_ids))
         .all()
-    )
-
-    if not _user_is_adult(current_user):
-        games = [g for g in games if not g.has_adult_content]
-
-    if not games:
-        return []
-
-    games = _apply_hard_filters(games, request.query, request.player_count)
-
-    if not games:
-        return []
-
-    scored = []
-    for game in games:
-        try:
-            game_vector = json_to_embedding(game.embedding)
-            score = cosine_similarity(query_vector, game_vector)
-            scored.append((score, game))
-        except Exception:
-            continue
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[:request.limit]
+    }
 
     liked_ids = _get_liked_ids(db, current_user.id) if current_user else None
     return [
-        GameSearchResult(**map_game_to_read(game, liked_ids).model_dump(), score=round(score, 4))
-        for score, game in top
+        GameSearchResult(
+            **map_game_to_read(games_by_id[game_id], liked_ids).model_dump(),
+            score=round(float(scores[index]), 4),
+        )
+        for index, game_id in zip(top_indexes, top_ids)
+        if game_id in games_by_id
     ]
