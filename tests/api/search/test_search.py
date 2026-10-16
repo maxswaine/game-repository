@@ -8,7 +8,7 @@ from tests.utils import valid_public_game_payload
 FAKE_VECTOR = [1.0] + [0.0] * 1535
 
 _CREATE_PATCH_TARGET = "src.api.games.embed_text"
-_SEARCH_PATCH_TARGET = "src.api.search.embed_text"
+_SEARCH_PATCH_TARGET = "src.api.search.embed_query"
 
 _name_counter = itertools.count()
 

@@ -1,8 +1,9 @@
 # src/services/optimiser.py
 import logging
-import os
 
 from openai import OpenAI
+
+from src.services.openai_client import get_openai_client
 
 from src.models.optimisation_models.optimisation_models import \
     OptimisationResult  # Keep the model, just don't return it directly yet
@@ -12,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set")
-    return OpenAI(api_key=api_key)
+    return get_openai_client()
 
 
 class TextOptimiser:
