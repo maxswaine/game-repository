@@ -1,8 +1,9 @@
 import json
 import logging
-import os
 
 from openai import OpenAI
+
+from src.services.openai_client import get_openai_client
 
 from src.models.optimisation_models.brain_dump_models import BrainDumpResult
 from src.utils.prompts import BRAIN_DUMP_PROMPT, REJECTION_SENTINEL
@@ -25,10 +26,7 @@ _SCHEMA = {
 
 
 def _get_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set")
-    return OpenAI(api_key=api_key)
+    return get_openai_client()
 
 
 class BrainDumpSplitter:

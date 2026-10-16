@@ -1,6 +1,7 @@
-import os
 
 from openai import OpenAI
+
+from src.services.openai_client import get_openai_client
 
 from src.utils.config import DUPLICATE_LLM_JUDGE_MODEL
 
@@ -28,10 +29,7 @@ Respond with EXACTLY one word: YES or NO. Nothing else.
 
 
 def _client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set")
-    return OpenAI(api_key=api_key)
+    return get_openai_client()
 
 
 def judge_potential_duplicate(submission_text: str, existing_game_text: str) -> bool:

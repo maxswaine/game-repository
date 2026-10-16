@@ -10,7 +10,7 @@ from src.db.database import get_db
 from src.db.tables import Game, User
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
-from src.services.embedder import embed_text, cosine_similarity, json_to_embedding
+from src.services.embedder import embed_query, cosine_similarity, json_to_embedding
 
 router = APIRouter()
 
@@ -124,7 +124,7 @@ def semantic_search(
         current_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
 ):
     try:
-        query_vector = embed_text(request.query)
+        query_vector = embed_query(request.query)
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:

@@ -1,17 +1,16 @@
 import json
-import os
+from functools import lru_cache
 
 import numpy as np
 from openai import OpenAI
+
+from src.services.openai_client import get_openai_client
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 def _client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set")
-    return OpenAI(api_key=api_key)
+    return get_openai_client()
 
 
 def build_game_text(game, aliases: list[str] | None = None) -> str:
@@ -51,6 +50,29 @@ def embed_text(text: str) -> list[float]:
         input=text,
     )
     return response.data[0].embedding
+
+
+@lru_cache(maxsize=256)
+def _embed_query_cached(text: str) -> np.ndarray:
+    """
+    Held as a read-only float32 array rather than a list of Python floats:
+    ~6KB per entry instead of ~49KB, so a full cache costs ~1.5MB.
+    """
+    vector = np.asarray(embed_text(text), dtype=np.float32)
+    vector.flags.writeable = False
+    return vector
+
+
+def embed_query(text: str) -> np.ndarray:
+    """
+    Embed a search query, reusing the result for repeats.
+
+    Search queries recur heavily ("party games", "no equipment"), and every
+    miss is a network round trip to OpenAI. Game embeddings deliberately do
+    not go through here - each game's text is unique, so caching them would
+    only consume memory.
+    """
+    return _embed_query_cached(text)
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
