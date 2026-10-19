@@ -1,3 +1,5 @@
+import logging
+
 import boto3
 import botocore.exceptions
 
@@ -9,6 +11,8 @@ from src.utils.config import (
     R2_QUARANTINE_BUCKET,
     R2_PUBLIC_URL,
 )
+
+logger = logging.getLogger(__name__)
 
 _s3 = None
 
@@ -62,14 +66,19 @@ def delete_quarantine(object_key: str) -> None:
     try:
         _get_s3().delete_object(Bucket=R2_QUARANTINE_BUCKET, Key=object_key)
     except botocore.exceptions.ClientError:
-        pass
+        # Callers treat cleanup as best-effort, but a silent failure here leaves an object
+        # in R2 that nothing references and nothing will retry — billed storage with no
+        # record it exists.
+        logger.exception("Failed to delete quarantine object %s", object_key)
 
 
 def delete_public(object_key: str) -> None:
     try:
         _get_s3().delete_object(Bucket=R2_BUCKET, Key=object_key)
     except botocore.exceptions.ClientError:
-        pass
+        # Same as above, and this one matters more: these are user-visible photos, so a
+        # failure here means content survives a deletion the user was told succeeded.
+        logger.exception("Failed to delete public object %s", object_key)
 
 
 def public_url_for(object_key: str) -> str:
