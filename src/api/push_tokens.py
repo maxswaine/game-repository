@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from exponent_server_sdk import PushClient
@@ -26,6 +27,11 @@ def register_push_token(
     if existing:
         existing.user_id = current_user.id
         existing.platform = body.platform
+        # The app re-registers on every launch, but user_id/platform are almost always
+        # unchanged — SQLAlchemy then emits no UPDATE and `onupdate` never fires, leaving
+        # updated_at frozen at first registration. Stamp it explicitly so the column means
+        # "last launch with notifications still granted" and stale tokens are visible.
+        existing.updated_at = datetime.now(timezone.utc)
         db.commit()
         return JSONResponse(status_code=200, content={"status": "ok"})
 

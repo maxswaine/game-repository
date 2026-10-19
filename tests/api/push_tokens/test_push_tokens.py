@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from src.db.tables import PushToken
 
 
@@ -43,6 +45,25 @@ class TestRegisterPushToken:
         assert len(rows) == 1
         assert rows[0].user_id == test_user.id
         assert rows[0].platform == "ios"
+
+    def test_reregistering_unchanged_token_bumps_updated_at(self, client_with_auth, db, test_user):
+        # The app re-registers on every launch with the same user_id and platform. Without an
+        # explicit stamp SQLAlchemy sees no net change, emits no UPDATE, and updated_at stays
+        # at first registration — which is what made stale tokens indistinguishable from live
+        # ones in prod.
+        stale = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=45)
+        db.add(PushToken(
+            token="ExponentPushToken[same]", user_id=test_user.id, platform="ios", updated_at=stale,
+        ))
+        db.commit()
+
+        response = client_with_auth.post(
+            "/push-tokens/", json={"token": "ExponentPushToken[same]", "platform": "ios"}
+        )
+        assert response.status_code == 200
+
+        row = db.query(PushToken).filter_by(token="ExponentPushToken[same]").first()
+        assert row.updated_at > stale
 
 
 class TestDeletePushToken:
