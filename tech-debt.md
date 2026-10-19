@@ -1,20 +1,22 @@
 # Technical Debt
 
-Updated 2026-07-16.
+Updated 2026-10-19.
 
 ---
 
 ### Remaining Before Launch
 
-#### 1. `age_rating` DB column — drop after deploy
+Nothing outstanding.
 
-**File:** Railway Postgres console
+#### Closed: `age_rating` DB column — decided against dropping (2026-10-19)
 
-`age_rating` column is now `nullable=True` in the ORM and unused by the app. `create_all` won't drop it automatically. After merging and deploying, drop it manually:
+This used to say the column should be dropped manually from Railway Postgres after deploy. It
+shouldn't. `age_rating` is gone from the ORM, every API schema, `openapi-snapshot.json` and the app
+— verified, zero references in either repo. It was replaced by `has_adult_content` in the 2026-06-30
+sprint.
 
-```sql
-ALTER TABLE games DROP COLUMN age_rating;
-```
+What remains is a nullable, unused, invisible column. Dropping it means irreversible manual SQL
+against production for no functional gain. Left in place deliberately; don't resurrect this task.
 
 ---
 

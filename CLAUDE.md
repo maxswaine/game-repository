@@ -84,9 +84,9 @@ All routers are registered in `src/main.py`:
 
 **Games endpoints:**
 
-- `GET /games/` — list public games. Query params for filtering: `name`, `game_type`, `age_rating`, `min_players`,
-  `max_players`, `duration`, `difficulty`, `setting`, `equipment`. Pagination: `limit` (max 100, default 20) and
-  `offset`.
+- `GET /games/` — list public games. Query params for filtering: `name`, `game_type`, `min_players`,
+  `max_players`, `duration`, `difficulty`, `setting`, `equipment`. Ordering: `sort_by`, plus `trending_days`
+  (default 7). Pagination: `limit` (max 200, default 20) and `offset`.
 - `GET /games/mine` — authenticated user's own games (paginated).
 - `GET /games/{game_id}` — public; private games return 403 unless you are the contributor.
 - `POST /games/` — create a game (auth required). Triggers embedding on creation.
@@ -106,8 +106,8 @@ All routers are registered in `src/main.py`:
 **Metadata endpoints** (open):
 
 - `GET /metadata/countries` — sorted list of `{code, name}` pairs (via `pycountry`).
-- `GET /metadata/metadata` — all valid enum values: `game_types`, `age_ratings`, `game_settings`, `game_equipment`,
-  `durations`, `difficulty`.
+- `GET /metadata/metadata` — all valid enum values: `game_types`, `game_settings`, `game_equipment`,
+  `durations`, `difficulty`, `game_icons`, `user_segments`.
 
 **Search endpoint:**
 
@@ -153,9 +153,11 @@ Defined in `src/db/tables.py`:
 - **`User`** — `id` (UUID), `firstname`, `lastname`, `username`, `email`, `hashed_password`, `date_of_birth`,
   `country_of_origin` (2-char ISO), `role` (`Role` enum: `user`/`admin`), `is_active`, `oauth_provider`, `oauth_id`,
   `avatar_url`, `created_at`, `last_updated`.
-- **`Game`** — `id` (UUID), `name`, `description`, `age_rating`, `game_type`, `min_players`, `max_players`, `duration`,
-  `difficulty`, `objective`, `setup`, `rules`, `image_url`, `is_public`, `upvotes`, `embedding` (JSON string),
-  `is_whats_that_game_verified`, `contributor_id` (FK → users), `created_at`.
+- **`Game`** — `id` (UUID), `name`, `description`, `game_type`, `min_players`, `max_players`, `duration`,
+  `difficulty`, `objective`, `setup`, `rules`, `image_url`, `icon`, `is_public`, `upvotes`, `embedding` (JSON string),
+  `has_adult_content`, `is_whats_that_game_verified`, `status` (`pending`/`approved`/`rejected`),
+  `rejection_reason_code`, `rejection_reason`, `reviewed_by` (FK → users), `reviewed_at`,
+  `contributor_id` (FK → users), `created_at`.
 - **`UserFavourites`** — composite PK `(game_id, user_id)`. Used for both favourites and upvote tracking.
 - **`GameEquipment`** — one row per equipment item per game (`game_id`, `equipment_name`). Cascade-deleted with the
   game. Default equipment is `"No Equipment"`.
