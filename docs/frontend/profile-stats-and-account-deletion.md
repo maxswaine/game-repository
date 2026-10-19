@@ -158,8 +158,10 @@ Everything here is additive: two optional response fields and one optional query
 
 Deploy order: **migration SQL → merge (deploys backend) → app release**.
 
-## Open decisions
+## Decisions
 
-1. Should kept games keep the author's display name, or is placeholder attribution always right? Currently always placeholder.
-2. A deleted account's republished private games all hit the review queue at once. Acceptable, or should they default to `rejected` for an admin to pull forward?
-3. ~~Should the choice be revocable during the 30-day window?~~ **Decided:** reactivating resets it to `false`.
+All three are settled; no code change was needed for 1 or 2.
+
+1. ~~Keep the author's display name on kept games?~~ **No — always placeholder.** Keeping the name after an erasure request defeats the erasure.
+2. ~~Should republished private games default to `rejected` so an admin pulls them forward?~~ **No — they stay `pending`.** A one-off queue spike is cheaper than a new state plus the admin workflow to drain it. Revisit if it actually hurts.
+3. ~~Should the choice be revocable during the 30-day window?~~ **Yes — reactivating resets it to `false`.**
