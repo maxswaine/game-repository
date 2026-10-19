@@ -6428,6 +6428,16 @@
               }
             ],
             "title": "User Segment Other"
+          },
+          "games_uploaded": {
+            "type": "integer",
+            "title": "Games Uploaded",
+            "default": 0
+          },
+          "likes_received": {
+            "type": "integer",
+            "title": "Likes Received",
+            "default": 0
           }
         },
         "type": "object",

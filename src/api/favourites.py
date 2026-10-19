@@ -32,6 +32,7 @@ def get_all_favourites(
     favourite_game_ids = (
         db.query(UserFavourites.game_id)
         .filter(UserFavourites.user_id == current_user.id)
+        .order_by(UserFavourites.created_at.desc(), UserFavourites.game_id)
         .limit(limit)
         .offset(offset)
         .all()
@@ -53,7 +54,9 @@ def get_all_favourites(
         .all()
     )
 
-    return [map_game_to_read(game, set(game_ids)) for game in games]
+    # hydration is an IN (...) lookup, so re-apply the page's order
+    by_id = {game.id: game for game in games}
+    return [map_game_to_read(by_id[gid], set(game_ids)) for gid in game_ids if gid in by_id]
 
 
 @router.post("/{game_id}", response_model=UserFavouriteBase, status_code=201,
