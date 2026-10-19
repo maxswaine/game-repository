@@ -22,9 +22,10 @@ work never needs to touch it.
 ## When you'd update the snapshot
 
 Only when deliberately dropping support for old app builds — i.e. paired with raising
-`MIN_SUPPORTED_APP_VERSION` (see `docs/app-backend-version-signal.md`) once you've confirmed via the
-`log_app_version` Railway logs that no live traffic depends on the old shape anymore. At that point,
-regenerate it:
+`MIN_SUPPORTED_APP_VERSION` (`src/utils/config.py`) once you've confirmed via the
+`log_app_version` Railway logs that no live traffic depends on the old shape anymore. The app sends
+`X-App-Version` on every request from its shared request layer, which is what those logs record. At
+that point, regenerate it:
 
 ```bash
 PYTHONPATH=. SECRET_KEY=x DATABASE_URL=sqlite:///./tmp.db python scripts/export_openapi.py openapi-snapshot.json
