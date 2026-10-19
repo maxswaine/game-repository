@@ -117,6 +117,8 @@ class UserPrivateRead(BaseModel):
     access_token: Optional[str] = None
     user_segment: Optional[UserSegmentEnum] = None
     user_segment_other: Optional[str] = None
+    games_uploaded: int = 0
+    likes_received: int = 0
     model_config = ConfigDict(from_attributes=True)
 
 

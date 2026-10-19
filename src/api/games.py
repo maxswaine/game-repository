@@ -484,18 +484,20 @@ def get_all_games(
             .order_by(
                 func.coalesce(recent_likes_subquery.c.recent_like_count, 0).desc(),
                 Game.upvotes.desc(),
-                Game.created_at.desc()
+                Game.created_at.desc(),
+                Game.id,
             )
         )
     elif sort_by == SortByEnum.recommended:
         query = query.filter(Game.is_whats_that_game_verified.is_(True)).order_by(
             Game.upvotes.desc(),
-            Game.created_at.desc()
+            Game.created_at.desc(),
+            Game.id,
         )
     else:
         # coalesce: games approved before the review gate existed (or while
         # GAME_REVIEW_GATE_ENABLED was off) never got a reviewed_at stamp.
-        query = query.order_by(func.coalesce(Game.reviewed_at, Game.created_at).desc())
+        query = query.order_by(func.coalesce(Game.reviewed_at, Game.created_at).desc(), Game.id)
 
     games = query.distinct().limit(limit).offset(offset).all()
 
@@ -520,6 +522,12 @@ def get_my_games(
         joinedload(Game.photos),
         joinedload(Game.videos),
     ).filter(Game.contributor_id == current_user.id)
+             # Newest first, matching what the app labels the list. Ordering by
+             # upvotes to prop up old builds' likes-received sum was considered
+             # and dropped: it only changes the page for >20-game libraries, and
+             # for those it drops a freshly-added game off page 1 entirely. The
+             # app never pages past the first 20, so the game would vanish.
+             .order_by(Game.created_at.desc(), Game.id)
              .limit(limit)
              .offset(offset)
              .all())

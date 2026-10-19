@@ -58,7 +58,7 @@ def get_comments(
         db.query(GameComment)
         .options(joinedload(GameComment.user), joinedload(GameComment.like_records))
         .filter(GameComment.game_id == game_id)
-        .order_by(GameComment.likes.desc(), GameComment.created_at.desc())
+        .order_by(GameComment.likes.desc(), GameComment.created_at.desc(), GameComment.id)
         .limit(limit)
         .offset(max(offset, 0))
         .all()

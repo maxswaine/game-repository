@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum, select, func
+from sqlalchemy.orm import relationship, column_property, deferred
 
 from src.db.database import Base
 from src.models.enums.role_enum import Role
@@ -31,6 +31,12 @@ class User(Base):
     token_version = Column(Integer, nullable=True, default=0)
     user_segment = Column(String, nullable=True)
     user_segment_other = Column(String, nullable=True)
+    # Asked at deletion time: keep this user's games, or delete them with the
+    # account. False is both the default and what an unasked caller gets, which
+    # is the pre-existing behaviour (private games go with the account).
+    keep_games_on_delete = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     games = relationship("Game", back_populates="contributor", foreign_keys="Game.contributor_id")
     favourites = relationship("UserFavourites", back_populates="user")
@@ -253,3 +259,26 @@ class ShortLink(Base):
     scan_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+# Profile contribution stats, derived rather than stored: they read the same
+# Game.upvotes counter the game cards do, so they can never disagree with it.
+# deferred => not in the default User SELECT, so the auth dependency that runs
+# on every authenticated request does not pay for them; they load on first
+# access, which in practice is only UserPrivateRead serialisation.
+# ponytail: correlated subqueries over games.contributor_id, an unindexed FK.
+# Index it when games outgrows a few thousand rows (needs manual SQL, no Alembic).
+User.games_uploaded = deferred(
+    column_property(
+        select(func.count(Game.id))
+        .where(Game.contributor_id == User.id)
+        .scalar_subquery()
+    )
+)
+User.likes_received = deferred(
+    column_property(
+        select(func.coalesce(func.sum(Game.upvotes), 0))
+        .where(Game.contributor_id == User.id)
+        .scalar_subquery()
+    )
+)

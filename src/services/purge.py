@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.tables import (
@@ -35,6 +36,20 @@ def run_purge(db: Session) -> int:
 def _purge_user(db: Session, user: User) -> None:
     user_id = str(user.id)
 
+    # The author chose at deletion time whether their games outlive the account
+    # (DELETE /users/me?keep_games=...). False — the default, and what a client
+    # that omits the param gets — keeps the original behaviour: private games go
+    # with the account.
+    if user.keep_games_on_delete:
+        # A private game owned by the placeholder would be dormant — nobody can
+        # sign in as it, and get_game_by_id hides non-public games from everyone
+        # but the contributor and admins. Publishing them through the review
+        # gate is what actually keeps the content usable.
+        db.query(Game).filter(
+            Game.contributor_id == user_id,
+            Game.is_public == False,
+        ).update({"is_public": True, "status": "pending"}, synchronize_session=False)
+
     private_game_ids = [
         g.id for g in db.query(Game).filter(
             Game.contributor_id == user_id,
@@ -65,14 +80,27 @@ def _purge_user(db: Session, user: User) -> None:
             Game.id.in_(private_game_ids)
         ).delete(synchronize_session=False)
 
+    # Whatever survived the block above is public by now, so this reassigns all
+    # of it without needing to re-check is_public.
     db.query(Game).filter(
         Game.contributor_id == user_id,
-        Game.is_public == True,
     ).update({"contributor_id": DELETED_USER_ID}, synchronize_session=False)
 
+    # Likes outlive the account, reassigned to the placeholder the same way
+    # public games, comments and approved aliases are. UserFavourites is keyed
+    # (game_id, user_id), so the placeholder cannot hold two rows for one game:
+    # where it already has one, drop the duplicate. Game.upvotes is untouched
+    # either way, so the game's displayed total never changes.
+    already_held = select(UserFavourites.game_id).where(
+        UserFavourites.user_id == DELETED_USER_ID
+    )
+    db.query(UserFavourites).filter(
+        UserFavourites.user_id == user_id,
+        UserFavourites.game_id.in_(already_held),
+    ).delete(synchronize_session=False)
     db.query(UserFavourites).filter(
         UserFavourites.user_id == user_id
-    ).delete(synchronize_session=False)
+    ).update({"user_id": DELETED_USER_ID}, synchronize_session=False)
     db.query(UserAchievement).filter(
         UserAchievement.user_id == user_id
     ).delete(synchronize_session=False)
