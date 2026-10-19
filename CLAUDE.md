@@ -179,6 +179,40 @@ game/user payload builders live in `tests/utils.py`. `tests/api/games/helper.py`
 `create_public_game()`, `create_private_game()`, `create_user()`, `get_user_token()`, `upvote_game()`) for use inside
 tests.
 
+## Error handling — no silent failures
+
+**Never swallow an exception without logging it.** Best-effort work that must not fail the request (embeddings,
+push sends, R2 cleanup, transactional email) is a legitimate pattern — swallowing it *invisibly* is not. A handler
+that fails 100% of the time in prod and produces no log line is undetectable; that is how Android push stayed
+broken for three months while every send looked fine.
+
+The rule for any `except`:
+
+```python
+# Wrong — fails forever, in total silence.
+try:
+    send_password_reset_email(user.email, reset_url)
+except Exception:
+    pass
+
+# Right — request still succeeds, but the failure is visible in Railway logs.
+try:
+    send_password_reset_email(user.email, reset_url)
+except Exception:
+    logger.exception("Password reset email failed for user %s", user.id)
+```
+
+- Use `logger.exception(...)` (keeps the traceback), not `logger.error(str(e))`.
+- Catch the narrowest exception type that fits. Bare `except Exception` around a whole block hides bugs in code
+  that was never meant to be best-effort.
+- `pass` as the entire handler body is never acceptable. If the failure genuinely doesn't matter, say why in a
+  comment *and* log at `warning`.
+- A silent `return None` / `continue` on the error path counts as swallowing. Same rule.
+- When a best-effort path fails, prefer leaving a queryable trace in the DB (the way `notifications.status` records
+  `no_token` / `failed`) so the failure rate can be measured later, not just read in logs.
+- Before adding a best-effort handler, answer: *if this failed for every user starting now, how would I find out?*
+  If the answer is "I wouldn't", the handler is incomplete.
+
 ## Change Management
 
 Bugs and feature requests are tracked as **GitHub Issues** on this repo and the frontend repo (`whats-that-game-app`), sharing one Project board ("WTG App Roadmap", `github.com/users/maxswaine/projects/1`) so both sides are visible in one place.
