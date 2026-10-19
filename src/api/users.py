@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from src.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -333,10 +333,17 @@ def logout_other_devices(
 @router.delete("/me", status_code=200)
 def delete_account(
         current_user: Annotated[User, Depends(get_current_active_user)],
-        db: Annotated[Session, Depends(get_db)]
+        db: Annotated[Session, Depends(get_db)],
+        keep_games: Annotated[bool | None, Query(
+            description="True to keep this account's games after the 30-day window: public ones "
+                        "are reassigned to the placeholder user and private ones are published for "
+                        "review. False deletes the private ones outright. Omitted means the caller "
+                        "did not ask, and the private games are deleted."
+        )] = None,
 ):
     current_user.is_active = False
     current_user.deletion_requested_at = datetime.now(timezone.utc)
+    current_user.keep_games_on_delete = keep_games
     db.commit()
     return {
         "message": "Account deactivated. You have 30 days to reactivate before your data is permanently deleted."

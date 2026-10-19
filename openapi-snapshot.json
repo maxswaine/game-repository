@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FastAPI",
-    "version": "0.1.0"
+    "version": "1.1.2"
   },
   "paths": {
     "/users/register": {
@@ -97,6 +97,11 @@
         ],
         "summary": "Get Me",
         "operationId": "get_me_users_me_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -108,34 +113,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Delete Account",
-        "operationId": "delete_account_users_me_delete",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       },
       "patch": {
         "tags": [
@@ -143,15 +121,20 @@
         ],
         "summary": "Update My Profile",
         "operationId": "update_my_profile_users_me_patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserUpdate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -177,12 +160,59 @@
               }
             }
           }
-        },
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete Account",
+        "operationId": "delete_account_users_me_delete",
         "security": [
           {
             "OAuth2PasswordBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "keep_games",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False deletes the private ones outright. Omitted means the caller did not ask, and the private games are deleted.",
+              "title": "Keep Games"
+            },
+            "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False deletes the private ones outright. Omitted means the caller did not ask, and the private games are deleted."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/users/me/password": {

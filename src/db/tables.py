@@ -31,6 +31,10 @@ class User(Base):
     token_version = Column(Integer, nullable=True, default=0)
     user_segment = Column(String, nullable=True)
     user_segment_other = Column(String, nullable=True)
+    # Asked at deletion time: keep this user's games, or delete them with the
+    # account. NULL means never asked (every account created before the prompt
+    # shipped), which purge treats as the old behaviour.
+    keep_games_on_delete = Column(Boolean, nullable=True)
 
     games = relationship("Game", back_populates="contributor", foreign_keys="Game.contributor_id")
     favourites = relationship("UserFavourites", back_populates="user")
