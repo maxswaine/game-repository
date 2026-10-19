@@ -88,3 +88,18 @@ def test_stats_stay_off_the_auth_hot_path(db, test_user):
     assert not any("sum(games.upvotes)" in s.lower() for s in statements), (
         f"stat subquery leaked into the default User SELECT: {statements}"
     )
+
+
+def test_my_games_pages_most_liked_first_for_old_builds(client_with_auth, db, test_user):
+    """Interim prop for shipped builds that sum one page of /games/mine.
+
+    Delete alongside the Game.upvotes.desc() ordering in get_my_games once
+    every live build reads likes_received.
+    """
+    _add_games(db, test_user.id, [1] * 20 + [50, 60])
+
+    page = client_with_auth.get("/games/mine").json()
+
+    assert len(page) == 20
+    # the two heavily-liked games make the page, the low ones get dropped
+    assert sorted((g["upvotes"] for g in page), reverse=True)[:2] == [60, 50]

@@ -143,3 +143,86 @@ def test_purge_skips_user_inside_window(db):
     run_purge(db)
 
     assert db.query(User).filter(User.id == user_id).first() is not None
+
+
+def _public_game(db, contributor_id, upvotes=0) -> Game:
+    game = Game(
+        id=str(uuid.uuid4()),
+        name="Liked Game",
+        description="desc",
+        game_type="card",
+        min_players=2,
+        max_players=4,
+        duration="30-45 min",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        contributor_id=contributor_id,
+        is_public=True,
+        upvotes=upvotes,
+    )
+    db.add(game)
+    db.commit()
+    return game
+
+
+def test_purge_reassigns_likes_to_placeholder(db):
+    """A like survives the account that placed it, like games and comments do."""
+    owner = _make_user_past_window(db)
+    liker = _make_user_past_window(db)
+    game = _public_game(db, DELETED_USER_ID, upvotes=1)
+    db.add(UserFavourites(game_id=game.id, user_id=liker.id))
+    db.commit()
+
+    run_purge(db)
+
+    rows = db.query(UserFavourites).filter(UserFavourites.game_id == game.id).all()
+    assert [r.user_id for r in rows] == [DELETED_USER_ID]
+    db.expire(game)
+    assert db.query(Game).filter(Game.id == game.id).first().upvotes == 1
+
+
+def test_purge_drops_a_like_the_placeholder_already_holds(db):
+    """(game_id, user_id) is the PK, so the placeholder cannot hold two rows
+    for one game. The duplicate goes; Game.upvotes keeps the real total."""
+    liker = _make_user_past_window(db)
+    game = _public_game(db, DELETED_USER_ID, upvotes=2)
+    db.add(UserFavourites(game_id=game.id, user_id=DELETED_USER_ID))
+    db.add(UserFavourites(game_id=game.id, user_id=liker.id))
+    db.commit()
+
+    run_purge(db)
+
+    rows = db.query(UserFavourites).filter(UserFavourites.game_id == game.id).all()
+    assert [r.user_id for r in rows] == [DELETED_USER_ID]
+    db.expire(game)
+    assert db.query(Game).filter(Game.id == game.id).first().upvotes == 2
+
+
+def test_purge_still_drops_likes_on_deleted_private_games(db):
+    """Private games are deleted outright, so their likes cannot be kept."""
+    user = _make_user_past_window(db)
+    private_game = Game(
+        id=str(uuid.uuid4()),
+        name="Private Game",
+        description="desc",
+        game_type="card",
+        min_players=2,
+        max_players=4,
+        duration="30-45 min",
+        objective="win",
+        setup="setup",
+        rules="rules",
+        contributor_id=user.id,
+        is_public=False,
+    )
+    db.add(private_game)
+    db.commit()
+    game_id = private_game.id
+    db.add(UserFavourites(game_id=game_id, user_id=user.id))
+    db.commit()
+
+    run_purge(db)
+
+    assert db.query(Game).filter(Game.id == game_id).first() is None
+    assert db.query(UserFavourites).filter(UserFavourites.game_id == game_id).count() == 0

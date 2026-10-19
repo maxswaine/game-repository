@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.tables import (
@@ -70,9 +71,21 @@ def _purge_user(db: Session, user: User) -> None:
         Game.is_public == True,
     ).update({"contributor_id": DELETED_USER_ID}, synchronize_session=False)
 
+    # Likes outlive the account, reassigned to the placeholder the same way
+    # public games, comments and approved aliases are. UserFavourites is keyed
+    # (game_id, user_id), so the placeholder cannot hold two rows for one game:
+    # where it already has one, drop the duplicate. Game.upvotes is untouched
+    # either way, so the game's displayed total never changes.
+    already_held = select(UserFavourites.game_id).where(
+        UserFavourites.user_id == DELETED_USER_ID
+    )
+    db.query(UserFavourites).filter(
+        UserFavourites.user_id == user_id,
+        UserFavourites.game_id.in_(already_held),
+    ).delete(synchronize_session=False)
     db.query(UserFavourites).filter(
         UserFavourites.user_id == user_id
-    ).delete(synchronize_session=False)
+    ).update({"user_id": DELETED_USER_ID}, synchronize_session=False)
     db.query(UserAchievement).filter(
         UserAchievement.user_id == user_id
     ).delete(synchronize_session=False)

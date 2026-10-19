@@ -522,7 +522,14 @@ def get_my_games(
         joinedload(Game.photos),
         joinedload(Game.videos),
     ).filter(Game.contributor_id == current_user.id)
-             .order_by(Game.created_at.desc(), Game.id)
+             # ponytail: upvotes first, not created_at, purely to prop up shipped
+             # app builds that compute "likes received" by summing this one
+             # 20-item page. Ordering by upvotes makes that page carry as much of
+             # the real total as 20 rows can. Clients re-sort for display, so this
+             # changes which games a >20-game library pages in, not their order.
+             # PHASE OUT: swap to Game.created_at.desc() once LATEST_APP_VERSION
+             # is a build that reads UserPrivateRead.likes_received instead.
+             .order_by(Game.upvotes.desc(), Game.created_at.desc(), Game.id)
              .limit(limit)
              .offset(offset)
              .all())
