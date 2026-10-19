@@ -1,5 +1,6 @@
 # src/api/auth.py
 import json
+import logging
 import os
 import secrets
 from datetime import datetime, timezone, timedelta
@@ -25,6 +26,8 @@ from src.core.security import validate_password_length
 from src.services.email import send_password_reset_email
 from src.db.database import get_db
 from src.db.tables import User
+
+logger = logging.getLogger(__name__)
 
 IS_PRODUCTION = os.getenv("ENV") == "production"
 
@@ -442,7 +445,11 @@ async def forgot_password(
         try:
             send_password_reset_email(user.email, reset_url)
         except Exception:
-            pass
+            # Deliberately not surfaced to the caller — the response is identical whether or
+            # not the address is registered, so an error here would leak account existence.
+            # It still has to be visible server-side: a broken Resend key would otherwise
+            # black-hole every reset while the endpoint kept reporting success.
+            logger.exception("Password reset email failed for user %s", user.id)
     return {"message": "If that email is registered, a reset link has been sent."}
 
 
@@ -663,7 +670,11 @@ async def logout(
                 user.token_version = (user.token_version or 0) + 1
                 db.commit()
         except Exception:
-            pass
+            # Logout still returns 200 — the client clears its cookie either way, and an
+            # expired or malformed token reaching here is routine. But a failure to bump
+            # token_version means tokens issued earlier stay valid, so the user's other
+            # sessions survive a logout they believe succeeded. That has to be visible.
+            logger.exception("Failed to bump token_version during logout")
 
     response = JSONResponse(content={
         "message": "Successfully logged out"
