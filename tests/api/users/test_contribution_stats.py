@@ -90,16 +90,33 @@ def test_stats_stay_off_the_auth_hot_path(db, test_user):
     )
 
 
-def test_my_games_pages_most_liked_first_for_old_builds(client_with_auth, db, test_user):
-    """Interim prop for shipped builds that sum one page of /games/mine.
+def test_my_games_pages_newest_first(client_with_auth, db, test_user):
+    """The app never pages past the first 20, so a new game must land on page 1.
 
-    Delete alongside the Game.upvotes.desc() ordering in get_my_games once
-    every live build reads likes_received.
+    Ordering by upvotes would push a just-added, unliked game off the page and
+    out of the My Games list entirely.
     """
-    _add_games(db, test_user.id, [1] * 20 + [50, 60])
+    _add_games(db, test_user.id, [50] * 20)
+    _add_games(db, test_user.id, [0])  # newest, no likes
 
     page = client_with_auth.get("/games/mine").json()
 
     assert len(page) == 20
-    # the two heavily-liked games make the page, the low ones get dropped
-    assert sorted((g["upvotes"] for g in page), reverse=True)[:2] == [60, 50]
+    assert page[0]["upvotes"] == 0, "newest game missing from the first page"
+
+
+def test_stats_count_the_same_games_as_my_games(client_with_auth, db, test_user):
+    """games_uploaded must match the /games/mine population: private and
+    unapproved games included, or the card and the list disagree."""
+    _add_games(db, test_user.id, [1, 2])
+    db.query(Game).filter(Game.contributor_id == test_user.id).update(
+        {"is_public": False, "status": "pending"}
+    )
+    db.commit()
+    db.expire_all()
+
+    me = client_with_auth.get("/users/me").json()
+    page = client_with_auth.get("/games/mine").json()
+
+    assert me["games_uploaded"] == len(page) == 2
+    assert me["likes_received"] == 3

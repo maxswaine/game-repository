@@ -179,18 +179,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False deletes the private ones outright. Omitted means the caller did not ask, and the private games are deleted.",
+              "type": "boolean",
+              "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False \u2014 the default, and what an older client that omits the param gets \u2014 deletes the private ones outright.",
+              "default": false,
               "title": "Keep Games"
             },
-            "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False deletes the private ones outright. Omitted means the caller did not ask, and the private games are deleted."
+            "description": "True to keep this account's games after the 30-day window: public ones are reassigned to the placeholder user and private ones are published for review. False \u2014 the default, and what an older client that omits the param gets \u2014 deletes the private ones outright."
           }
         ],
         "responses": {

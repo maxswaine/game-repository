@@ -276,10 +276,10 @@ def test_keep_games_false_deletes_private_games(db):
     assert db.query(Game).filter(Game.id == game_id).first() is None
 
 
-def test_never_asked_keeps_the_original_behaviour(db):
-    """NULL means the account predates the prompt — private games still go."""
+def test_default_keeps_the_original_behaviour(db):
+    """An account that predates the prompt defaults to false — private games go."""
     user = _make_user_past_window(db)
-    assert user.keep_games_on_delete is None
+    assert user.keep_games_on_delete is False
     game_id = _private_game(db, user.id).id
 
     run_purge(db)
@@ -310,7 +310,21 @@ def test_delete_account_records_the_keep_games_choice(client_with_auth, db, test
     assert db.query(User).filter(User.id == test_user.id).first().keep_games_on_delete is True
 
 
-def test_delete_account_without_the_param_records_nothing(client_with_auth, db, test_user):
+def test_delete_account_without_the_param_defaults_to_false(client_with_auth, db, test_user):
     assert client_with_auth.delete("/users/me").status_code == 200
     db.expire(test_user)
-    assert db.query(User).filter(User.id == test_user.id).first().keep_games_on_delete is None
+    assert db.query(User).filter(User.id == test_user.id).first().keep_games_on_delete is False
+
+
+def test_reactivating_clears_the_keep_games_choice(client_with_auth, db, test_user):
+    """The answer belonged to the cancelled deletion, not to the next one."""
+    from src.api.auth import _maybe_reactivate
+
+    assert client_with_auth.delete("/users/me?keep_games=true").status_code == 200
+    db.expire(test_user)
+
+    assert _maybe_reactivate(db.query(User).filter(User.id == test_user.id).first(), db) is True
+
+    user = db.query(User).filter(User.id == test_user.id).first()
+    assert user.is_active is True
+    assert user.keep_games_on_delete is False

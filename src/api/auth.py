@@ -138,6 +138,9 @@ def _maybe_reactivate(user: User, db: Session) -> bool:
     if datetime.now(timezone.utc) - deletion_time <= timedelta(days=30):
         user.is_active = True
         user.deletion_requested_at = None
+        # The keep-my-games answer belonged to the deletion they just cancelled.
+        # Leaving it set arms it for whatever deletion they request next.
+        user.keep_games_on_delete = False
         db.commit()
         return True
     return False

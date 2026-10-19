@@ -37,8 +37,9 @@ def _purge_user(db: Session, user: User) -> None:
     user_id = str(user.id)
 
     # The author chose at deletion time whether their games outlive the account
-    # (DELETE /users/me?keep_games=...). NULL means they were never asked, which
-    # keeps the original behaviour: private games go with the account.
+    # (DELETE /users/me?keep_games=...). False — the default, and what a client
+    # that omits the param gets — keeps the original behaviour: private games go
+    # with the account.
     if user.keep_games_on_delete:
         # A private game owned by the placeholder would be dormant — nobody can
         # sign in as it, and get_game_by_id hides non-public games from everyone

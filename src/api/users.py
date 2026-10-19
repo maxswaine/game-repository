@@ -334,12 +334,12 @@ def logout_other_devices(
 def delete_account(
         current_user: Annotated[User, Depends(get_current_active_user)],
         db: Annotated[Session, Depends(get_db)],
-        keep_games: Annotated[bool | None, Query(
+        keep_games: Annotated[bool, Query(
             description="True to keep this account's games after the 30-day window: public ones "
                         "are reassigned to the placeholder user and private ones are published for "
-                        "review. False deletes the private ones outright. Omitted means the caller "
-                        "did not ask, and the private games are deleted."
-        )] = None,
+                        "review. False — the default, and what an older client that omits the "
+                        "param gets — deletes the private ones outright."
+        )] = False,
 ):
     current_user.is_active = False
     current_user.deletion_requested_at = datetime.now(timezone.utc)

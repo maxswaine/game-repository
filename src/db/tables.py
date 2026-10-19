@@ -32,9 +32,11 @@ class User(Base):
     user_segment = Column(String, nullable=True)
     user_segment_other = Column(String, nullable=True)
     # Asked at deletion time: keep this user's games, or delete them with the
-    # account. NULL means never asked (every account created before the prompt
-    # shipped), which purge treats as the old behaviour.
-    keep_games_on_delete = Column(Boolean, nullable=True)
+    # account. False is both the default and what an unasked caller gets, which
+    # is the pre-existing behaviour (private games go with the account).
+    keep_games_on_delete = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     games = relationship("Game", back_populates="contributor", foreign_keys="Game.contributor_id")
     favourites = relationship("UserFavourites", back_populates="user")
