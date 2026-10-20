@@ -173,10 +173,24 @@ def create_new_game(
                 )
                 for existing_game in gray_zone_games:
                     try:
-                        if judge_potential_duplicate(submission_text, build_game_text(existing_game)):
+                        same_game = judge_potential_duplicate(submission_text, build_game_text(existing_game))
+                        logger.info(
+                            "Duplicate judge: %r vs %r (cosine %.4f) -> %s",
+                            new_game.name, existing_game.name,
+                            id_to_score[existing_game.id], "YES" if same_game else "NO",
+                        )
+                        if same_game:
                             confirmed_ids.add(existing_game.id)
                     except Exception:
-                        continue  # best-effort — a failed judge call just skips that candidate
+                        # Best-effort: a failed judge call skips this candidate rather than blocking
+                        # the submission. It must still be logged — without this, a judge that
+                        # errored is indistinguishable from one that answered NO, which is exactly
+                        # what made the Karekope/Kemps miss on 2026-10-20 unexplainable.
+                        logger.exception(
+                            "Duplicate judge failed: %r vs %r — candidate skipped unjudged",
+                            new_game.name, existing_game.name,
+                        )
+                        continue
 
             if confirmed_ids:
                 similar_games = (
@@ -205,7 +219,12 @@ def create_new_game(
         except HTTPException:
             raise
         except Exception:
-            pass  # best-effort — skip check if OpenAI unavailable
+            # Best-effort: the submission still goes through if OpenAI is unavailable, but a
+            # check that fails for every user must not do so invisibly.
+            logger.exception(
+                "Duplicate check failed for %r — submission allowed through unchecked",
+                new_game.name,
+            )
 
     db_new_game = Game(
         name=new_game.name,
