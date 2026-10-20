@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import lru_cache
 from types import SimpleNamespace
 
@@ -8,6 +9,28 @@ from openai import OpenAI
 from src.services.openai_client import get_openai_client
 
 EMBEDDING_MODEL = "text-embedding-3-small"
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=64)
+def _warn_bad_embeddings(where: str, game_ids: tuple[str, ...], total: int) -> None:
+    logger.warning(
+        "%s skipped %d of %d stored embeddings as unusable: %s",
+        where, len(game_ids), total, list(game_ids[:10]),
+    )
+
+
+def warn_bad_embeddings(where: str, game_ids: list[str], total: int) -> None:
+    """Report unusable stored embeddings once per distinct set, per process.
+
+    A game whose embedding will not parse is permanently unfindable by search and exempt from
+    the duplicate check, so it has to be visible. But the callers sit on the hottest paths in
+    the API — logging per request would emit the same line on every search until it is fixed
+    and bury everything else in the log.
+    """
+    if game_ids:
+        _warn_bad_embeddings(where, tuple(sorted(game_ids)), total)
 
 
 def _client() -> OpenAI:

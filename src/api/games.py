@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone, timedelta, date as date_type
+from functools import lru_cache
 from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,7 +15,7 @@ from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
-from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity
+from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity, warn_bad_embeddings
 from src.services.duplicate_judge import judge_potential_duplicate
 from src.utils.config import (
     DUPLICATE_SIMILARITY_THRESHOLD,
@@ -63,18 +64,26 @@ def _normalize_tags(values: list[str], db: Session, table_column, enum_values: l
     return [fold_map.get(v.strip().lower(), v.strip()) for v in values if v and v.strip()]
 
 
+@lru_cache(maxsize=512)
+def _warn_unparseable_dob(user_id: str, raw: str) -> None:
+    """Warn once per (user, value) per process.
+
+    _parse_dob is reached from _apply_age_content_filter, which runs on GET /games/ and
+    POST /games/search/ — logging there unthrottled would emit a line per feed load for the
+    affected user and bury every other signal in the log.
+    """
+    logger.warning("Unparseable date_of_birth %r on user %s — treating as non-adult", raw, user_id)
+
+
 def _parse_dob(user) -> date_type | None:
     if not user or not user.date_of_birth:
         return None
     try:
         return date_type.fromisoformat(user.date_of_birth)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # silent-ok: _warn_unparseable_dob logs, throttled
         # An unparseable DOB makes _user_is_adult() fall back to "not an adult", which
         # age-gates a real adult out of their own submission. Rare, but must be findable.
-        logger.warning(
-            "Unparseable date_of_birth %r on user %s — treating as non-adult",
-            user.date_of_birth, getattr(user, "id", "?"),
-        )
+        _warn_unparseable_dob(str(getattr(user, "id", "?")), str(user.date_of_birth))
         return None
 
 
@@ -159,13 +168,9 @@ def create_new_game(
                 except Exception:  # silent-ok: collected and logged once after the loop
                     unscorable.append(row.id)
                     continue
-            if unscorable:
-                # A game whose embedding will not score is exempt from the duplicate check
-                # entirely — a duplicate of it can never be flagged.
-                logger.warning(
-                    "Duplicate check could not score %d of %d stored embeddings: %s",
-                    len(unscorable), len(slim), unscorable[:10],
-                )
+            # A game whose embedding will not score is exempt from the duplicate check
+            # entirely — a duplicate of it can never be flagged.
+            warn_bad_embeddings("Duplicate check", unscorable, len(slim))
             scored.sort(key=lambda x: x[1], reverse=True)
 
             id_to_score = {id_: score for id_, score in scored}
