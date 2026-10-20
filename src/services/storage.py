@@ -49,7 +49,13 @@ def generate_quarantine_get(object_key: str, expires_in: int = 300) -> str:
 def head_quarantine(object_key: str) -> dict | None:
     try:
         resp = _get_s3().head_object(Bucket=R2_QUARANTINE_BUCKET, Key=object_key)
-    except botocore.exceptions.ClientError:
+    except botocore.exceptions.ClientError as e:
+        # 404 is the normal "client has not finished uploading" case and stays quiet. Anything
+        # else (403, throttling, bucket misconfigured) is an R2 problem the caller reports to
+        # the user as a plain missing upload, so it has to be visible here.
+        code = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code != 404:
+            logger.exception("head_object failed for quarantine key %s", object_key)
         return None
     return {"size": resp["ContentLength"], "content_type": resp.get("ContentType", "")}
 

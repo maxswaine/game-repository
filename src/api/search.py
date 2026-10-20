@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import List, Annotated
 
@@ -16,6 +17,8 @@ from src.models.game_models.game_search import GameSearchRequest, GameSearchResu
 from src.services.embedder import embed_query, json_to_embedding
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 _NO_EQUIPMENT_PHRASES = [
     "no equipment", "without equipment", "no gear", "nothing needed",
@@ -145,15 +148,28 @@ def _rank(rows: list[tuple[str, str]], query_vector) -> tuple[list[str], list[fl
 
     ids: list[str] = []
     vectors: list[list[float]] = []
+    unparseable: list[str] = []
+    wrong_width: list[str] = []
     for game_id, raw in rows:
         try:
             vector = json_to_embedding(raw)
-        except Exception:
+        except Exception:  # silent-ok: counted and logged once after the loop
+            unparseable.append(game_id)
             continue
         if len(vector) != query_v.shape[0]:
+            wrong_width.append(game_id)
             continue
         ids.append(game_id)
         vectors.append(vector)
+
+    # Counted once per search rather than logged per row: a corrupt or wrong-dimension
+    # embedding makes that game permanently unfindable, which is otherwise invisible because
+    # the search still returns 200 with a shorter list.
+    if unparseable or wrong_width:
+        logger.warning(
+            "Search skipped %d of %d candidates with bad embeddings (unparseable=%s wrong_width=%s)",
+            len(unparseable) + len(wrong_width), len(rows), unparseable[:10], wrong_width[:10],
+        )
 
     if not ids:
         return [], []

@@ -69,6 +69,12 @@ def _parse_dob(user) -> date_type | None:
     try:
         return date_type.fromisoformat(user.date_of_birth)
     except (ValueError, TypeError):
+        # An unparseable DOB makes _user_is_adult() fall back to "not an adult", which
+        # age-gates a real adult out of their own submission. Rare, but must be findable.
+        logger.warning(
+            "Unparseable date_of_birth %r on user %s — treating as non-adult",
+            user.date_of_birth, getattr(user, "id", "?"),
+        )
         return None
 
 
@@ -144,13 +150,22 @@ def create_new_game(
                 .all()
             )
             scored: list[tuple] = []
+            unscorable: list[str] = []
             for row in slim:
                 try:
                     score = cosine_similarity(candidate_embedding, json_to_embedding(row.embedding))
                     if score >= DUPLICATE_CANDIDATE_THRESHOLD:
                         scored.append((row.id, round(score, 4)))
-                except Exception:
+                except Exception:  # silent-ok: collected and logged once after the loop
+                    unscorable.append(row.id)
                     continue
+            if unscorable:
+                # A game whose embedding will not score is exempt from the duplicate check
+                # entirely — a duplicate of it can never be flagged.
+                logger.warning(
+                    "Duplicate check could not score %d of %d stored embeddings: %s",
+                    len(unscorable), len(slim), unscorable[:10],
+                )
             scored.sort(key=lambda x: x[1], reverse=True)
 
             id_to_score = {id_: score for id_, score in scored}
@@ -290,7 +305,10 @@ def create_new_game(
         db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game, aliases=creator_aliases)))
         db.commit()
     except Exception:
-        pass  # embedding is best-effort — game is still created, backfill via embed_games.py
+        # Best-effort: the game is still created. But a game with no embedding is invisible to
+        # BOTH semantic search and the duplicate check, so a silent failure here quietly degrades
+        # both. Backfill with scripts/embed_games.py.
+        logger.exception("Embedding failed for new game %s (%r)", db_new_game.id, db_new_game.name)
 
     return map_game_to_read(db_new_game)
 
@@ -726,7 +744,9 @@ def update_game(
         db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game, aliases=approved_aliases)))
         db.commit()
     except Exception:
-        pass  # embedding is best-effort
+        # Best-effort, but leaves the game on its PREVIOUS embedding — so search and the
+        # duplicate check keep matching the pre-edit text until this is backfilled.
+        logger.exception("Re-embedding failed for game %s (%r)", db_game.id, db_game.name)
 
     liked_ids = _get_liked_ids(db, current_user.id)
     return map_game_to_read(db_game, liked_ids)

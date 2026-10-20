@@ -66,6 +66,9 @@ class BrainDumpSplitter:
             missing = [field for field in FIELDS if not getattr(result, field)]
             return result, missing, None
         except Exception:
+            # The user is told to enter the fields by hand; without this log line a brain dump
+            # that fails for everyone looks identical to one nobody used.
+            logger.exception("Brain dump split failed")
             return None, [], "Brain dump failed, please enter fields manually."
 
 

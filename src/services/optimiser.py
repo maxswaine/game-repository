@@ -74,6 +74,7 @@ class TextOptimiser:
             )
 
         except Exception as e:
+            logger.exception("Optimisation failed for field_type=%s", getattr(self, "field_type", "?"))
             return OptimisationResult(
                 status="failed",
                 original=user_text,
