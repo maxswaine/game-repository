@@ -13,13 +13,21 @@ from src.services import notifications
 router = APIRouter()
 
 
-def _broadcast_task(title: str, body: str, game_id: str | None) -> None:
+def _broadcast_task(title: str, body: str, game_id: str | None, audience: str) -> None:
     db = SessionLocal()
     try:
         data = {"game_id": game_id} if game_id else None
-        user_ids = [row.id for row in db.query(User.id).filter(User.is_active.is_(True)).all()]
-        for user_id in user_ids:
-            notifications.send(db, user_id, title, body, notification_type="custom", data=data)
+
+        if audience in ("users", "all"):
+            user_ids = [row.id for row in db.query(User.id).filter(User.is_active.is_(True)).all()]
+            for user_id in user_ids:
+                notifications.send(db, user_id, title, body, notification_type="custom", data=data)
+
+        if audience in ("devices", "all"):
+            notifications.send_to_anonymous_devices(
+                db, title, body, notification_type="custom", data=data,
+            )
+
         db.commit()
     finally:
         db.close()
@@ -42,5 +50,5 @@ def send_admin_notification(
         db.commit()
         return JSONResponse(status_code=200, content={"status": "sent"})
 
-    background_tasks.add_task(_broadcast_task, body.title, body.body, body.game_id)
+    background_tasks.add_task(_broadcast_task, body.title, body.body, body.game_id, body.audience)
     return JSONResponse(status_code=202, content={"status": "queued"})

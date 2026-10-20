@@ -56,7 +56,19 @@ SELECT 'push token freshness' AS check,
        COUNT(*) FILTER (WHERE updated_at < now() - interval '30 days') AS stale_30d
 FROM push_tokens GROUP BY platform;
 
+-- 7b. Anonymous device rows — tokens registered before sign-in, and how many were claimed.
+--     These are legitimately user_id IS NULL, so check 8 excludes them from "orphan".
+SELECT 'anonymous push tokens' AS check,
+       platform,
+       COUNT(*) FILTER (WHERE user_id IS NULL) AS anonymous,
+       COUNT(*) FILTER (WHERE user_id IS NULL AND device_id IS NULL) AS anonymous_no_device_id,
+       COUNT(*) FILTER (WHERE user_id IS NOT NULL) AS claimed
+FROM push_tokens GROUP BY platform;
+
 -- 8. Orphaned rows — FK cascades that did not fire, or rows pointing at deleted parents.
+--    NOTE: notifications and push_tokens both allow a NULL user_id by design (anonymous
+--    device broadcasts), so a NULL user_id is only an orphan when it is also non-NULL. The
+--    `user_id IS NOT NULL` guards below keep those from inflating the count.
 SELECT 'orphan equipment' AS check, COUNT(*) FROM game_equipment ge
   LEFT JOIN games g ON g.id = ge.game_id WHERE g.id IS NULL
 UNION ALL
@@ -70,10 +82,10 @@ SELECT 'orphan favourites (user gone)', COUNT(*) FROM user_favourites uf
   LEFT JOIN users u ON u.id = uf.user_id WHERE u.id IS NULL
 UNION ALL
 SELECT 'orphan notifications', COUNT(*) FROM notifications n
-  LEFT JOIN users u ON u.id = n.user_id WHERE u.id IS NULL
+  LEFT JOIN users u ON u.id = n.user_id WHERE n.user_id IS NOT NULL AND u.id IS NULL
 UNION ALL
 SELECT 'orphan push tokens', COUNT(*) FROM push_tokens pt
-  LEFT JOIN users u ON u.id = pt.user_id WHERE u.id IS NULL;
+  LEFT JOIN users u ON u.id = pt.user_id WHERE pt.user_id IS NOT NULL AND u.id IS NULL;
 
 -- 9. Games with no contributor, or pointing at a user that no longer exists.
 SELECT 'game without live contributor' AS check, g.id, g.name, g.contributor_id
