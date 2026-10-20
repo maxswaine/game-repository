@@ -32,11 +32,16 @@ def _client() -> OpenAI:
     return get_openai_client()
 
 
-def judge_potential_duplicate(submission_text: str, existing_game_text: str) -> bool:
+def judge_potential_duplicate(
+    submission_text: str, existing_game_text: str, model: str | None = None
+) -> bool:
     """Ask an LLM whether two game write-ups describe the same underlying game.
 
     Best-effort: callers should treat any exception as "not confirmed" rather than blocking
     the submission, matching the embedding-based check's failure behavior.
+
+    `model` overrides DUPLICATE_LLM_JUDGE_MODEL, so scripts/audit_pending_duplicates.py can
+    compare models on the same pairs before the Railway variable is changed.
     """
     messages = [
         {"role": "system", "content": _JUDGE_SYSTEM_PROMPT},
@@ -50,7 +55,7 @@ def judge_potential_duplicate(submission_text: str, existing_game_text: str) -> 
     ]
 
     response = _client().responses.create(
-        model=DUPLICATE_LLM_JUDGE_MODEL,
+        model=model or DUPLICATE_LLM_JUDGE_MODEL,
         input=messages,
         temperature=0,
     )
