@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone, timedelta, date as date_type
 from typing import Optional, List, Annotated
 
@@ -44,6 +45,8 @@ from src.utils.age_filter import detect_adult_content, detect_profanity
 
 protected_router = APIRouter()
 public_router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 NO_EQUIPMENT = "No Equipment"
 _MODERATED_TEXT_FIELDS = {"name", "description", "objective", "setup", "rules"}
@@ -127,7 +130,12 @@ def create_new_game(
         content_text,
     ) or detect_profanity(content_text)
 
-    if not force:
+    if force:
+        logger.warning(
+            "Duplicate check bypassed: user=%s submitted %r with force=true",
+            current_user.id, new_game.name,
+        )
+    else:
         try:
             candidate_embedding = embed_text(build_game_text_from_create(new_game))
             slim = (
@@ -215,6 +223,7 @@ def create_new_game(
         is_public=new_game.is_public,
         is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         has_adult_content=adult_flag,
+        force_submitted=force,
         status="pending" if GAME_REVIEW_GATE_ENABLED else "approved",
         created_at=datetime.now(timezone.utc),
         contributor_id=current_user.id
@@ -765,6 +774,7 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
         status=db_game.status,
+        force_submitted=db_game.force_submitted,
         rejection_reason_code=db_game.rejection_reason_code,
         rejection_reason=db_game.rejection_reason,
         liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,

@@ -77,6 +77,11 @@ class Game(Base):
     embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
     has_adult_content = Column(Boolean, nullable=False, default=False)
 
+    # True when the contributor re-posted with ?force=true after the duplicate check returned 409.
+    # Without this the bypass left no trace, so a forced duplicate was indistinguishable from one
+    # the check never flagged (the check is best-effort and swallows its own failures).
+    force_submitted = Column(Boolean, nullable=False, default=False)
+
     status = Column(String, nullable=False, default="pending")  # pending | approved | rejected
     rejection_reason_code = Column(String, nullable=True)  # GameRejectionReasonEnum value
     rejection_reason = Column(String, nullable=True)  # optional free-text detail from the admin

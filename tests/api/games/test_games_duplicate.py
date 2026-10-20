@@ -35,6 +35,28 @@ def test_create_game_with_force_bypasses_duplicate_check(client_with_auth, db):
     assert response.status_code == 201
 
 
+def test_force_submitted_records_the_bypass(client_with_auth, db):
+    """force=true must leave a trace — a forced duplicate was previously indistinguishable
+    from one the best-effort check never flagged."""
+    with patch(_PATCH_TARGET, return_value=FAKE_VECTOR):
+        create_public_game(client_with_auth, db)
+
+        payload = valid_public_game_payload(overrides={"name": "Slightly Different Name"})
+        forced = client_with_auth.post("/games/?force=true", json=payload)
+
+    assert forced.status_code == 201
+    assert forced.json()["force_submitted"] is True
+
+    different_vector = [0.0] * 1535 + [1.0]
+    with patch(_PATCH_TARGET, return_value=different_vector):
+        clean = client_with_auth.post("/games/", json=valid_public_game_payload(
+            overrides={"name": "Nothing Like The Others"}
+        ))
+
+    assert clean.status_code == 201
+    assert clean.json()["force_submitted"] is False
+
+
 def test_create_game_proceeds_when_no_similar_games(client_with_auth, db):
     different_vector = [0.0] * 1535 + [1.0]
     with patch(_PATCH_TARGET, return_value=different_vector):
