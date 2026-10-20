@@ -21,12 +21,16 @@ Usage:
 ADMIN_TOKEN needs role=admin (it reads /admin/games/pending). Read-only: nothing is written
 to the API or the database.
 
-KNOWN BLIND SPOT: the live check compares against every game with an embedding, with no
-is_public or status filter (src/api/games.py). This script can only reach public+approved
-games plus the pending queue, because no endpoint lists other users' private games. So a
-"clean" verdict here means "no duplicate among the games this script can see" — prod may
-still have flagged it against a private game. GOPS is the known case: three 409s in prod on
-2026-10-20, clean against the public catalogue. Use the SQL in the summary output to check.
+CORPUS: the live check compares against every game with an embedding, with no is_public or
+status filter (src/api/games.py) — rejected games included. No endpoint lists those, so pass
+their ids in EXTRA_GAME_IDS to score against the same corpus prod uses:
+
+    SELECT string_agg(id, ',') FROM games
+    WHERE embedding IS NOT NULL AND (is_public = false OR status <> 'approved');
+
+    EXTRA_GAME_IDS=id1,id2,... OPENAI_API_KEY=... ADMIN_TOKEN=... python scripts/...
+
+Without it, a "clean" verdict only means "no duplicate among public approved games".
 """
 import json
 import os
@@ -43,7 +47,7 @@ API = os.getenv("API_BASE", "https://api.whatsthatgame.co.uk")
 DEFAULT_MODELS = ["gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1"]
 
 
-def _get(path: str, token: str | None = None) -> list[dict]:
+def _get(path: str, token: str | None = None) -> list[dict] | dict:
     req = urllib.request.Request(
         f"{API}{path}",
         headers={
@@ -103,14 +107,22 @@ def main() -> None:
             break
         offset += 200
 
-    print(f"{len(pending)} pending, {len(approved)} approved, judges: {', '.join(models)}")
+    extra_ids = [i.strip() for i in (os.getenv("EXTRA_GAME_IDS") or "").split(",") if i.strip()]
+    extra = [_get(f"/games/{game_id}", token) for game_id in extra_ids]
+    corpus = approved + extra
+
+    print(
+        f"{len(pending)} pending, {len(approved)} approved"
+        + (f" + {len(extra)} non-approved (EXTRA_GAME_IDS)" if extra else " (no EXTRA_GAME_IDS)")
+        + f", judges: {', '.join(models)}"
+    )
     print(
         f"thresholds: candidate >= {DUPLICATE_CANDIDATE_THRESHOLD}, "
         f"auto-flag >= {DUPLICATE_SIMILARITY_THRESHOLD}\n"
     )
 
-    print("embedding the approved catalogue...", end=" ", flush=True)
-    approved_vectors = [(g, embed_text(_text(g))) for g in approved]
+    print(f"embedding {len(corpus)} catalogue games...", end=" ", flush=True)
+    corpus_vectors = [(g, embed_text(_text(g))) for g in corpus]
     print("done\n")
 
     verdicts: dict[str, list[str]] = {}
@@ -120,7 +132,7 @@ def main() -> None:
         scored = sorted(
             (
                 (round(cosine_similarity(candidate, vector), 4), other)
-                for other, vector in approved_vectors
+                for other, vector in corpus_vectors
             ),
             key=lambda row: row[0],
             reverse=True,
@@ -160,13 +172,12 @@ def main() -> None:
         hits = verdicts.get(game["name"])
         print(f"  {game['name']:28} {'DUPLICATE of ' + ', '.join(hits) if hits else 'clean'}")
 
-    print(
-        f"\nScored against {len(approved)} public approved games. The live check also compares"
-        "\nagainst private and non-approved games, which no endpoint exposes — so 'clean' here"
-        "\nis not proof. To see the rest of the corpus prod compares against:"
-        "\n\n  SELECT id, name, is_public, status FROM games"
-        "\n  WHERE embedding IS NOT NULL AND (is_public = false OR status <> 'approved');\n"
-    )
+    print(f"\nScored against {len(corpus)} games.")
+    if not extra_ids:
+        print(
+            "Rejected and non-public games were NOT included, but the live check does include"
+            "\nthem. Re-run with EXTRA_GAME_IDS to match prod — see the module docstring.\n"
+        )
 
 
 if __name__ == "__main__":
