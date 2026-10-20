@@ -20,6 +20,13 @@ Usage:
 
 ADMIN_TOKEN needs role=admin (it reads /admin/games/pending). Read-only: nothing is written
 to the API or the database.
+
+KNOWN BLIND SPOT: the live check compares against every game with an embedding, with no
+is_public or status filter (src/api/games.py). This script can only reach public+approved
+games plus the pending queue, because no endpoint lists other users' private games. So a
+"clean" verdict here means "no duplicate among the games this script can see" — prod may
+still have flagged it against a private game. GOPS is the known case: three 409s in prod on
+2026-10-20, clean against the public catalogue. Use the SQL in the summary output to check.
 """
 import json
 import os
@@ -152,6 +159,14 @@ def main() -> None:
     for game in pending:
         hits = verdicts.get(game["name"])
         print(f"  {game['name']:28} {'DUPLICATE of ' + ', '.join(hits) if hits else 'clean'}")
+
+    print(
+        f"\nScored against {len(approved)} public approved games. The live check also compares"
+        "\nagainst private and non-approved games, which no endpoint exposes — so 'clean' here"
+        "\nis not proof. To see the rest of the corpus prod compares against:"
+        "\n\n  SELECT id, name, is_public, status FROM games"
+        "\n  WHERE embedding IS NOT NULL AND (is_public = false OR status <> 'approved');\n"
+    )
 
 
 if __name__ == "__main__":
