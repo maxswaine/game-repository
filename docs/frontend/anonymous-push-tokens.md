@@ -36,6 +36,10 @@ To actually fix signed-out registration:
 2. Drop the assumption in `registerForPushNotifications()` that a session is required — the
    tutorial-completion path at `src/navigation/index.tsx:324-331` can now register successfully.
 3. Keep calling `DELETE /push-tokens/` on sign-out and on the Settings toggle, unchanged.
+4. **Send `device_id` on the revoked-permission cleanup DELETE too.** Once notifications are revoked
+   in OS settings, `getExpoPushTokenAsync` throws, so `unregisterRevokedPushToken()` cannot recover a
+   token on a cold start — `cachedToken` is module state and is gone after a restart. `device_id` is
+   readable from the keychain regardless of permission, so pass it and the row is found either way.
 
 `device_id` is what keeps one row per device across sign-in and across Expo token rotation. Without it
 the device still works, but a rotated token can leave a stale duplicate row behind.
@@ -61,11 +65,15 @@ Auth optional. `201` on insert, `200` on update, `400` if `token` is not an Expo
 ### `DELETE /push-tokens/`
 
 ```ts
-{ token: string }
+{ token?: string, device_id?: string }   // at least one; 422 if neither
 ```
 
-Auth optional, always `204`. An authenticated caller can delete their own token or an unclaimed one; an
-unauthenticated caller can only delete an unclaimed one.
+Auth optional, always `204`. Either identifier removes the row, and sending both is an OR — which is
+what clears the row when Expo has rotated the token since registration. An authenticated caller can
+delete their own row or an unclaimed one; an unauthenticated caller can only delete an unclaimed one.
+
+`token` is optional rather than required because a device whose notifications were revoked in OS
+settings can no longer produce one. Builds that send only `{token}` are unaffected.
 
 The row is **deleted**, not re-anonymised. The app uses this same call for sign-out and for the Settings
 notifications toggle and the backend cannot tell them apart — nulling `user_id` would leave someone who
