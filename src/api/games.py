@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone, timedelta, date as date_type
+from functools import lru_cache
 from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,7 +15,7 @@ from src.core.exceptions import GAME_NOT_FOUND_EXCEPTION, UNAUTHORIZED_EXCEPTION
 from src.db.database import get_db
 from src.models.enums.sort_by_enum import SortByEnum
 from src.services.achievements import grant_if_not_exists
-from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity
+from src.services.embedder import build_game_text, embed_text, embedding_to_json, build_game_text_from_create, json_to_embedding, cosine_similarity, warn_bad_embeddings
 from src.services.duplicate_judge import judge_potential_duplicate
 from src.utils.config import (
     DUPLICATE_SIMILARITY_THRESHOLD,
@@ -45,6 +47,8 @@ from src.utils.age_filter import detect_adult_content, detect_profanity
 protected_router = APIRouter()
 public_router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 NO_EQUIPMENT = "No Equipment"
 _MODERATED_TEXT_FIELDS = {"name", "description", "objective", "setup", "rules"}
 
@@ -60,12 +64,26 @@ def _normalize_tags(values: list[str], db: Session, table_column, enum_values: l
     return [fold_map.get(v.strip().lower(), v.strip()) for v in values if v and v.strip()]
 
 
+@lru_cache(maxsize=512)
+def _warn_unparseable_dob(user_id: str, raw: str) -> None:
+    """Warn once per (user, value) per process.
+
+    _parse_dob is reached from _apply_age_content_filter, which runs on GET /games/ and
+    POST /games/search/ — logging there unthrottled would emit a line per feed load for the
+    affected user and bury every other signal in the log.
+    """
+    logger.warning("Unparseable date_of_birth %r on user %s — treating as non-adult", raw, user_id)
+
+
 def _parse_dob(user) -> date_type | None:
     if not user or not user.date_of_birth:
         return None
     try:
         return date_type.fromisoformat(user.date_of_birth)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError):  # silent-ok: _warn_unparseable_dob logs, throttled
+        # An unparseable DOB makes _user_is_adult() fall back to "not an adult", which
+        # age-gates a real adult out of their own submission. Rare, but must be findable.
+        _warn_unparseable_dob(str(getattr(user, "id", "?")), str(user.date_of_birth))
         return None
 
 
@@ -127,7 +145,12 @@ def create_new_game(
         content_text,
     ) or detect_profanity(content_text)
 
-    if not force:
+    if force:
+        logger.warning(
+            "Duplicate check bypassed: user=%s submitted %r with force=true",
+            current_user.id, new_game.name,
+        )
+    else:
         try:
             candidate_embedding = embed_text(build_game_text_from_create(new_game))
             slim = (
@@ -136,13 +159,18 @@ def create_new_game(
                 .all()
             )
             scored: list[tuple] = []
+            unscorable: list[str] = []
             for row in slim:
                 try:
                     score = cosine_similarity(candidate_embedding, json_to_embedding(row.embedding))
                     if score >= DUPLICATE_CANDIDATE_THRESHOLD:
                         scored.append((row.id, round(score, 4)))
-                except Exception:
+                except Exception:  # silent-ok: collected and logged once after the loop
+                    unscorable.append(row.id)
                     continue
+            # A game whose embedding will not score is exempt from the duplicate check
+            # entirely — a duplicate of it can never be flagged.
+            warn_bad_embeddings("Duplicate check", unscorable, len(slim))
             scored.sort(key=lambda x: x[1], reverse=True)
 
             id_to_score = {id_: score for id_, score in scored}
@@ -165,10 +193,24 @@ def create_new_game(
                 )
                 for existing_game in gray_zone_games:
                     try:
-                        if judge_potential_duplicate(submission_text, build_game_text(existing_game)):
+                        same_game = judge_potential_duplicate(submission_text, build_game_text(existing_game))
+                        logger.info(
+                            "Duplicate judge: %r vs %r (cosine %.4f) -> %s",
+                            new_game.name, existing_game.name,
+                            id_to_score[existing_game.id], "YES" if same_game else "NO",
+                        )
+                        if same_game:
                             confirmed_ids.add(existing_game.id)
                     except Exception:
-                        continue  # best-effort — a failed judge call just skips that candidate
+                        # Best-effort: a failed judge call skips this candidate rather than blocking
+                        # the submission. It must still be logged — without this, a judge that
+                        # errored is indistinguishable from one that answered NO, which is exactly
+                        # what made the Karekope/Kemps miss on 2026-10-20 unexplainable.
+                        logger.exception(
+                            "Duplicate judge failed: %r vs %r — candidate skipped unjudged",
+                            new_game.name, existing_game.name,
+                        )
+                        continue
 
             if confirmed_ids:
                 similar_games = (
@@ -197,7 +239,12 @@ def create_new_game(
         except HTTPException:
             raise
         except Exception:
-            pass  # best-effort — skip check if OpenAI unavailable
+            # Best-effort: the submission still goes through if OpenAI is unavailable, but a
+            # check that fails for every user must not do so invisibly.
+            logger.exception(
+                "Duplicate check failed for %r — submission allowed through unchecked",
+                new_game.name,
+            )
 
     db_new_game = Game(
         name=new_game.name,
@@ -215,6 +262,7 @@ def create_new_game(
         is_public=new_game.is_public,
         is_whats_that_game_verified=new_game.is_whats_that_game_certified,
         has_adult_content=adult_flag,
+        force_submitted=force,
         status="pending" if GAME_REVIEW_GATE_ENABLED else "approved",
         created_at=datetime.now(timezone.utc),
         contributor_id=current_user.id
@@ -262,7 +310,10 @@ def create_new_game(
         db_new_game.embedding = embedding_to_json(embed_text(build_game_text(db_new_game, aliases=creator_aliases)))
         db.commit()
     except Exception:
-        pass  # embedding is best-effort — game is still created, backfill via embed_games.py
+        # Best-effort: the game is still created. But a game with no embedding is invisible to
+        # BOTH semantic search and the duplicate check, so a silent failure here quietly degrades
+        # both. Backfill with scripts/embed_games.py.
+        logger.exception("Embedding failed for new game %s (%r)", db_new_game.id, db_new_game.name)
 
     return map_game_to_read(db_new_game)
 
@@ -698,7 +749,9 @@ def update_game(
         db_game.embedding = embedding_to_json(embed_text(build_game_text(db_game, aliases=approved_aliases)))
         db.commit()
     except Exception:
-        pass  # embedding is best-effort
+        # Best-effort, but leaves the game on its PREVIOUS embedding — so search and the
+        # duplicate check keep matching the pre-edit text until this is backfilled.
+        logger.exception("Re-embedding failed for game %s (%r)", db_game.id, db_game.name)
 
     liked_ids = _get_liked_ids(db, current_user.id)
     return map_game_to_read(db_game, liked_ids)
@@ -765,6 +818,7 @@ def map_game_to_read(db_game: Game, liked_game_ids: set[str] | None = None) -> G
         aliases=[a.alias for a in db_game.alias_objects if a.status == "approved"],
         has_adult_content=db_game.has_adult_content,
         status=db_game.status,
+        force_submitted=db_game.force_submitted,
         rejection_reason_code=db_game.rejection_reason_code,
         rejection_reason=db_game.rejection_reason,
         liked_by_me=liked_game_ids is not None and db_game.id in liked_game_ids,

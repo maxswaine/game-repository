@@ -1,5 +1,7 @@
 import json
+import logging
 from functools import lru_cache
+from types import SimpleNamespace
 
 import numpy as np
 from openai import OpenAI
@@ -7,6 +9,28 @@ from openai import OpenAI
 from src.services.openai_client import get_openai_client
 
 EMBEDDING_MODEL = "text-embedding-3-small"
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=64)
+def _warn_bad_embeddings(where: str, game_ids: tuple[str, ...], total: int) -> None:
+    logger.warning(
+        "%s skipped %d of %d stored embeddings as unusable: %s",
+        where, len(game_ids), total, list(game_ids[:10]),
+    )
+
+
+def warn_bad_embeddings(where: str, game_ids: list[str], total: int) -> None:
+    """Report unusable stored embeddings once per distinct set, per process.
+
+    A game whose embedding will not parse is permanently unfindable by search and exempt from
+    the duplicate check, so it has to be visible. But the callers sit on the hottest paths in
+    the API — logging per request would emit the same line on every search until it is fixed
+    and bury everything else in the log.
+    """
+    if game_ids:
+        _warn_bad_embeddings(where, tuple(sorted(game_ids)), total)
 
 
 def _client() -> OpenAI:
@@ -92,50 +116,34 @@ def json_to_embedding(text: str) -> list[float]:
 
 
 def build_game_text_from_create(game) -> str:
-    """Build embedding text from a GameCreate Pydantic model."""
-    parts = [
-        game.name,
-        game.description,
-        f"Type: {game.game_type.value if hasattr(game.game_type, 'value') else game.game_type}",
-        f"Players: {game.player_count.min_players}-{game.player_count.max_players}",
-        f"Duration: {game.duration}",
-    ]
-    if game.game_setting:
-        settings = ", ".join(
-            s.value if hasattr(s, "value") else str(s) for s in game.game_setting
-        )
-        parts.append(f"Settings: {settings}")
-    if game.difficulty:
-        diff = game.difficulty.value if hasattr(game.difficulty, "value") else game.difficulty
-        parts.append(f"Difficulty: {diff}")
-    if game.equipment:
-        equipment = [
-            e.value if hasattr(e, "value") else str(e)
-            for e in game.equipment
-            if (e.value if hasattr(e, "value") else str(e)) != "No Equipment"
-        ]
-        if equipment:
-            parts.append(f"Equipment: {', '.join(equipment)}")
-    parts.append(game.objective)
-    if game.setup:
-        parts.append(f"Setup: {game.setup}")
-    if game.rules:
-        parts.append(f"Rules: {game.rules}")
-    return ". ".join(parts)
+    """Build embedding text from a GameCreate Pydantic model.
 
+    Delegates to build_game_text rather than rebuilding the string, so the text the duplicate
+    check embeds is byte-identical to the text that will be stored for the same game. The two
+    had drifted apart: this one dropped the "No Equipment" sentinel and ignored aliases, while
+    build_game_text kept both — so every cosine score the duplicate check produced was measured
+    against slightly differently-shaped text than the corpus it compared to.
+    """
+    def value_of(v):
+        return v.value if hasattr(v, "value") else str(v)
 
-def find_similar_games(
-    games: list,
-    candidate_embedding: list[float],
-    threshold: float,
-) -> list[tuple]:
-    """Return (game, score) pairs where cosine similarity >= threshold, sorted descending."""
-    results = []
-    for game in games:
-        if not game.embedding:
-            continue
-        stored = json_to_embedding(game.embedding)
-        score = cosine_similarity(candidate_embedding, stored)
-        if score >= threshold:
-            results.append((game, round(score, 4)))
-    return sorted(results, key=lambda x: x[1], reverse=True)
+    shim = SimpleNamespace(
+        name=game.name,
+        description=game.description,
+        game_type=value_of(game.game_type),
+        min_players=game.player_count.min_players,
+        max_players=game.player_count.max_players,
+        duration=value_of(game.duration),
+        difficulty=value_of(game.difficulty) if game.difficulty else None,
+        setting_items=[
+            SimpleNamespace(setting_name=value_of(s)) for s in (game.game_setting or [])
+        ],
+        equipment_items=[
+            SimpleNamespace(equipment_name=value_of(e)) for e in (game.equipment or [])
+        ],
+        objective=game.objective,
+        setup=game.setup,
+        rules=game.rules,
+    )
+    aliases = [a.strip() for a in (getattr(game, "aliases", None) or []) if a.strip()]
+    return build_game_text(shim, aliases=aliases)

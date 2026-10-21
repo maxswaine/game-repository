@@ -208,3 +208,60 @@ class TestSendAchievementNotification:
 
         _, kwargs = mock_send.call_args
         assert kwargs["achievement_type"] == "hall_of_fame"
+
+
+class TestSendToAnonymousDevices:
+    def test_reaches_only_tokens_with_no_user(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[anon]", user_id=None, device_id="d1", platform="ios"))
+        db.add(PushToken(token="ExponentPushToken[user]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        mock_ticket = MagicMock()
+        mock_ticket.id = "ticket-anon"
+        mock_ticket.push_message.to = "ExponentPushToken[anon]"
+        mock_ticket.validate_response.return_value = None
+        mock_client = MagicMock()
+        mock_client.publish_multiple.return_value = [mock_ticket]
+
+        with patch("src.services.notifications._get_push_client", return_value=mock_client):
+            notifications.send_to_anonymous_devices(db, "Title", "Body", data={"game_id": "g1"})
+            db.commit()
+
+        sent_messages = mock_client.publish_multiple.call_args[0][0]
+        assert [m.to for m in sent_messages] == ["ExponentPushToken[anon]"]
+
+        note = db.query(Notification).filter_by(title="Title").one()
+        assert note.user_id is None
+        assert note.status == "sent"
+
+        ticket_row = db.query(PushDeliveryTicket).filter_by(notification_id=note.id).one()
+        assert ticket_row.token == "ExponentPushToken[anon]"
+
+    def test_logs_no_token_when_no_anonymous_devices_exist(self, db, test_user):
+        db.add(PushToken(token="ExponentPushToken[user]", user_id=test_user.id, platform="ios"))
+        db.commit()
+
+        with patch("src.services.notifications._get_push_client") as mock_get_client:
+            notifications.send_to_anonymous_devices(db, "Nobody", "Body")
+            db.commit()
+
+        mock_get_client.assert_not_called()
+        note = db.query(Notification).filter_by(title="Nobody").one()
+        assert note.user_id is None
+        assert note.status == "no_token"
+
+
+class TestSendRefusesMissingUserId:
+    def test_drops_the_send_instead_of_broadcasting_to_anonymous_devices(self, db):
+        # `PushToken.user_id == None` renders as IS NULL in SQLAlchemy, so without the guard
+        # a caller that lost its user_id would push a personal notification to every
+        # signed-out device.
+        db.add(PushToken(token="ExponentPushToken[anon]", user_id=None, device_id="d1", platform="ios"))
+        db.commit()
+
+        with patch("src.services.notifications._get_push_client") as mock_get_client:
+            notifications.send(db, None, "Leak", "Body", notification_type="achievement")
+            db.commit()
+
+        mock_get_client.assert_not_called()
+        assert db.query(Notification).filter_by(title="Leak").first() is None

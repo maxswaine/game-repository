@@ -5,4 +5,4 @@ __pycache__/
 *.pyc
 *.pyo
 test.db
-.DS_Store
+.DS_Storetmp.db

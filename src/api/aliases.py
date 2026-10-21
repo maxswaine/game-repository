@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +13,8 @@ from src.services.embedder import build_game_text, embed_text, embedding_to_json
 
 public_router = APIRouter()
 admin_router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 @public_router.post("/{game_id}/aliases", response_model=AliasRead, status_code=201)
@@ -94,4 +97,8 @@ def _re_embed_game_with_aliases(db: Session, game_id: str) -> None:
         game.embedding = embedding_to_json(embed_text(text))
         db.commit()
     except Exception:
-        pass
+        # Best-effort: the alias is approved either way, but until this succeeds the new alias
+        # is not searchable and will not help the duplicate check match this game.
+        logger.exception(
+            "Re-embedding failed after alias approval for game %s (%r)", game.id, game.name
+        )

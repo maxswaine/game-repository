@@ -13,7 +13,7 @@ from src.db.database import get_db
 from src.db.tables import Game, GameEquipment, User
 from src.models.enums.equipment_enum import GameEquipmentEnum
 from src.models.game_models.game_search import GameSearchRequest, GameSearchResult
-from src.services.embedder import embed_query, json_to_embedding
+from src.services.embedder import embed_query, json_to_embedding, warn_bad_embeddings
 
 router = APIRouter()
 
@@ -145,15 +145,23 @@ def _rank(rows: list[tuple[str, str]], query_vector) -> tuple[list[str], list[fl
 
     ids: list[str] = []
     vectors: list[list[float]] = []
+    unparseable: list[str] = []
+    wrong_width: list[str] = []
     for game_id, raw in rows:
         try:
             vector = json_to_embedding(raw)
-        except Exception:
+        except Exception:  # silent-ok: counted and logged once after the loop
+            unparseable.append(game_id)
             continue
         if len(vector) != query_v.shape[0]:
+            wrong_width.append(game_id)
             continue
         ids.append(game_id)
         vectors.append(vector)
+
+    # A corrupt or wrong-dimension embedding makes that game permanently unfindable, which is
+    # otherwise invisible: the search still returns 200, just with a shorter list.
+    warn_bad_embeddings("Search", unparseable + wrong_width, len(rows))
 
     if not ids:
         return [], []

@@ -77,6 +77,11 @@ class Game(Base):
     embedding = Column(String, nullable=True)  # JSON array of floats from text-embedding-3-small
     has_adult_content = Column(Boolean, nullable=False, default=False)
 
+    # True when the contributor re-posted with ?force=true after the duplicate check returned 409.
+    # Without this the bypass left no trace, so a forced duplicate was indistinguishable from one
+    # the check never flagged (the check is best-effort and swallows its own failures).
+    force_submitted = Column(Boolean, nullable=False, default=False)
+
     status = Column(String, nullable=False, default="pending")  # pending | approved | rejected
     rejection_reason_code = Column(String, nullable=True)  # GameRejectionReasonEnum value
     rejection_reason = Column(String, nullable=True)  # optional free-text detail from the admin
@@ -202,7 +207,14 @@ class CommentLike(Base):
 class PushToken(Base):
     __tablename__ = "push_tokens"
     token = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Nullable: a device that granted push permission before ever signing in owns a row with
+    # no user. Signing in claims that row (see src/api/push_tokens.py); signing out leaves the
+    # token deleted, not re-anonymised, because the app uses the same call for "log out" and
+    # "turn notifications off" and the latter must actually stop delivery.
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Client-generated, stable per install. Lets a device keep one row across Expo token
+    # rotation and across sign-in, so audience="all" never sends to the same device twice.
+    device_id = Column(String, nullable=True, index=True)
     platform = Column(String, nullable=False)
     updated_at = Column(
         DateTime,
@@ -215,7 +227,9 @@ class PushToken(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Nullable for broadcasts to anonymous devices — there is no user to attribute them to.
+    # The per-token trace for those lives in push_delivery_tickets.
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(String, nullable=False)
     title = Column(String, nullable=False)
     body = Column(String, nullable=False)

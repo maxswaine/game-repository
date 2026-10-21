@@ -36,7 +36,51 @@ def send(
     data: Optional[dict] = None,
     achievement_type: Optional[str] = None,
 ) -> None:
+    if not user_id:
+        # Now that push_tokens.user_id is nullable this is a live footgun, not a nicety:
+        # `PushToken.user_id == None` renders as `IS NULL`, so a caller that lost its user_id
+        # would deliver one person's achievement or comment reply to EVERY signed-out device.
+        # Drop the send and leave a line to find it by; no caller should ever reach here.
+        logger.error(
+            "notifications.send called with no user_id (type=%s, title=%r) — dropped. "
+            "Use send_to_anonymous_devices() for device broadcasts.",
+            notification_type, title,
+        )
+        return
+
     tokens = db.query(PushToken).filter(PushToken.user_id == user_id).all()
+    _send_to_tokens(db, tokens, user_id, title, body, notification_type, data, achievement_type)
+
+
+def send_to_anonymous_devices(
+    db: Session,
+    title: str,
+    body: str,
+    *,
+    notification_type: str = "custom",
+    data: Optional[dict] = None,
+) -> None:
+    """Broadcast to devices that registered a push token without ever signing in.
+
+    One Notification row covers the whole batch (user_id NULL — there is no user to attribute
+    it to); the per-device trace is the PushDeliveryTicket rows keyed on token. Only
+    broadcasts belong here: achievements, comment replies and review outcomes all need a user.
+    """
+    tokens = db.query(PushToken).filter(PushToken.user_id.is_(None)).all()
+    _send_to_tokens(db, tokens, None, title, body, notification_type, data, None)
+
+
+def _send_to_tokens(
+    db: Session,
+    tokens: list,
+    user_id: Optional[str],
+    title: str,
+    body: str,
+    notification_type: str,
+    data: Optional[dict],
+    achievement_type: Optional[str],
+) -> None:
+    audience = f"user {user_id}" if user_id else "anonymous devices"
 
     if not tokens:
         _log(db, user_id, title, body, notification_type, data, achievement_type, status="no_token")
@@ -51,7 +95,7 @@ def send(
         (valid_tokens if PushClient.is_exponent_push_token(t.token) else invalid_tokens).append(t)
 
     for t in invalid_tokens:
-        logger.warning("Pruning malformed push token for user %s: %r", user_id, t.token)
+        logger.warning("Pruning malformed push token for %s: %r", audience, t.token)
         db.query(PushToken).filter(PushToken.token == t.token).delete()
 
     if not valid_tokens:
@@ -69,7 +113,7 @@ def send(
     try:
         tickets = _get_push_client().publish_multiple(messages)
     except Exception:
-        logger.exception("Expo publish_multiple failed for user %s", user_id)
+        logger.exception("Expo publish_multiple failed for %s", audience)
         for t in valid_tokens:
             db.add(PushDeliveryTicket(
                 notification_id=note.id,

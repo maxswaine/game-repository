@@ -52,6 +52,9 @@ class GameRead(GameBase):
     status: str = "pending"
     rejection_reason_code: Optional[str] = None
     rejection_reason: Optional[str] = None
+    # Flags a submission that was re-posted with ?force=true past a duplicate warning,
+    # so the admin review queue can show which pending games already matched something.
+    force_submitted: bool = False
     # Deprecated alias for is_whats_that_game_certified — 2c3999b briefly renamed this to
     # is_verified; reverted since old app builds never migrated and the rename bought nothing.
     # Keep both populated indefinitely; is_verified is dead weight but cheap to carry.
