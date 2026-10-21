@@ -5,7 +5,7 @@
 The app asks for push permission straight after the tutorial, before the user has an account.
 `POST /push-tokens/` required auth, so that call 401'd and the token was never stored: the OS showed
 notifications as enabled and the backend had no row. iOS has been in this state since push shipped;
-on Android it was masked by the missing FCM config.
+on Android it was masked by the missin FCM config.
 
 Three changes, all additive:
 

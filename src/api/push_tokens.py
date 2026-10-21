@@ -3,6 +3,7 @@ from typing import Annotated
 
 from exponent_server_sdk import PushClient
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
@@ -74,10 +75,18 @@ def delete_push_token(
     # user_id would leave a user who explicitly turned notifications off still receiving
     # broadcasts. The cost is that signing out drops the device's anonymous subscription;
     # the next launch re-registers it.
-    # An unauthenticated caller can only drop a token no user has claimed.
+    # Match on either identifier. A revoked device can only supply device_id, and OR-ing them
+    # also clears the device's row when its Expo token has rotated since registration.
+    identifiers = []
+    if body.token:
+        identifiers.append(PushToken.token == body.token)
+    if body.device_id:
+        identifiers.append(PushToken.device_id == body.device_id)
+
+    # An unauthenticated caller can only drop a row no user has claimed.
     deletable = PushToken.user_id.is_(None)
     if current_user:
         deletable = deletable | (PushToken.user_id == current_user.id)
 
-    db.query(PushToken).filter(PushToken.token == body.token, deletable).delete()
+    db.query(PushToken).filter(or_(*identifiers), deletable).delete()
     db.commit()

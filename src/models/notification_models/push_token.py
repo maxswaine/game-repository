@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class PushTokenCreate(BaseModel):
@@ -11,4 +11,16 @@ class PushTokenCreate(BaseModel):
 
 
 class PushTokenDelete(BaseModel):
-    token: str
+    # Either identifier removes the row. `token` stays optional rather than required because
+    # a device whose notifications were revoked in OS settings can no longer produce one —
+    # getExpoPushTokenAsync throws without permission — while device_id is in the keychain and
+    # always readable. Without this, revoked devices could never unsubscribe and kept counting
+    # as reachable. Builds that send only {token} are unaffected.
+    token: Optional[str] = None
+    device_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def require_an_identifier(self):
+        if not self.token and not self.device_id:
+            raise ValueError("token or device_id is required")
+        return self

@@ -215,3 +215,56 @@ class TestDeletePushToken:
         response = client_no_auth.request("DELETE", "/push-tokens/", json={"token": "ExponentPushToken[mine]"})
         assert response.status_code == 204
         assert db.query(PushToken).filter_by(token="ExponentPushToken[mine]").first() is not None
+
+
+class TestDeleteByDeviceId:
+    def test_revoked_device_can_unsubscribe_without_its_token(self, client_as_user, db, test_user):
+        # A device whose notifications were revoked in OS settings cannot fetch its Expo token
+        # any more (getExpoPushTokenAsync throws without permission), so device_id is the only
+        # identifier it still holds. Without this path the row survives and the device keeps
+        # counting as reachable while the OS silently drops every send.
+        db.add(PushToken(
+            token="ExponentPushToken[revoked]", user_id=test_user.id, device_id="d1", platform="ios",
+        ))
+        db.commit()
+
+        response = client_as_user.request("DELETE", "/push-tokens/", json={"device_id": "d1"})
+        assert response.status_code == 204
+        assert db.query(PushToken).filter_by(device_id="d1").first() is None
+
+    def test_signed_out_revoked_device_can_unsubscribe(self, client_no_auth, db):
+        db.add(PushToken(token="ExponentPushToken[anon]", user_id=None, device_id="d2", platform="ios"))
+        db.commit()
+
+        response = client_no_auth.request("DELETE", "/push-tokens/", json={"device_id": "d2"})
+        assert response.status_code == 204
+        assert db.query(PushToken).filter_by(device_id="d2").first() is None
+
+    def test_does_not_delete_another_users_device_row(self, client_as_user, db, second_user):
+        db.add(PushToken(
+            token="ExponentPushToken[theirs]", user_id=second_user.id, device_id="d3", platform="ios",
+        ))
+        db.commit()
+
+        response = client_as_user.request("DELETE", "/push-tokens/", json={"device_id": "d3"})
+        assert response.status_code == 204
+        assert db.query(PushToken).filter_by(device_id="d3").first() is not None
+
+    def test_both_identifiers_clears_the_row_after_token_rotation(self, client_as_user, db, test_user):
+        # The app sends the token it believes it has plus its device_id. If Expo rotated the
+        # token since registration, only device_id still matches — OR-ing them still clears it.
+        db.add(PushToken(
+            token="ExponentPushToken[old]", user_id=test_user.id, device_id="d4", platform="ios",
+        ))
+        db.commit()
+
+        response = client_as_user.request(
+            "DELETE", "/push-tokens/",
+            json={"token": "ExponentPushToken[rotated]", "device_id": "d4"},
+        )
+        assert response.status_code == 204
+        assert db.query(PushToken).filter_by(device_id="d4").first() is None
+
+    def test_empty_body_is_422(self, client_as_user):
+        response = client_as_user.request("DELETE", "/push-tokens/", json={})
+        assert response.status_code == 422
