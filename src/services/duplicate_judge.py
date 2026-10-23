@@ -55,8 +55,8 @@ def judge_potential_duplicate(
     ]
 
     response = _client().responses.create(
+        # Successor models reject `temperature`; judge prompt is constrained enough without it.
         model=model or DUPLICATE_LLM_JUDGE_MODEL,
         input=messages,
-        temperature=0,
     )
     return response.output_text.strip().upper().startswith("YES")

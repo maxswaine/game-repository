@@ -45,9 +45,10 @@ class TextOptimiser:
 
         try:
             response = _get_client().responses.create(
-                model="gpt-4.1-nano",
+                # gpt-4.1-nano shut down 2026-10-23. Successor rejects `temperature`,
+                # so it is not passed here (was 0.2).
+                model="gpt-5.6-luna",
                 input=messages,
-                temperature=0.2,
             )
 
             optimized_text = response.output_text

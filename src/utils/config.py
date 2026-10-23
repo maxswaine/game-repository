@@ -18,7 +18,7 @@ DUPLICATE_CANDIDATE_THRESHOLD: float = float(
 DUPLICATE_LLM_CANDIDATE_LIMIT: int = int(
     os.getenv("DUPLICATE_LLM_CANDIDATE_LIMIT", "5")
 )
-DUPLICATE_LLM_JUDGE_MODEL: str = os.getenv("DUPLICATE_LLM_JUDGE_MODEL", "gpt-4.1-nano")
+DUPLICATE_LLM_JUDGE_MODEL: str = os.getenv("DUPLICATE_LLM_JUDGE_MODEL", "gpt-5.6-luna")
 DELETED_USER_ID: str = "00000000-0000-0000-0000-000000000001"
 
 # Lowest app semver still allowed to call the API without a client-side "please update" prompt.
