@@ -179,6 +179,34 @@ game/user payload builders live in `tests/utils.py`. `tests/api/games/helper.py`
 `create_public_game()`, `create_private_game()`, `create_user()`, `get_user_token()`, `upvote_game()`) for use inside
 tests.
 
+## Notification automation
+
+`src/services/notification_automation.py` sends lifecycle pushes and an approval queue. `run_tick()` is the only
+entry point; `scripts/run_notifications.py` calls it (intended as an hourly Railway cron service, start command
+`python -m scripts.run_notifications`). It is **off until `NOTIFICATION_AUTOMATION_ENABLED=true`** — that variable is
+also the kill switch. Tunables (all env): `NOTIFICATION_SEND_HOUR` (local hour, default 17),
+`NOTIFICATION_WEEKLY_CAP` (default 3 campaign pushes per user per 7 days; achievements/replies/review outcomes are
+exempt), `NOTIFICATION_STALE_HOURS` (default 12; an unsent scheduled push this far late is dropped, not sent late).
+
+- **Lifecycle campaigns** are the `CAMPAIGNS` list in code (copy reviewed in a PR). `Notification.type` is the dedupe
+  key — one per user, ever. Add one by appending a `Campaign`; `GET /admin/notifications/campaigns` lists them.
+- **Approval queue** is `scheduled_notifications`. Drafts (admin or the weekly Claude routine) share a `batch_id`;
+  `POST /admin/notifications/scheduled/batches/{id}/approve` approves a whole batch. Nothing sends unless
+  `approved`; editing approved copy sends it back to `draft`. `local_time=true` rows fan out per timezone.
+- **Timezones** come from the app: `POST /push-tokens/` accepts an optional IANA `timezone`, stored on
+  `push_tokens.timezone` (per device). Unset = treated as UTC. Unrecognised names are dropped, not rejected.
+- **Opt-out is the existing token delete** — there is no separate marketing switch.
+- Delivery is at-most-once (a row/zone is marked done before it is sent). On Postgres an advisory lock stops
+  overlapping ticks double-sending.
+- `GET /admin/notifications/timezones` shows whether the app reports real zones: counts by bucket (reported / not
+  reported / invalid / UTC), top zones, and a `warning` when most devices say UTC (stripped Intl build) or any name
+  was not an IANA zone (`push_tokens.timezone_error`). Check it after each app release.
+- `GET /admin/notifications/stats` shows sent/failed/opened per type — check it after enabling; a campaign at 0 sent
+  is the only visible symptom of a broken one.
+
+**Deploy order:** run `scripts/migrate_push_token_timezone.sql` on Railway **before** deploying (new column on an
+existing table — `create_all` will not add it). The `scheduled_notifications` table is created automatically.
+
 ## Error handling — no silent failures
 
 **Never swallow an exception without logging it.** Best-effort work that must not fail the request (embeddings,
