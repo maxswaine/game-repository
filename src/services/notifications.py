@@ -70,6 +70,25 @@ def send_to_anonymous_devices(
     _send_to_tokens(db, tokens, None, title, body, notification_type, data, None)
 
 
+def send_to_tokens(
+    db: Session,
+    tokens: list,
+    user_id: Optional[str],
+    title: str,
+    body: str,
+    *,
+    notification_type: str = "custom",
+    data: Optional[dict] = None,
+) -> None:
+    """Send to an explicit token list rather than everything a user owns.
+
+    For callers that have already chosen *which devices* — timezone-aware campaigns send only
+    to the devices whose local clock is right. user_id is the owner (None for signed-out
+    devices); an empty list logs a no_token row exactly like send() does.
+    """
+    _send_to_tokens(db, tokens, user_id, title, body, notification_type, data, None)
+
+
 def _send_to_tokens(
     db: Session,
     tokens: list,
