@@ -47,3 +47,15 @@ R2_SECRET_ACCESS_KEY: str = os.getenv("R2_SECRET_ACCESS_KEY", "")
 R2_BUCKET: str = os.getenv("R2_BUCKET", "")
 R2_QUARANTINE_BUCKET: str = os.getenv("R2_QUARANTINE_BUCKET", "")
 R2_PUBLIC_URL: str = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
+
+# Notification automation (src/services/notification_automation.py). Off by default so merging
+# the code sends nothing until this is flipped deliberately; flipping it back is the kill switch.
+NOTIFICATION_AUTOMATION_ENABLED: bool = os.getenv("NOTIFICATION_AUTOMATION_ENABLED", "false").lower() == "true"
+# Local hour (0-23) at which lifecycle campaigns go out. Each device is judged in its own
+# timezone, so this is "5pm wherever you are", not 17:00 UTC.
+NOTIFICATION_SEND_HOUR: int = int(os.getenv("NOTIFICATION_SEND_HOUR", "17"))
+# Most campaign/lifecycle pushes one user may receive in any rolling 7 days. Transactional
+# types (achievements, comment replies, review outcomes) are exempt.
+NOTIFICATION_WEEKLY_CAP: int = int(os.getenv("NOTIFICATION_WEEKLY_CAP", "3"))
+# A scheduled push this many hours past its send time is dropped, not sent late.
+NOTIFICATION_STALE_HOURS: int = int(os.getenv("NOTIFICATION_STALE_HOURS", "12"))

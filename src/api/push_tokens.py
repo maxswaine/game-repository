@@ -11,6 +11,7 @@ from src.api.users import get_current_user_optional
 from src.db.database import get_db
 from src.db.tables import PushToken, User
 from src.models.notification_models.push_token import PushTokenCreate, PushTokenDelete
+from src.services.notification_automation import parse_zone
 
 router = APIRouter()
 
@@ -26,6 +27,11 @@ def register_push_token(
     # device had notifications switched on at the OS level and no row here.
     if not PushClient.is_exponent_push_token(body.token):
         raise HTTPException(status_code=400, detail="Not a valid Expo push token")
+
+    # Stored only if it is a real zone name. A bad one is kept in timezone_error (and logged by
+    # parse_zone) so a broken client shows up in /admin/notifications/timezones.
+    tz_name = body.timezone if parse_zone(body.timezone) else None
+    tz_error = body.timezone[:64] if body.timezone and not tz_name else None
 
     if body.device_id:
         # One row per device. The Expo token is the primary key, so a rotated token would
@@ -46,6 +52,13 @@ def register_push_token(
         existing.platform = body.platform
         if body.device_id:
             existing.device_id = body.device_id
+        if tz_name:
+            # Re-sent on every launch, so a traveller's row follows them. A build that omits the
+            # field leaves a previously stored zone alone rather than wiping it.
+            existing.timezone = tz_name
+            existing.timezone_error = None
+        elif tz_error:
+            existing.timezone_error = tz_error
         # The app re-registers on every launch, but user_id/platform are almost always
         # unchanged — SQLAlchemy then emits no UPDATE and `onupdate` never fires, leaving
         # updated_at frozen at first registration. Stamp it explicitly so the column means
@@ -58,6 +71,8 @@ def register_push_token(
         token=body.token,
         user_id=current_user.id if current_user else None,
         device_id=body.device_id,
+        timezone=tz_name,
+        timezone_error=tz_error,
         platform=body.platform,
     ))
     db.commit()
