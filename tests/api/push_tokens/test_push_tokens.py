@@ -268,3 +268,53 @@ class TestDeleteByDeviceId:
     def test_empty_body_is_422(self, client_as_user):
         response = client_as_user.request("DELETE", "/push-tokens/", json={})
         assert response.status_code == 422
+
+
+class TestTimezone:
+    def test_stores_a_valid_zone_on_a_new_token(self, client_as_user, db):
+        response = client_as_user.post(
+            "/push-tokens/",
+            json={"token": "ExponentPushToken[tz1]", "platform": "ios", "timezone": "Europe/London"},
+        )
+        assert response.status_code == 201
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[tz1]").one().timezone == "Europe/London"
+
+    def test_old_builds_that_send_no_timezone_still_register(self, client_as_user, db):
+        response = client_as_user.post("/push-tokens/", json={"token": "ExponentPushToken[tz2]", "platform": "ios"})
+        assert response.status_code == 201
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[tz2]").one().timezone is None
+
+    def test_unrecognised_zone_is_dropped_but_the_token_is_still_saved(self, client_as_user, db):
+        response = client_as_user.post(
+            "/push-tokens/",
+            json={"token": "ExponentPushToken[tz3]", "platform": "ios", "timezone": "Mars/Olympus"},
+        )
+        assert response.status_code == 201
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[tz3]").one().timezone is None
+
+    def test_reregistering_updates_the_zone_so_a_traveller_follows(self, client_as_user, db):
+        body = {"token": "ExponentPushToken[tz4]", "platform": "ios"}
+        client_as_user.post("/push-tokens/", json={**body, "timezone": "Europe/London"})
+        client_as_user.post("/push-tokens/", json={**body, "timezone": "Asia/Tokyo"})
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[tz4]").one().timezone == "Asia/Tokyo"
+
+    def test_a_build_that_omits_the_zone_does_not_wipe_a_stored_one(self, client_as_user, db):
+        body = {"token": "ExponentPushToken[tz5]", "platform": "ios"}
+        client_as_user.post("/push-tokens/", json={**body, "timezone": "Europe/London"})
+        client_as_user.post("/push-tokens/", json=body)
+        assert db.query(PushToken).filter_by(token="ExponentPushToken[tz5]").one().timezone == "Europe/London"
+
+    def test_unrecognised_zone_is_recorded_so_it_can_be_counted(self, client_as_user, db):
+        client_as_user.post(
+            "/push-tokens/",
+            json={"token": "ExponentPushToken[tz6]", "platform": "ios", "timezone": "Mars/Olympus"},
+        )
+        row = db.query(PushToken).filter_by(token="ExponentPushToken[tz6]").one()
+        assert (row.timezone, row.timezone_error) == (None, "Mars/Olympus")
+
+    def test_a_valid_zone_clears_an_earlier_error(self, client_as_user, db):
+        body = {"token": "ExponentPushToken[tz7]", "platform": "ios"}
+        client_as_user.post("/push-tokens/", json={**body, "timezone": "Mars/Olympus"})
+        client_as_user.post("/push-tokens/", json={**body, "timezone": "Europe/London"})
+        row = db.query(PushToken).filter_by(token="ExponentPushToken[tz7]").one()
+        assert (row.timezone, row.timezone_error) == ("Europe/London", None)

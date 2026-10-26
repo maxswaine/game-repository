@@ -8,6 +8,10 @@ class PushTokenCreate(BaseModel):
     platform: str
     # Optional so app builds <= 1.1.2, which send only {token, platform}, keep working.
     device_id: Optional[str] = None
+    # IANA zone name from the phone (e.g. "Europe/London"), so campaigns land at a sensible local
+    # hour. Optional so older builds keep working; unrecognised names are dropped, not rejected,
+    # because failing registration over a timezone would cost us the push token.
+    timezone: Optional[str] = None
 
 
 class PushTokenDelete(BaseModel):

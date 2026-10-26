@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum, select, func
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Enum, Text, select, func
 from sqlalchemy.orm import relationship, column_property, deferred
 
 from src.db.database import Base
@@ -215,6 +215,13 @@ class PushToken(Base):
     # Client-generated, stable per install. Lets a device keep one row across Expo token
     # rotation and across sign-in, so audience="all" never sends to the same device twice.
     device_id = Column(String, nullable=True, index=True)
+    # IANA zone name (e.g. "Europe/London") the app reads off the phone at registration. Per
+    # device rather than per user so signed-out devices and travellers are covered. Null means
+    # an app build that predates the field; automation treats those devices as UTC.
+    timezone = Column(String, nullable=True)
+    # The last name the app sent that wasn't a real IANA zone. Cleared once a valid one arrives.
+    # Lets /admin/notifications/timezones count bad reports instead of only logging them.
+    timezone_error = Column(String, nullable=True)
     platform = Column(String, nullable=False)
     updated_at = Column(
         DateTime,
@@ -238,6 +245,36 @@ class Notification(Base):
     status = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     opened_at = Column(DateTime, nullable=True)
+
+
+class ScheduledNotification(Base):
+    """A campaign push waiting in the approval queue (see src/services/notification_automation.py).
+
+    Drafts are written by an admin or the weekly Claude routine; nothing sends until a human
+    moves it to "approved". Rows from one drafting run share a batch_id so a whole week can be
+    reviewed and approved in one call.
+    """
+    __tablename__ = "scheduled_notifications"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    batch_id = Column(String, nullable=True, index=True)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    data = Column(String, nullable=True)
+    audience = Column(String, nullable=False, default="users")  # users | devices | all
+    # Naive datetime. local_time=False: a UTC instant. local_time=True: a wall-clock time that
+    # each device reaches in its own timezone, so one row fans out over ~26 hours.
+    send_at = Column(DateTime, nullable=False, index=True)
+    local_time = Column(Boolean, nullable=False, default=True)
+    # draft | approved | sent | cancelled | expired
+    status = Column(String, nullable=False, default="draft", index=True)
+    source = Column(String, nullable=False, default="admin")  # admin | claude
+    rationale = Column(String, nullable=True)  # why it was drafted; shown on the approval screen
+    # JSON list of timezone names already delivered to, so a local_time row never re-sends.
+    sent_zones = Column(Text, nullable=True)
+    approved_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class PushDeliveryTicket(Base):
