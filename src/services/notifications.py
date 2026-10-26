@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.db.tables import Notification, PushDeliveryTicket, PushToken
 from src.models.enums.achievement_enum import AchievementTypeEnum
+from src.models.enums.game_rejection_reason_enum import GameRejectionReasonEnum
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +200,11 @@ def send_game_status_notification(
     if status == "approved":
         title = "Game approved!"
         body = f'"{game_name}" is now live.'
+    elif rejection_reason_code == GameRejectionReasonEnum.duplicate.value:
+        # A duplicate has nothing for the contributor to edit, so the generic
+        # "edit and resubmit" copy below would send them looking for a fix that isn't there.
+        title = "We've got this one!"
+        body = f'"{game_name}" is already on the app - tap to see our note, we\'d love your rule variants.'
     else:
         title = "Nearly there!"
         body = f'Your game "{game_name}" needs a few tweaks before it goes live. Check out our comments on the app, edit and resubmit!'

@@ -5,6 +5,7 @@ from exponent_server_sdk import DeviceNotRegisteredError, PushTicketError
 
 from src.db.tables import Notification, PushDeliveryTicket, PushToken
 from src.models.enums.achievement_enum import AchievementTypeEnum, SIGNAL_ONLY_ACHIEVEMENTS
+from src.models.enums.game_rejection_reason_enum import GameRejectionReasonEnum
 from src.services import notifications
 
 
@@ -208,6 +209,43 @@ class TestSendAchievementNotification:
 
         _, kwargs = mock_send.call_args
         assert kwargs["achievement_type"] == "hall_of_fame"
+
+
+class TestSendGameStatusNotification:
+    def test_duplicate_does_not_ask_the_contributor_to_edit(self, db, test_user):
+        with patch("src.services.notifications.send") as mock_send:
+            notifications.send_game_status_notification(
+                db, test_user.id, "game-1", "Shed",
+                "rejected", GameRejectionReasonEnum.duplicate.value, "Already live as Shithead.",
+            )
+
+        args, kwargs = mock_send.call_args
+        title, body = args[2], args[3]
+        assert title == "We've got this one!"
+        assert "already on the app" in body
+        assert "resubmit" not in body
+        assert kwargs["data"] == {"game_id": "game-1", "status": "rejected"}
+
+    def test_other_rejection_reasons_keep_the_edit_and_resubmit_copy(self, db, test_user):
+        with patch("src.services.notifications.send") as mock_send:
+            notifications.send_game_status_notification(
+                db, test_user.id, "game-2", "Alager",
+                "rejected", GameRejectionReasonEnum.low_quality.value, "Rules contradict each other.",
+            )
+
+        args, _ = mock_send.call_args
+        assert args[2] == "Nearly there!"
+        assert "edit and resubmit" in args[3]
+
+    def test_approved_is_unchanged(self, db, test_user):
+        with patch("src.services.notifications.send") as mock_send:
+            notifications.send_game_status_notification(
+                db, test_user.id, "game-3", "Pen Fight", "approved",
+            )
+
+        args, _ = mock_send.call_args
+        assert args[2] == "Game approved!"
+        assert args[3] == '"Pen Fight" is now live.'
 
 
 class TestSendToAnonymousDevices:
