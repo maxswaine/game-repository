@@ -222,7 +222,7 @@ class TestSendGameStatusNotification:
         args, kwargs = mock_send.call_args
         title, body = args[2], args[3]
         assert title == "We've got this one!"
-        assert body == '"Shed" is already on the app. Tap to see our note.'
+        assert body == '"Shed" is already on the app. Tap to see our note!'
         assert "resubmit" not in body
         assert kwargs["data"] == {"game_id": "game-1", "status": "rejected"}
 
