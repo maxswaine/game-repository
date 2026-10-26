@@ -204,7 +204,7 @@ def send_game_status_notification(
         # A duplicate has nothing for the contributor to edit, so the generic
         # "edit and resubmit" copy below would send them looking for a fix that isn't there.
         title = "We've got this one!"
-        body = f'"{game_name}" is already on the app. Tap to see our note, we\'d love your rule variants.'
+        body = f'"{game_name}" is already on the app. Tap to see our note.'
     else:
         title = "Nearly there!"
         body = f'Your game "{game_name}" needs a few tweaks before it goes live. Check out our comments on the app, edit and resubmit!'
